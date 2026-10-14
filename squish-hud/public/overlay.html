@@ -24,7 +24,7 @@ const qs = new URLSearchParams(location.search);
 const scene = qs.get("scene") || "auto";
 const hud = document.getElementById("hud");
 let DB = null, GAME = null;
-if (qs.get("bg")) { const c = document.getElementById("bg"); c.style.display = "block"; SquishHUD.drawBg(c, qs.get("bg")); }
+if (qs.get("bg")) { const c = document.getElementById("bg"); c.style.display = "block"; SquishHUD.drawBg(c, qs.get("bg") === "pitch" ? "game" : qs.get("bg"), qs.get("game") || ""); }
 function fit() { hud.style.transform = `scale(${Math.min(innerWidth / 1280, innerHeight / 720)})`; }
 addEventListener("resize", fit); fit();
 function draw() {

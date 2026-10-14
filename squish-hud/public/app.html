@@ -335,7 +335,8 @@ hud(e){
     <div class="fld" style="flex:none"><span>Colors</span><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}">Team</button></div></div>
     <div class="fld" style="flex:none"><span>Customise</span><div class="row c" style="gap:8px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></div></div>
     ${e.game==="League of Legends"?`<div class="fld" style="flex:0 1 230px">${F.sel("hud.lolPanel","Bottom panel",[["auto","Auto (teamfight strip during fights)"],["lane","Always lane panel"],["fight","Always teamfight strip"]])}</div>`:""}
-    <div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["pitch","Pitch"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${h.bg===k}">${l}</button>`).join("")}</div></div>
+    <div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>
+    ${h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
   <div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Player Lists":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam","Player Webcam")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
   ${stage()}`;
@@ -476,7 +477,8 @@ function mountStages(){$$("[data-stage]").forEach(st=>{st.innerHTML=`<canvas ari
 function updateStages(redraw){
   const e=ev();if(!e)return;
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
-    if(redraw||c.dataset.bg!==e.hud.bg){SquishHUD.drawBg(c,e.hud.bg);c.dataset.bg=e.hud.bg}
+    const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
+    if(redraw||c.dataset.bg!==key){SquishHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
     SquishHUD.render(h,e,GAME,st.dataset.stage);h.style.transform=`scale(${st.clientWidth/1280})`});
 }
 function liveBits(){

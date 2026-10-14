@@ -301,20 +301,43 @@
     return m;
   }
 
-  function drawBg(c, kind) {
-    const W = 320, H = 180; c.width = W; c.height = H; const g = c.getContext("2d");
+  /* Preview backdrop, drawn at full 1280x720 so it stays crisp. It's a stand-in for game footage, not
+     a picture of the game: "game" picks a neutral backdrop that fits the event's game, "image" uses your own screenshot. */
+  function drawBg(c, kind, game, imageUrl) {
+    const W = 1280, H = 720; c.width = W; c.height = H; const g = c.getContext("2d");
+    const vignette = a => { const v = g.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .72); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${a})`); g.fillStyle = v; g.fillRect(0, 0, W, H); };
     if (kind === "none") { g.fillStyle = "#000"; g.fillRect(0, 0, W, H); return; }
-    if (kind === "checker") { for (let y = 0; y < H; y += 10) for (let x = 0; x < W; x += 10) { g.fillStyle = ((x + y) / 10) % 2 ? "#2b2c31" : "#202126"; g.fillRect(x, y, 10, 10); } return; }
-    const sky = g.createLinearGradient(0, 0, 0, H * .45); sky.addColorStop(0, "#081226"); sky.addColorStop(1, "#1b3566"); g.fillStyle = sky; g.fillRect(0, 0, W, H);
-    g.fillStyle = "#0c1427"; g.fillRect(0, 44, W, 26);
-    for (let i = 0; i < 260; i++) { g.fillStyle = `hsla(${i % 2 ? 215 : 28},70%,${40 + (i * 37 % 30)}%,.55)`; g.fillRect((i * 97) % W, 46 + (i * 13) % 22, 1, 1); }
-    for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? "#23763a" : "#1f6a34"; const y0 = 70 + i * 11, y1 = y0 + 11, k0 = (y0 - 70) / 110, k1 = (y1 - 70) / 110;
-      g.beginPath(); g.moveTo(80 - 80 * k0, y0); g.lineTo(240 + 80 * k0, y0); g.lineTo(240 + 80 * k1, y1); g.lineTo(80 - 80 * k1, y1); g.fill(); }
-    g.strokeStyle = "rgba(255,255,255,.55)"; g.beginPath(); g.moveTo(80, 70); g.lineTo(240, 70); g.moveTo(160, 70); g.lineTo(160, H); g.stroke();
-    g.beginPath(); g.ellipse(160, 120, 40, 14, 0, 0, Math.PI * 2); g.stroke();
-    g.fillStyle = "rgba(255,140,30,.65)"; g.fillRect(140, 58, 40, 12);
-    g.fillStyle = "#cfd5e0"; g.beginPath(); g.arc(176, 106, 4, 0, Math.PI * 2); g.fill();
-    g.fillStyle = "#1d5bff"; g.fillRect(120, 150, 26, 9); g.fillStyle = "#ff8a1a"; g.fillRect(205, 98, 14, 6);
+    if (kind === "checker") { for (let y = 0; y < H; y += 40) for (let x = 0; x < W; x += 40) { g.fillStyle = ((x + y) / 40) % 2 ? "#2b2c31" : "#202126"; g.fillRect(x, y, 40, 40); } return; }
+    if (kind === "image" && imageUrl) {
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      const im = new Image();
+      im.onload = () => { const k = Math.max(W / im.width, H / im.height), w = im.width * k, h = im.height * k; g.drawImage(im, (W - w) / 2, (H - h) / 2, w, h); };
+      im.src = imageUrl; return;
+    }
+    if (game === "League of Legends") { // dark top-down map feel: teal vignette, hex grid, a river and the three lanes
+      const bg = g.createRadialGradient(W * .5, H * .55, 60, W * .5, H * .55, W * .8); bg.addColorStop(0, "#1a3a44"); bg.addColorStop(1, "#061015"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      g.strokeStyle = "rgba(130,200,190,.06)"; g.lineWidth = 2; const s = 54, hh = s * Math.sqrt(3) / 2;
+      for (let row = -1; row * hh < H + hh; row++) for (let col = -1; col * s * 1.5 < W + s; col++) {
+        const x = col * s * 1.5, y = row * hh * 2 + (col % 2 ? hh : 0); g.beginPath();
+        for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; g.lineTo(x + s * Math.cos(a), y + s * Math.sin(a)); } g.closePath(); g.stroke(); }
+      g.fillStyle = "rgba(60,160,190,.13)"; g.beginPath(); g.moveTo(0, H * .78); g.lineTo(W * .22, H); g.lineTo(W, H * .2); g.lineTo(W * .78, 0); g.lineTo(0, H * .78); g.fill();
+      g.strokeStyle = "rgba(220,200,140,.10)"; g.lineWidth = 36; g.lineCap = "round"; g.lineJoin = "round";
+      g.beginPath(); g.moveTo(W * .1, H * .9); g.lineTo(W * .1, H * .12); g.lineTo(W * .88, H * .12); g.moveTo(W * .12, H * .88); g.lineTo(W * .88, H * .14); g.moveTo(W * .12, H * .9); g.lineTo(W * .9, H * .9); g.lineTo(W * .9, H * .14); g.stroke();
+      vignette(.55); return;
+    }
+    if (game === "Rocket League") { // a dark arena with a lit pitch in perspective
+      const sky = g.createLinearGradient(0, 0, 0, H * .5); sky.addColorStop(0, "#050b18"); sky.addColorStop(1, "#14305e"); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      const y0 = H * .36; for (let i = 0; i < 14; i++) { const k0 = i / 14, k1 = (i + 1) / 14, ya = y0 + (H - y0) * k0 * k0 * .9 + (H - y0) * k0 * .1, yb = y0 + (H - y0) * k1 * k1 * .9 + (H - y0) * k1 * .1;
+        const xa = W * (.3 - .38 * k0), xb = W * (.3 - .38 * k1); g.fillStyle = i % 2 ? "#14532b" : "#116027";
+        g.beginPath(); g.moveTo(xa, ya); g.lineTo(W - xa, ya); g.lineTo(W - xb, yb); g.lineTo(xb, yb); g.fill(); }
+      g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = 4; g.beginPath(); g.moveTo(W * .3, y0); g.lineTo(W * .7, y0); g.moveTo(W / 2, y0); g.lineTo(W / 2, H); g.stroke();
+      g.beginPath(); g.ellipse(W / 2, H * .66, 170, 56, 0, 0, Math.PI * 2); g.stroke();
+      const glow = g.createLinearGradient(0, y0 - 60, 0, y0); glow.addColorStop(0, "rgba(255,140,30,0)"); glow.addColorStop(1, "rgba(255,140,30,.55)"); g.fillStyle = glow; g.fillRect(W * .42, y0 - 60, W * .16, 60);
+      vignette(.6); return;
+    }
+    const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#0b1d17"); bg.addColorStop(1, "#050a09"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.strokeStyle = "rgba(255,255,255,.04)"; g.lineWidth = 2; for (let x = 0; x < W; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); } for (let y = 0; y < H; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    vignette(.5);
   }
 
   window.SquishHUD = { SCENES, model, render, drawBg, esc, fmt };
