@@ -56,6 +56,8 @@ function upgrade(ev) {
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
   ev.hud.lolPanel = ev.hud.lolPanel || "auto";
+  // the St. Clair Saints team gets the emblem until a team logo is uploaded
+  ev.teams.forEach(t => { if (t.tag === "SCC" && t.logos && !t.logos[0]) t.logos[0] = "/brand/saints-emblem.png"; });
   return ev;
 }
 function seed() {

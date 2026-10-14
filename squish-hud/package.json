@@ -20,7 +20,8 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "electron": "^33.4.11",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "rcedit": "^5.0.2"
   },
   "allowScripts": {
     "electron@33.4.11": true
@@ -34,13 +35,17 @@
       "server.js",
       "ocr.js",
       "test/ocr-selftest.js",
+      "build/icon.png",
       "public/**/*",
       "package.json"
     ],
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
+    "afterPack": "build/after-pack.js",
     "win": {
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false,
       "target": [
         "nsis",
@@ -58,6 +63,9 @@
     "nsis": {
       "artifactName": "SaintsHUD-Setup-${version}.exe",
       "oneClick": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "Saints HUD"
     },

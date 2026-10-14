@@ -27,7 +27,7 @@ p{margin:0}
 aside{display:flex;flex-direction:column;gap:6px;min-width:0}
 .me{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:10px}
 .logo{width:38px;height:38px;border-radius:10px;background:var(--brand);border-bottom:4px solid var(--accent);display:grid;place-items:center;font:800 15px var(--f-head);color:var(--accent);flex:none;overflow:hidden}
-img.logo{object-fit:contain;background:var(--field);border-bottom-color:var(--accent)}
+img.logo{object-fit:contain;background:none;border:0;border-radius:0;width:44px;height:44px}
 .me b{display:block}.me small{color:var(--dim);font-size:12px}
 .nav{display:flex;flex-direction:column;gap:3px}
 .nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:10px;padding:8px 12px;color:var(--dim);cursor:pointer;font-weight:500}
@@ -274,8 +274,8 @@ function rail(e){
     <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${b("ocr",ui.view==="ocr")}${b("camera",ui.view==="camera")}
     <div class="grp">BROADCAST</div>${b("graphics",ui.view==="graphics")}${b("schedule",ui.view==="schedule")}${b("bracket",ui.view==="bracket")}${b("standings",ui.view==="standings")}`
     :`<button type="button" aria-current="page">${ico("events")}My Events</button>`;
-  const crest=DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo;
-  return`<aside><div class="me">${crest?`<img class="logo" src="${esc(crest)}" alt="">`:`<span class="logo">SH</span>`}<div><b style="font-family:var(--f-head)">Saints HUD</b><small>${e?esc(e.name):"St. Clair Broadcast"}</small></div></div><nav class="nav" aria-label="Sections">${nav}</nav><div class="conn" id="conn"></div></aside>`;
+  const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/saints-emblem.png";
+  return`<aside><div class="me"><img class="logo" src="${esc(crest)}" alt="St. Clair Saints emblem"><div><b style="font-family:var(--f-head)">Saints HUD</b><small>${e?esc(e.name):"St. Clair Broadcast"}</small></div></div><nav class="nav" aria-label="Sections">${nav}</nav><div class="conn" id="conn"></div></aside>`;
 }
 function topbar(e){
   if(!e)return`<div class="top"><div class="crumbs"><b>My Events</b></div><button class="btn primary" type="button" data-act="newEvent">New Event</button></div>`;
@@ -315,8 +315,8 @@ overview(e){
       <p class="note" id="screens">${screensText()}</p>
     </div>
     <div class="sec"><h2>Workspace</h2><div class="cols">${F.text("name","Workspace name")}${F.text("organiser","Event organiser")}${F.sel("game","Select game",GAMES,"data-rerender")}${F.sel("kit","Broadcast kit",["Saints Default","Saints Varsity","Saints Gaming"])}</div></div>
-    <div class="sec"><div><h2>Saints branding</h2><p class="sub">The crest shows in the app's corner. Team logos are set per team in Players &amp; Teams.</p></div>
-      <div class="row c nowrap">${(()=>{const c=DB.settings.brand&&DB.settings.brand.logo;return`<div class="dz mini" style="width:72px;min-height:72px">${c?`<img src="${esc(c)}" alt="">`:ico("up")}<input type="file" accept="image/*" id="brandLogo" data-upload="!settings.brand.logo" aria-label="Upload crest"></div>${c?`<button class="btn sm" type="button" data-act="clearBrand">Remove crest</button>`:`<span class="note">Upload the Saints crest (PNG with a transparent background works best).</span>`}`})()}</div></div>
+    <div class="sec"><div><h2>Saints branding</h2><p class="sub">The emblem shows in the app's corner. Team logos are set per team in Players &amp; Teams.</p></div>
+      <div class="row c nowrap">${(()=>{const c=DB.settings.brand&&DB.settings.brand.logo;return`<div class="dz mini" style="width:72px;min-height:72px"><img src="${esc(c||"/brand/saints-emblem.png")}" alt=""><input type="file" accept="image/*" id="brandLogo" data-upload="!settings.brand.logo" aria-label="Replace emblem"></div>${c?`<button class="btn sm" type="button" data-act="clearBrand">Use the St. Clair Saints emblem</button>`:`<span class="note">Using the St. Clair Saints 10 Years emblem. Click it to use a different image.</span>`}`})()}</div></div>
     <div class="sec"><div class="row c" style="justify-content:space-between"><p class="sub">Deleting removes this event, its teams, talent and graphics.</p><button class="btn danger" type="button" data-act="delEvent">${ico("trash")}Delete event</button></div></div>
   </div>
   <div class="sec"><h2>Game data</h2>

@@ -14,7 +14,8 @@ let win = null, base = "";
 function createWindow() {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 980, minHeight: 640,
-    title: "Saints HUD Control Room", backgroundColor: "#0d0e11", show: false, autoHideMenuBar: true,
+    title: "Saints HUD Control Room", backgroundColor: "#08110d", show: false, autoHideMenuBar: true,
+    icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: { contextIsolation: true, sandbox: true },
   });
   win.loadURL(base + "/");
