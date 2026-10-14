@@ -1,0 +1,13 @@
+{
+  "name": "squish-hud",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Esports broadcast control room and OBS overlays, fed live by the Rocket League Stats API.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "lan": "node -e \"process.env.HOST='0.0.0.0';require('./server.js')\""
+  },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}
