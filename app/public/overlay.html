@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Squish Overlay</title>
+<title>Saints HUD Overlay</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="/hud.css">
 <style>
@@ -16,7 +16,7 @@
 <body>
 <canvas id="bg"></canvas>
 <div id="stage"><div class="hud" id="hud"></div></div>
-<div class="offline" id="off">Lost connection to Squish server, retrying…</div>
+<div class="offline" id="off">Lost connection to Saints HUD server, retrying…</div>
 <script src="/hud.js"></script>
 <script>
 // /overlay?scene=auto|ingame|bracket|...&event=<id>&bg=pitch (bg only for testing outside OBS)
@@ -24,13 +24,13 @@ const qs = new URLSearchParams(location.search);
 const scene = qs.get("scene") || "auto";
 const hud = document.getElementById("hud");
 let DB = null, GAME = null;
-if (qs.get("bg")) { const c = document.getElementById("bg"); c.style.display = "block"; SquishHUD.drawBg(c, qs.get("bg") === "pitch" ? "game" : qs.get("bg"), qs.get("game") || ""); }
+if (qs.get("bg")) { const c = document.getElementById("bg"); c.style.display = "block"; SaintsHUD.drawBg(c, qs.get("bg") === "pitch" ? "game" : qs.get("bg"), qs.get("game") || ""); }
 function fit() { hud.style.transform = `scale(${Math.min(innerWidth / 1280, innerHeight / 720)})`; }
 addEventListener("resize", fit); fit();
 function draw() {
   if (!DB) return;
   const ev = DB.events.find(e => e.id === (qs.get("event") || DB.onAir)) || DB.events[0];
-  if (ev) SquishHUD.render(hud, ev, GAME, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons) });
+  if (ev) SaintsHUD.render(hud, ev, GAME, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons) });
 }
 function connect() {
   const es = new EventSource("/events?kind=overlay");

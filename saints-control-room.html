@@ -1,4 +1,4 @@
-<title>Squish Control Room</title>
+<title>Saints HUD Control Room</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Teko:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -282,7 +282,7 @@ const fmtClock=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
 
 const GAMES=["Rocket League","Valorant","Counter-Strike 2","League of Legends"];
 const SCENES={ingame:"Ingame HUD",starting:"Starting Soon",casters:"Caster Desk",scoreboard:"End of Game Stats"};
-const KITS=["Squish Default","Squish Varsity","Squish Neon"];
+const KITS=["Saints Default","Saints Varsity","Saints Neon"];
 const PLATFORMS=["X","Twitch","YouTube","Instagram","TikTok","Kick"];
 const GAME_LEN=300;
 
@@ -291,7 +291,7 @@ const blankStats=()=>Array.from({length:6},()=>({score:0,goals:0,assists:0,saves
 const team=(name,tag,color,players)=>({id:uid(),name,tag,color,logo:"",players:players||["Player 1","Player 2","Player 3"]});
 const talent=(name,role,socials=[])=>({id:uid(),name,role,portrait:"",socials});
 function newEvent(name,game,organiser){
-  return{id:uid(),name,game,organiser,kit:"Squish Default",status:"offline",mine:true,serverCode:uuid(),overlayScene:"ingame",
+  return{id:uid(),name,game,organiser,kit:"Saints Default",status:"offline",mine:true,serverCode:uuid(),overlayScene:"ingame",
     users:[{id:uid(),name:"Kiri Mitosa",role:"Editor",you:true}],
     hud:{scene:"ingame",colorMode:"team",custom:["#2f7dff","#ff9b1a"],show:{boost:true,card:true,score:true,stats:true},bg:"pitch"},
     teams:[],tournament:{name:"",region:"",lang:"",size:"32 Teams",format:"Double Elimination",logos:["","","",""],sponsors:[]},
@@ -322,11 +322,11 @@ function seed(){
   val.teams=[s2,o2];Object.assign(val.live,{left:s2.id,right:o2.id,seriesTitle:"NACE VARSITY",eventTitle:"SCC VALORANT",gameSeries:"BEST OF 3",bestOf:3});
   return{events:[rl,val],cur:rl.id,view:"overview"};
 }
-let DB;try{DB=JSON.parse(localStorage.getItem("squish-control")||"null")}catch(e){DB=null}
+let DB;try{DB=JSON.parse(localStorage.getItem("saints-control")||"null")}catch(e){DB=null}
 if(!DB||!Array.isArray(DB.events))DB=seed();
 const ui={tab:"all",q:"",teamq:"",talentq:"",team:null,talent:null};
 let storageWarned=false;
-function save(){try{localStorage.setItem("squish-control",JSON.stringify(DB))}catch(e){if(!storageWarned){storageWarned=true;toast("Browser storage is full, so recent changes won't survive a reload. Try smaller images.")}}}
+function save(){try{localStorage.setItem("saints-control",JSON.stringify(DB))}catch(e){if(!storageWarned){storageWarned=true;toast("Browser storage is full, so recent changes won't survive a reload. Try smaller images.")}}}
 const ev=()=>DB.events.find(e=>e.id===DB.cur);
 const tm=(e,id)=>e.teams.find(t=>t.id===id);
 let E=null; // event being rendered
@@ -376,7 +376,7 @@ function rail(e){
     <div class="grp">EVENT SETUP</div>${btn("teams","Players &amp; Teams","teams",DB.view==="teams")}${btn("tournament","Tournament","trophy",DB.view==="tournament")}${btn("talent","Talent Profiles","talent",DB.view==="talent")}
     <div class="grp">LIVE GAME</div>${btn("live","Live Game","live",DB.view==="live")}${btn("camera","Camera feed","cam",DB.view==="camera")}`
     :`${btn("home","My Events","events",true)}<button type="button" data-act="soon">${ico("kits")}Broadcast Kits</button>`;
-  return`<aside>${me}<nav class="nav" aria-label="Sections">${nav}</nav><div class="rail-foot"><a href="https://claude.ai/artifact/DxZjBUbtHjd1Qo4FV26D6b" target="_blank" rel="noopener">Squish website ↗</a></div></aside>`;
+  return`<aside>${me}<nav class="nav" aria-label="Sections">${nav}</nav></aside>`;
 }
 function topbar(e){
   if(!e)return`<div class="top"><div class="crumbs"><span class="ico">${ico("events")}</span><b>My Events</b></div><button class="btn primary" type="button" data-act="newEvent">New Event</button></div>`;
@@ -415,14 +415,14 @@ function home(){
 
 /* ---------- views ---------- */
 const stage=(scene="auto",tools=true)=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div>${tools?`<div class="row c" style="justify-content:space-between"><span class="note">Preview at 1280×720, the same layout your broadcast output uses.</span><button class="btn" type="button" data-act="full">${ico("full")}Full screen</button></div>`:""}</div>`;
-const gameNote=e=>e.game!=="Rocket League"?`<div class="banner">Squish scenes for ${esc(e.game)} aren't built yet. The preview uses the Rocket League layout until they are.</div>`:"";
+const gameNote=e=>e.game!=="Rocket League"?`<div class="banner">Saints HUD scenes for ${esc(e.game)} aren't built yet. The preview uses the Rocket League layout until they are.</div>`:"";
 const VIEWS={
 overview(e){
   const roleOpts=["Owner","Editor","Viewer"];
   return`<div class="split">
   <div class="sec" style="gap:26px">
     <div class="sec"><div><h2>Start streaming</h2><p class="sub">Copy these into your production setup to get started.</p></div>
-      <div class="fld"><span>Server code</span><div class="row c" style="flex-wrap:nowrap"><input class="mono" id="srv" readonly value="${e.serverCode}" style="max-width:360px"><button class="btn icon" type="button" data-act="copy" data-arg="${e.serverCode}" aria-label="Copy server code">${ico("copy")}</button></div><span class="note red">Paste into the Squish desktop app on the game PC.</span></div>
+      <div class="fld"><span>Server code</span><div class="row c" style="flex-wrap:nowrap"><input class="mono" id="srv" readonly value="${e.serverCode}" style="max-width:360px"><button class="btn icon" type="button" data-act="copy" data-arg="${e.serverCode}" aria-label="Copy server code">${ico("copy")}</button></div><span class="note red">Paste into the Saints HUD desktop app on the game PC.</span></div>
       <div class="fld"><span>Overlay scene</span><div class="row c" style="flex-wrap:nowrap"><select id="f-overlayScene" data-bind="overlayScene" style="max-width:310px">${Object.entries(SCENES).map(([k,v])=>`<option value="${k}"${e.overlayScene===k?" selected":""}>${v}</option>`).join("")}</select><button class="btn" type="button" data-act="fullScene">${ico("full")}Open full screen</button></div><span class="note">Opens the scene at full size, ready to capture as a window source.</span></div>
     </div>
     <div class="sec"><h2>Workspace</h2>
@@ -476,7 +476,7 @@ tournament(e){
   return`<div class="sec"><div><h2>Tournament details</h2><p class="sub">These details appear on the overlay.</p></div>
     <div class="cols" style="--n:3">${F.text("tournament.name","","Tournament name")}${F.text("tournament.region","","Tournament region")}${F.text("tournament.lang","","Language of tournament or broadcast")}</div>
     <div class="cols" style="--n:3">${F.sel("tournament.size","",["8 Teams","16 Teams","32 Teams","64 Teams"])}${F.sel("tournament.format","",["Single Elimination","Double Elimination","Swiss","Round Robin"])}</div></div>
-  <div class="sec"><div><h2>Tournament logos</h2><p class="sub">Squish uses the primary logo for any slot left empty.</p></div>
+  <div class="sec"><div><h2>Tournament logos</h2><p class="sub">Saints HUD uses the primary logo for any slot left empty.</p></div>
     <div class="cols" style="--n:4">${lg.map((l,i)=>F.dz(`tournament.logos.${i}`,l,500)).join("")}</div></div>
   <div class="sec"><div class="sechead"><div><h2>Tournament sponsors</h2><p class="sub">Sponsors rotate through the ticker on the in-game HUD.</p></div><button class="btn" type="button" data-act="addSponsor">+ Add sponsor</button></div>
     ${e.tournament.sponsors.length?e.tournament.sponsors.map((s,i)=>`<div class="sponsor">${F.dz(`tournament.sponsors.${i}.logo`,"",200)}${F.text(`tournament.sponsors.${i}.name`,"","Sponsor name")}<button class="btn icon" type="button" data-act="delSponsor" data-arg="${i}" aria-label="Remove sponsor">${ico("x")}</button></div>`).join(""):`<p class="sub">No sponsors yet.</p>`}</div>`;

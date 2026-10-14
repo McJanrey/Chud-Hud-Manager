@@ -1,4 +1,4 @@
-// Desktop shell: runs the Squish server inside the app and shows the control room in its own window.
+// Desktop shell: runs the Saints HUD server inside the app and shows the control room in its own window.
 // OBS still reads the overlay from http://localhost:7777/overlay while the app is open.
 "use strict";
 const { app, BrowserWindow, Menu, shell, dialog, clipboard, globalShortcut, ipcMain } = require("electron");
@@ -9,12 +9,12 @@ const fs = require("fs");
 if (process.argv.includes("--ocr-selftest")) { require("./test/ocr-selftest.js"); return; }
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 
-process.env.SQUISH_DATA = process.env.SQUISH_DATA || path.join(app.getPath("userData"), "data");
+process.env.SAINTS_DATA = process.env.SAINTS_DATA || path.join(app.getPath("userData"), "data");
 let win = null, launcher = null, base = "";
 
 /* ---- launcher: sign-in, update status and the way into the control room ---- */
 // There is no account server: signing in saves a local profile (name and email) on this PC. Preferences live next to it.
-const LAUNCHER_FILE = () => path.join(process.env.SQUISH_DATA, "launcher.json");
+const LAUNCHER_FILE = () => path.join(process.env.SAINTS_DATA, "launcher.json");
 let LS = { profile: null, prefs: { autoOpen: true } };
 function loadLauncher() { try { const j = JSON.parse(fs.readFileSync(LAUNCHER_FILE(), "utf8")); LS = { profile: j.profile || null, prefs: Object.assign({ autoOpen: true }, j.prefs) }; } catch { /* first run */ } }
 function saveLauncher() { try { fs.mkdirSync(path.dirname(LAUNCHER_FILE()), { recursive: true }); fs.writeFileSync(LAUNCHER_FILE(), JSON.stringify(LS, null, 2)); } catch { /* read-only folder: keep going */ } }
@@ -52,7 +52,7 @@ function setupLauncherIpc() {
   on("launcher:install", () => { if (updater && upd.state === "ready") updater.quitAndInstall(); });
   on("launcher:control-room", () => openControlRoom());
   on("launcher:copy-overlay", () => { clipboard.writeText(base + "/overlay?scene=auto"); return base + "/overlay?scene=auto"; });
-  on("launcher:open-data", () => shell.openPath(process.env.SQUISH_DATA));
+  on("launcher:open-data", () => shell.openPath(process.env.SAINTS_DATA));
   on("win:min", () => launcher && launcher.minimize());
   on("win:max", () => launcher && (launcher.isMaximized() ? launcher.unmaximize() : launcher.maximize()));
   on("win:close", () => launcher && launcher.close());
@@ -117,7 +117,7 @@ function buildMenu() {
     { label: "File", submenu: [
       { label: "Copy overlay URL for OBS", click: () => clipboard.writeText(base + "/overlay?scene=auto") },
       { label: "Open overlay preview window", click: overlayPreview },
-      { label: "Open data folder", click: () => shell.openPath(process.env.SQUISH_DATA) },
+      { label: "Open data folder", click: () => shell.openPath(process.env.SAINTS_DATA) },
       { type: "separator" }, { role: "quit" }] },
     { label: "View", submenu: [{ role: "reload" }, { role: "togglefullscreen" }, { role: "zoomIn" }, { role: "zoomOut" }, { role: "resetZoom" }, { type: "separator" }, { role: "toggleDevTools" }] },
     { label: "Help", submenu: [

@@ -174,7 +174,7 @@ table.grid tr:last-child td{border-bottom:0}
 <script>
 (()=>{
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-const {esc,SCENES}=SquishHUD;
+const {esc,SCENES}=SaintsHUD;
 const uid=()=>Math.random().toString(36).slice(2,12);
 const get=(o,p)=>String(p).split(".").reduce((a,k)=>a==null?a:a[k],o);
 const setL=(o,p,v)=>{const ks=String(p).split(".");const last=ks.pop();ks.reduce((a,k)=>a[k],o)[last]=v};
@@ -186,8 +186,8 @@ const PLATFORMS=["X","Twitch","YouTube","Instagram","TikTok","Kick"];
 const COUNTRIES=[["","—"],["US","United States"],["CA","Canada"],["MX","Mexico"],["BR","Brazil"],["AR","Argentina"],["PE","Peru"],["CL","Chile"],["GB","United Kingdom"],["IE","Ireland"],["FR","France"],["DE","Germany"],["AT","Austria"],["CH","Switzerland"],["NL","Netherlands"],["BE","Belgium"],["ES","Spain"],["PT","Portugal"],["IT","Italy"],["PL","Poland"],["SE","Sweden"],["NO","Norway"],["DK","Denmark"],["FI","Finland"],["CZ","Czechia"],["TR","Turkey"],["SA","Saudi Arabia"],["AE","UAE"],["MA","Morocco"],["ZA","South Africa"],["JP","Japan"],["KR","South Korea"],["AU","Australia"],["NZ","New Zealand"],["IN","India"],["PH","Philippines"]];
 
 let DB=null,GAME=null,SCREENS={dashboard:0,overlay:0},online=false;
-const ui=(()=>{let s={};try{s=JSON.parse(localStorage.getItem("squish-ui")||"{}")}catch(e){}return Object.assign({cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null},s)})();
-const saveUi=()=>{try{localStorage.setItem("squish-ui",JSON.stringify({cur:ui.cur,view:ui.view}))}catch(e){}};
+const ui=(()=>{let s={};try{s=JSON.parse(localStorage.getItem("saints-ui")||"{}")}catch(e){}return Object.assign({cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null},s)})();
+const saveUi=()=>{try{localStorage.setItem("saints-ui",JSON.stringify({cur:ui.cur,view:ui.view}))}catch(e){}};
 const ev=()=>DB&&DB.events.find(e=>e.id===ui.cur);
 const tm=(e,id)=>e.teams.find(t=>t.id===id);
 let E=null;
@@ -453,7 +453,7 @@ graphics(e){
   <div class="split"><div class="sec"><h2>Timer</h2>${F.text("timer.label","Label","BACK SOON")}
     <div class="row"><label class="fld" style="max-width:160px"><span>Length (minutes)</span><input type="number" id="timerMin" min="0" max="180" step="0.5" value="${t.seconds/60}"></label>
     <span class="row c"><button class="btn" type="button" data-act="timer" data-arg="start">${t.endsAt?"Pause":"Start"}</button><button class="btn" type="button" data-act="timer" data-arg="reset">Reset</button><button class="btn" type="button" data-act="scene" data-arg="timer">Put timer on air</button></span></div>
-    <p class="note">Remaining: <b data-timer>${SquishHUD.fmt(rem)}</b></p></div><div class="sec">${stage("timer")}</div></div>`;
+    <p class="note">Remaining: <b data-timer>${SaintsHUD.fmt(rem)}</b></p></div><div class="sec">${stage("timer")}</div></div>`;
 },
 schedule(e){
   return`<div class="sec"><div class="sechead"><div><h2>Schedule</h2><p class="sub">The first six matches show on the Schedule scene. Fill in both scores to mark a match as played.</p></div><button class="btn" type="button" data-act="addMatch">+ Add match</button></div>
@@ -499,8 +499,8 @@ function updateStages(redraw){
   const e=ev();if(!e)return;
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
     const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
-    if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SquishHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
-    SquishHUD.render(h,e,GAME,st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons)});h.style.transform=`scale(${st.clientWidth/1280})`});
+    if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SaintsHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
+    SaintsHUD.render(h,e,GAME,st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons)});h.style.transform=`scale(${st.clientWidth/1280})`});
 }
 /* Preview background "Game": a live picture of the game's own window, when the desktop app can find it */
 const LIVEBG={ok:false,busy:false};
@@ -523,11 +523,11 @@ function liveBits(){
   railStatus();
   const e=ev();if(!e)return;
   const pill=$("#srcPill");if(pill){const[c,t]=sourceState();pill.className="pill "+(c==="ok"?"ok":c==="bad"?"bad":"");pill.textContent=t}
-  const m=SquishHUD.model(e,GAME);
+  const m=SaintsHUD.model(e,GAME);
   const pl=$("#plist");
   if(pl){pl.innerHTML=m.live?m.all.map(p=>`<div class="pl${m.focus===p?" f":""}" style="--c:${m.colors[p.side]}"><b>${esc(p.display)}${m.kind==="lol"?` <span class="note">${esc(p.champion||"")}</span>`:""}</b><span class="bst" style="width:auto">${m.kind==="lol"?`${p.kills}/${p.deaths}/${p.assists}`:p.boost??""}</span>${DB.settings.source==="rl"?`<button class="btn sm" type="button" data-act="spectate" data-arg="${p.shortcut}">Watch</button>`:""}</div>`).join(""):`<p class="sub">No players in a match yet.</p>`}
   const tr=$("#trackRow");if(tr)tr.innerHTML=[0,1].map(s=>`<div class="tracked${m.tracked[s]?"":" manual"}">${m.tracked[s]?"Tracked via team data: "+esc(m.sides[s].name):"Using the team picked above"}</div>`).join("");
-  const tt=$("[data-timer]");if(tt){const t=e.timer;tt.textContent=SquishHUD.fmt(t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining)}
+  const tt=$("[data-timer]");if(tt){const t=e.timer;tt.textContent=SaintsHUD.fmt(t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining)}
   if(ui.view==="ocr")ocrLive();
 }
 function mirrors(){
@@ -716,7 +716,7 @@ function ocrLive(){
   if(pill){pill.className="pill "+(o.running&&!o.error?"ok":o.error?"bad":"");pill.textContent=o.running?(o.error?"Problem":`Reading · ${o.cycleMs||0} ms per pass`):"Stopped"}
   const er=$("#ocrError");if(er)er.textContent=o.error||"";
   $$("[data-rawof]").forEach(td=>{const r=(o.readings||{})[td.dataset.rawof];td.textContent=r?(r.error?"error":(r.raw||"(blank)")):"—"});
-  $$("[data-valof]").forEach(td=>{const r=(o.readings||{})[td.dataset.valof];td.textContent=r&&r.value!=null?(r.key==="clock"?SquishHUD.fmt(r.value):r.value):"—";td.className="read "+(r&&r.ok?"ok":"bad")});
+  $$("[data-valof]").forEach(td=>{const r=(o.readings||{})[td.dataset.valof];td.textContent=r&&r.value!=null?(r.key==="clock"?SaintsHUD.fmt(r.value):r.value):"—";td.className="read "+(r&&r.ok?"ok":"bad")});
 }
 document.addEventListener("pointerdown",ev0=>{
   const box=ev0.target.closest("#ocrBoxes");if(!box)return;
@@ -748,7 +748,7 @@ function rpRender(){
   if(el.contains(document.activeElement)&&/range|select/.test(document.activeElement.type||""))return; // don't fight the user's hand
   if(!RP.available){const c=RP.config||{};
     el.innerHTML=`<div class="rp"><b>Replay controls</b><p class="note">${esc(RP.reason||"")}</p>${c.found?(c.enabled?`<p class="note">The Replay API is switched on in game.cfg. Close the replay and open it again for it to take effect.</p>`:`<div class="row c"><button class="btn sm blue" type="button" data-act="enableReplayApi">Turn on Replay API</button><span class="note">Adds EnableReplayApi=1 to ${esc(c.file)}. Reopen the replay afterwards.</span></div>`):`<p class="note">League's game.cfg wasn't found in C:\\Riot Games\\League of Legends. Set the LOL_DIR variable to your install folder.</p>`}</div>`;return}
-  const pb=RP.playback||{},rn=RP.render||{},fm=s=>SquishHUD.fmt(Math.floor(s||0));
+  const pb=RP.playback||{},rn=RP.render||{},fm=s=>SaintsHUD.fmt(Math.floor(s||0));
   const names=(GAME&&GAME.players||[]).map(p=>p.name);
   const modes=["fps","tps","top"].concat(rn.cameraMode&&!["fps","tps","top"].includes(rn.cameraMode)?[rn.cameraMode]:[]);
   const bools=Object.keys(rn).filter(k=>typeof rn[k]==="boolean"&&/^interface/.test(k));

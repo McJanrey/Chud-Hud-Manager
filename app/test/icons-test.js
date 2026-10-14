@@ -15,7 +15,7 @@ const mock = http.createServer((req, res) => {
 });
 mock.listen(0, "127.0.0.1", async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "icons-test-")), port = 7795;
-  const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], { env: Object.assign({}, process.env, { SQUISH_DATA: dataDir, PORT: String(port),
+  const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], { env: Object.assign({}, process.env, { SAINTS_DATA: dataDir, PORT: String(port),
     ICON_BASE: `http://127.0.0.1:${mock.address().port}/icons/` }), stdio: "ignore" });
   await new Promise(r => setTimeout(r, 2500));
   const post = (p, body = {}) => fetch(`http://127.0.0.1:${port}${p}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(r => r.json());
