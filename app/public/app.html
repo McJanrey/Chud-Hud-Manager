@@ -263,6 +263,8 @@ function sourceState(){
   if(!online)return["bad","Server offline"];
   if(!GAME)return["warn","Waiting…"];
   const src={rl:"Rocket League",lol:"League of Legends",ocr:"Screen OCR",demo:"Demo (test)",push:"External feed"}[GAME.source]||GAME.source||"No source";
+  const eg=(ev()||{}).game,fg={rl:"Rocket League",lol:"League of Legends"}[GAME.source];
+  if(fg&&eg&&fg!==eg)return["bad","Feed is "+fg+" but the event is "+eg];
   if(GAME.source==="ocr"){const o=GAME.ocr||{};return o.running?(GAME.connected?["ok","Screen OCR · reading"]:["warn","Screen OCR · "+(o.error?"capture problem":"starting")]):["warn","Screen OCR · not started"]}
   if(GAME.source==="lol")return GAME.inMatch?["ok","League · in game"]:GAME.connected?["warn","League · loading"]:["bad","League · no game or replay"];
   if(GAME.source==="rl")return GAME.connected?(GAME.inMatch?["ok","Rocket League · in match"]:["warn","Rocket League · no match"]):["bad","Rocket League · not found"];
