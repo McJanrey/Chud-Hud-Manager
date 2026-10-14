@@ -1,13 +1,67 @@
 {
-  "name": "squish-hud",
-  "version": "0.1.0",
+  "name": "saints-hud",
+  "productName": "Saints HUD",
+  "version": "0.2.0",
   "private": true,
-  "description": "Esports broadcast control room and OBS overlays, fed live by the Rocket League Stats API.",
-  "main": "server.js",
+  "description": "Esports broadcast control room and OBS overlays with live Rocket League and League of Legends data.",
+  "author": "St. Clair Saints Broadcast",
+  "main": "main.js",
   "scripts": {
-    "start": "node server.js",
-    "lan": "node -e \"process.env.HOST='0.0.0.0';require('./server.js')\""
+    "start": "electron .",
+    "server": "node server.js",
+    "lan": "node -e \"process.env.HOST='0.0.0.0';require('./server.js')\"",
+    "dist": "electron-builder --win nsis portable --publish never",
+    "release": "electron-builder --win nsis --publish always"
   },
-  "engines": { "node": ">=18" },
-  "license": "UNLICENSED"
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  },
+  "build": {
+    "appId": "ca.stclair.saintshud",
+    "productName": "Saints HUD",
+    "files": [
+      "main.js",
+      "server.js",
+      "public/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "McJanrey",
+        "repo": "saints-hud",
+        "releaseType": "release"
+      }
+    ],
+    "nsis": {
+      "artifactName": "SaintsHUD-Setup-${version}.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Saints HUD"
+    },
+    "portable": {
+      "artifactName": "SaintsHUD-portable-${version}.exe"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
 }

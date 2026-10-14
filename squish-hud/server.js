@@ -14,7 +14,7 @@ const RL_PORT = +process.env.RL_PORT || 49123;
 
 const ROOT = __dirname;
 const PUB = path.join(ROOT, "public");
-const DATA = path.join(ROOT, "data");
+const DATA = process.env.SQUISH_DATA || path.join(ROOT, "data"); // the desktop app points this at its user-data folder
 const UPLOADS = path.join(DATA, "uploads");
 const DB_FILE = path.join(DATA, "db.json");
 fs.mkdirSync(UPLOADS, { recursive: true });
@@ -572,6 +572,13 @@ const server = http.createServer((req, res) => {
   }
   res.writeHead(405); res.end();
 });
+
+server.on("error", err => {
+  if (err.code === "EADDRINUSE") log(`Port ${PORT} is already in use. Close the other Squish window or set PORT to a different number.`);
+  else log("Server error:", err.message);
+  if (require.main === module) process.exit(1);
+});
+module.exports = { server, PORT, DATA };
 
 server.listen(PORT, HOST, () => {
   const shown = HOST === "0.0.0.0" ? "localhost" : HOST;

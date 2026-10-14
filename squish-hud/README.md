@@ -2,13 +2,30 @@
 
 A local broadcast control room for esports events. One dashboard to manage teams, talent, tournament graphics and the live match, plus overlay pages you add to OBS or vMix. Rocket League data comes straight from the game's official Stats API, so scores, boost, the spectated player and goals update on their own.
 
-## Run it
+## Install the desktop app
 
-1. Install [Node.js LTS](https://nodejs.org) (18 or newer). There are no npm packages to install.
-2. Double-click `START.bat`, or run `node server.js`.
-3. Open the dashboard at http://localhost:7777
+Download `SaintsHUD-Setup-x.y.z.exe` from the [latest release](https://github.com/McJanrey/saints-hud/releases/latest) and run it. Windows may warn that the app is from an unknown publisher because it isn't code-signed: choose **More info → Run anyway**.
 
-Data (events, teams, uploaded logos) is saved in `data/` next to the server.
+The app opens the control room in its own window. While it's open, OBS can read the overlay at `http://localhost:7777/overlay?scene=auto` (**File → Copy overlay URL for OBS**).
+
+Installed copies update themselves: the app checks GitHub Releases on launch and every hour, downloads new versions in the background, and asks to restart. **Help → Check for updates** checks right away.
+
+Your events, teams and logos are stored in `%APPDATA%\Saints HUD\data` (**File → Open data folder**), so updates and reinstalls keep them.
+
+## Develop
+
+1. Install [Node.js LTS](https://nodejs.org) (18 or newer), then run `npm install` in this folder.
+2. `npm start` runs the desktop app from source. `npm run server` (or `START.bat`) runs just the server, which you open in a browser at http://localhost:7777.
+3. `npm run dist` builds the installer and a portable exe into `dist/`.
+
+### Publish an update
+
+1. Bump `version` in `package.json` (for example 0.2.0 → 0.2.1).
+2. Run the release build with a GitHub token that can write to the repo:
+   ```powershell
+   $env:GH_TOKEN = (gh auth token); npm run release
+   ```
+   This uploads the installer and `latest.yml` to a GitHub release for that version, and every installed copy picks it up.
 
 ## Connect Rocket League
 

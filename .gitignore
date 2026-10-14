@@ -2,3 +2,4 @@ node_modules/
 squish-hud/data/
 *.log
 .claude/
+squish-hud/dist/
