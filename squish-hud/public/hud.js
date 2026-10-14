@@ -201,7 +201,13 @@
       <div class="l2-sub">${objs(0, false)}<div class="l2-time">${ICON.drake}<b class="num">${fmt(m.clock)}</b></div>${objs(1, true)}</div>
       ${note ? `<div class="l2-note" style="--c:${m.colors[note.side] || "#FDC82F"}"><b>${esc(((note.main && note.main.name && m.sides[note.side]) ? m.sides[note.side].tag : "") )}</b> ${esc(note.label)}${note.main ? ` · ${esc(note.main.display || note.main.name)}` : ""}</div>` : ""}`;
     if (sh.boost) h += `<div class="l-side l">${m.players[0].map(row).join("")}</div><div class="l-side r">${m.players[1].map(row).join("")}</div>`;
-    if (sh.card) h += `<div class="lp">${panel}</div>`;
+    // Auto: the lane panel normally, a compact strip while a teamfight is on. Health, mana and ultimate timers
+    // aren't in Riot's live data, so the strip shows what is: level, items, K/D/A and death timers.
+    const fight = o.fight || { active: false, kills: [0, 0] }, mode = ev.hud.lolPanel || "auto";
+    const showFight = mode === "fight" || (mode === "auto" && fight.active);
+    const tile = p => !p ? "" : `<div class="tf-p${p.dead ? " dead" : ""}"><div class="it">${slots(p)}</div><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div><b class="nm">${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div>`;
+    if (sh.card && showFight) h += `<div class="tf"><div class="tf-s">${m.players[0].map(tile).join("")}</div><div class="tf-m"><small>TEAMFIGHT</small><b class="num"><span style="color:var(--L)">${fight.kills[gs(0)]}</span> – <span style="color:var(--R)">${fight.kills[gs(1)]}</span></b></div><div class="tf-s">${m.players[1].map(tile).join("")}</div></div>`;
+    else if (sh.card) h += `<div class="lp">${panel}</div>`;
     if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 420 : 110}px">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
     return { html: h, cams: [] };
   };
@@ -262,6 +268,26 @@
     });
   }
 
+  /* Update the page in place instead of replacing it: unchanged elements stay put, so entry animations
+     don't restart every second and bar widths can transition smoothly. Children are matched by a key
+     (data-k, else class name plus its position among siblings with that class). */
+  const keyOf = (el, seen) => { const base = el.getAttribute("data-k") || el.getAttribute("class") || el.tagName; seen[base] = (seen[base] || 0) + 1; return base + "#" + seen[base]; };
+  function syncAttrs(a, b) {
+    for (const at of [...a.attributes]) if (!b.hasAttribute(at.name)) a.removeAttribute(at.name);
+    for (const at of b.attributes) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+  }
+  function patchKids(a, b) {
+    const ac = [...a.childNodes], bc = [...b.childNodes], oldEl = new Map(), oldTxt = [], sa = {}, sb = {}, next = [];
+    for (const x of ac) { if (x.nodeType === 1) oldEl.set(keyOf(x, sa), x); else if (x.nodeType === 3) oldTxt.push(x); }
+    let ti = 0;
+    for (const y of bc) {
+      if (y.nodeType === 3) { const x = oldTxt[ti++]; if (x) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; next.push(x); } else next.push(y.cloneNode(true)); }
+      else if (y.nodeType === 1) { const k = keyOf(y, sb), x = oldEl.get(k); if (x && x.tagName === y.tagName) { oldEl.delete(k); syncAttrs(x, y); patchKids(x, y); next.push(x); } else next.push(y.cloneNode(true)); }
+    }
+    next.forEach((n, i) => { if (a.childNodes[i] !== n) a.insertBefore(n, a.childNodes[i] || null); });
+    while (a.childNodes.length > next.length) a.removeChild(a.lastChild);
+  }
+
   function render(hudEl, ev, game, scene) {
     if (!hudEl.firstChild) hudEl.innerHTML = `<div class="lay"></div><div class="cams"></div>`;
     const m = model(ev, game);
@@ -269,8 +295,8 @@
     const out = S[s](m);
     hudEl.style.setProperty("--L", m.colors[0]); hudEl.style.setProperty("--R", m.colors[1]);
     const lay = hudEl.firstChild;
-    if (lay.dataset.scene !== s) { lay.dataset.scene = s; lay.className = "lay fade"; void lay.offsetWidth; } else lay.className = "lay";
-    if (lay.__html !== out.html) { lay.innerHTML = out.html; lay.__html = out.html; }
+    if (lay.dataset.scene !== s) { lay.dataset.scene = s; lay.className = "lay fade"; lay.textContent = ""; lay.__html = null; void lay.offsetWidth; } else lay.className = "lay";
+    if (lay.__html !== out.html) { const tpl = document.createElement("div"); tpl.innerHTML = out.html; patchKids(lay, tpl); lay.__html = out.html; }
     syncCams(hudEl.lastChild, out.cams);
     return m;
   }

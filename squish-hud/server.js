@@ -55,6 +55,7 @@ function upgrade(ev) {
   const d = newEvent(ev.name);
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
+  ev.hud.lolPanel = ev.hud.lolPanel || "auto";
   return ev;
 }
 function seed() {
@@ -332,6 +333,15 @@ function handleLoL(d) {
     }
     if (e.EventID > lolLastEvent) lolLastEvent = e.EventID;
   }
+  // A teamfight is two or more kills within 12 seconds of each other, still ongoing 8 seconds after the latest kill.
+  let cluster = [];
+  for (const e of events) if (e.EventName === "ChampionKill") {
+    const t = e.EventTime || 0;
+    if (cluster.length && t - cluster[cluster.length - 1].t > 12) cluster = [];
+    cluster.push({ t, team: teamOf(e.KillerName) });
+  }
+  const lastK = cluster[cluster.length - 1], since = lastK ? game.time - lastK.t : 999;
+  lol.fight = { active: cluster.length >= 2 && since >= 0 && since <= 8, kills: [0, 1].map(s => cluster.filter(k => k.team === s).length), since: cluster.length ? cluster[0].t : 0 };
   game.lol = lol;
   touch();
 }

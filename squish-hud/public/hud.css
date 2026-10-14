@@ -94,6 +94,24 @@
 .l2-note{position:absolute;top:92px;left:50%;transform:translateX(-50%);background:var(--gold,#FDC82F);color:#07120e;font-size:24px;padding:7px 26px 3px;border-left:8px solid var(--c);letter-spacing:.04em;white-space:nowrap;animation:hfade .35s}
 .l2-note b{margin-right:6px}
 
+/* ---------- League of Legends teamfight strip ---------- */
+.tf{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:1040px;display:flex;align-items:stretch;background:rgba(5,24,17,.93);border-top:3px solid var(--gold,#FDC82F);animation:hfade .3s}
+.tf-s{flex:1;display:flex;min-width:0}
+.tf-p{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px 6px;min-width:0;position:relative}
+.tf-s:first-child .tf-p{border-bottom:3px solid var(--L)}.tf-s:last-child .tf-p{border-bottom:3px solid var(--R)}
+.tf-p .it{display:flex;gap:1px}
+.tf-p .it img,.tf-p .it i{width:14px;height:14px;border-radius:2px;background:rgba(255,255,255,.08);display:block;object-fit:cover;flex:none}
+.tf-p .ch{position:relative;width:58px;height:58px;background:#2a2d3a;display:grid;place-items:center;font-size:22px}
+.tf-p .ch img{width:100%;height:100%;object-fit:cover}
+.tf-p .ch .lv{position:absolute;bottom:0;right:0;background:#07120e;font-size:14px;padding:1px 4px 0;min-width:18px;text-align:center}
+.tf-p .ch .rs{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;color:#ff5d5d;background:rgba(0,0,0,.5)}
+.tf-p.dead .ch img{filter:grayscale(1) brightness(.5)}
+.tf-p .nm{font-size:18px;font-weight:500;padding-top:2px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1}
+.tf-p small{font-size:15px;color:#b9c9bf;line-height:1}
+.tf-m{width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(2,14,10,.97)}
+.tf-m small{font-size:13px;letter-spacing:.14em;color:var(--gold,#FDC82F)}
+.tf-m b{font-size:32px;font-weight:600;padding-top:2px}
+
 /* ---------- League of Legends objective timers (top-left corner) ---------- */
 .l2-timers{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;z-index:2}
 .l2-timers .tm{display:grid;grid-template-columns:30px auto;grid-template-rows:auto auto;align-items:center;column-gap:8px;min-width:112px;padding:4px 12px 3px 8px;background:rgba(5,24,17,.94);border-left:4px solid var(--gold,#FDC82F)}
