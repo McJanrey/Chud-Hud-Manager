@@ -331,19 +331,19 @@ overview(e){
   </div></div>`;
 },
 hud(e){
-  const h=e.hud;
+  const h=e.hud,inGame=h.scene==="ingame"; // boost lists, lane panel, League timers and icons only matter for the in-game scene
   return`${!["Rocket League","League of Legends"].includes(e.game)?`<div class="banner">Scenes for ${esc(e.game)} use the Rocket League layout for now.</div>`:""}
-  ${e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
+  ${inGame&&e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
   <div class="row" style="gap:24px">
-    <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene on air",Object.entries(SCENES))}</div>
+    <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene on air",Object.entries(SCENES),"data-rerender")}</div>
     <div class="fld" style="flex:none"><span>Colors</span><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}">Team</button></div></div>
     <div class="fld" style="flex:none"><span>Customise</span><div class="row c" style="gap:8px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></div></div>
-    ${e.game==="League of Legends"?`<div class="fld" style="flex:none"><span>Bottom board (F9)</span><div class="seg">${[["lane","Lane board"],["fight","Teamfight strip"]].map(([k,l])=>`<button type="button" data-act="lolPanel" data-arg="${k}" aria-pressed="${(e.hud.lolPanel==="fight"?"fight":"lane")===k}">${l}</button>`).join("")}</div></div>`:""}
+    ${inGame&&e.game==="League of Legends"?`<div class="fld" style="flex:none"><span>Bottom board (F9)</span><div class="seg">${[["lane","Lane board"],["fight","Teamfight strip"]].map(([k,l])=>`<button type="button" data-act="lolPanel" data-arg="${k}" aria-pressed="${(e.hud.lolPanel==="fight"?"fight":"lane")===k}">${l}</button>`).join("")}</div></div>`:""}
     <div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>
     ${h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
-  <div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam","Player Webcam")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
-  ${e.game==="League of Legends"?lolSettings(e):""}
+  ${inGame?`<div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam","Player Webcam")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
+  ${e.game==="League of Legends"?lolSettings(e):""}`:""}
   ${stage()}`;
 },
 teams(e){
