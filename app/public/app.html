@@ -162,9 +162,6 @@ table.grid tr:last-child td{border-bottom:0}
 .testimg{max-width:100%;max-height:90px;background:#fff;border-radius:6px}
 .rp{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--field)}
 .rp input[type=range]{width:100%;accent-color:var(--accent);padding:0}
-.icgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:12px;margin-top:10px}
-.icslot{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--dim);text-align:center}
-.icslot .dz.mini img{max-height:44px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:50}
 </style>
 </head>
@@ -474,14 +471,11 @@ standings(e){
   ${e.standings.map((r,i)=>`<tr><td>${F.sel(`standings.${i}.team`,"",teamOpts(e))}</td><td>${F.num(`standings.${i}.w`,"")}</td><td>${F.num(`standings.${i}.l`,"")}</td><td>${F.num(`standings.${i}.gd`,"")}</td><td><button class="btn icon" type="button" data-act="delStanding" data-arg="${i}" aria-label="Remove row">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="5" class="sub" style="padding:16px">No rows yet.</td></tr>`}
   </tbody></table></div></div><div class="sec">${stage("rankings")}</div>`;
 }};
-/* League settings: objective icons, gold, which timers and counters show, and the objective timings */
-const IC_SLOTS=[["dragon","Dragon"],["infernal","Infernal"],["ocean","Ocean"],["mountain","Mountain"],["cloud","Cloud"],["hextech","Hextech"],["chemtech","Chemtech"],["elder","Elder"],["grubs","Void grubs"],["herald","Rift Herald"],["baron","Baron"],["tower","Tower"]];
+/* League settings: gold, which timers and counters show, and the objective timings */
 const TIMING_LABELS={dragonFirst:"Dragon first spawn (s)",dragonRespawn:"Dragon respawn (s)",elderRespawn:"Elder respawn (s)",grubsFirst:"Grubs first spawn (s)",grubsWaves:"Grub camps per game",grubsRespawn:"Grubs respawn (s)",grubsDespawn:"Grubs despawn (s)",heraldFirst:"Herald first spawn (s)",heraldDespawn:"Herald despawn (s)",baronFirst:"Baron first spawn (s)",baronRespawn:"Baron respawn (s)",baronBuff:"Baron buff length (s)",elderBuff:"Elder buff length (s)"};
 function lolSettings(e){
-  const ic=DB.settings.icons||{},L=e.lol||{};
+  const L=e.lol||{};
   return`<details class="sec" open><summary style="cursor:pointer;font:700 15px var(--f-head)">League settings</summary><div class="sec" style="gap:18px;margin-top:14px">
-    <div><b style="font:700 13px var(--f-head)">Objective icons</b><p class="note">The official League objective icons (dragon and each dragon type, elder, void grubs, Rift Herald, Baron, tower, inhibitor) are downloaded automatically the first time the app runs and kept on this PC. Upload an image over any slot only if you want a different one.</p>
-    <div class="icgrid">${IC_SLOTS.map(([k,l])=>`<div class="icslot"><div class="dz mini" style="width:52px;min-height:52px">${ic[k]?`<img src="${esc(ic[k])}" alt="">`:ico("up")}<input type="file" accept="image/*" id="ic-${k}" data-upload="!settings.icons.${k}" aria-label="Upload the ${l} icon"></div><span>${l}</span>${ic[k]?`<button class="btn sm" type="button" data-act="icClear" data-arg="${k}">Reset</button>`:""}</div>`).join("")}</div></div>
     <div class="cols" style="--n:3">${F.sel("lol.goldMode","Gold",[["estimate","Estimated (recommended)"],["items","Value of items held"],["manual","Typed in"]])}${F.num("lol.goldScale","Estimate scale (1 = as modelled)",'step="0.01"')}${F.num("lol.passiveStart","Passive gold starts (s)")}</div>
     ${L.goldMode==="manual"?`<div class="cols">${F.num("lol.manualGold.0","Blue side gold")}${F.num("lol.manualGold.1","Red side gold")}</div>`:""}
     <div><b style="font:700 13px var(--f-head)">Timers shown (top-left)</b><div class="chks" style="margin-top:8px">${[["dragon","Dragon"],["grubs","Void grubs"],["herald","Rift Herald"],["elder","Elder"],["baron","Baron"]].map(([k,l])=>F.chk(`lol.showTimers.${k}`,l)).join("")}</div></div>
@@ -597,7 +591,6 @@ document.addEventListener("click",async ev0=>{
     case "resetSeries":put("live.series",[0,0]);break;
     case "source":await api("/api/source",{source:arg});DB.settings.source=arg;break;
     case "clearBrand":put("settings.brand",{logo:""},false);break;
-    case "icClear":{const ic=Object.assign({},DB.settings.icons||{});delete ic[arg];await put("settings.icons",ic,false);break}
     case "lolPanel":e.hud.lolPanel=arg;await api("/api/lol/panel",{mode:arg});break;
     case "ocrSources":ocrLoadSources();return;
     case "ocrPick":{const s=OCR.shown[+arg],c=ocrCfg();c.sourceId=s.id;c.sourceName=s.name;ocrSourcesRender();ocrSave(true);return}

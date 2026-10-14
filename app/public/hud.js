@@ -177,7 +177,7 @@
       herald: `<svg viewBox="0 0 24 24"><path d="M2 12c3-5 7-7 10-7s7 2 10 7c-3 5-7 7-10 7S5 17 2 12z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>`,
     };
     ICON.elder = ICON.drake; ICON.baron = `<i>B</i>`;
-    // Official objective icons are uploaded in the dashboard (Settings > Objective icons); the shapes above are the fallback.
+    // Official objective icons are downloaded automatically (server.js); the shapes above are the fallback.
     const OI = k => (CTX.icons && CTX.icons[k] ? `<img class="oi" src="${esc(CTX.icons[k])}" alt="">` : "");
     const ic = (k, fallback) => OI(k) || fallback;
     const stat = (s, right) =>
