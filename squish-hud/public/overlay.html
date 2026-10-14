@@ -30,7 +30,7 @@ addEventListener("resize", fit); fit();
 function draw() {
   if (!DB) return;
   const ev = DB.events.find(e => e.id === (qs.get("event") || DB.onAir)) || DB.events[0];
-  if (ev) SquishHUD.render(hud, ev, GAME, scene);
+  if (ev) SquishHUD.render(hud, ev, GAME, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons) });
 }
 function connect() {
   const es = new EventSource("/events?kind=overlay");

@@ -34,7 +34,7 @@
         if (best) { sides[s] = best; tracked[s] = true; }
       });
     }
-    const kind = live && game.kind ? game.kind : ev.game === "League of Legends" ? "lol" : "rl";
+    const kind = live && game.kind ? game.kind : ev.game === "League of Legends" ? "lol" : ev.game === "Minecraft" ? "mc" : ev.game === "Riftbound" ? "rb" : "rl";
     const size = kind === "lol" ? 5 : 3;
     const roster = (t, name) => t && t.players.find(p => low(p.ign) === low(name));
     const blank = { score: 0, goals: 0, shots: 0, assists: 0, saves: 0, demos: 0, touches: 0, boost: 0, kills: 0, deaths: 0, cs: 0, level: 1, ward: 0 };
@@ -66,7 +66,7 @@
       assister: find(game.lastGoal.assister) || game.lastGoal.assister, kmh: game.lastGoal.kmh } : null;
     const mvp = all.slice().sort((a, b) => b.score - a.score)[0];
     return {
-      ev, live, kind, lol: game && game.lol, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
+      ev, live, kind, lol: game && game.lol, mc: game && game.mc, mcOcr: game && game.mcOcr, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
       series: l.series, focus: live ? find(game.target) : null,
       clock: live || hasClock ? game.time : 300, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
       connected: !!(game && game.connected), source: game ? game.source : "",
@@ -158,25 +158,38 @@
   const DRAKE = { Infernal: "#ff6b3d", Ocean: "#3dbbff", Mountain: "#b5835a", Cloud: "#d9e6f2", Hextech: "#3de0d0", Chemtech: "#8fd14f", Elder: "#b48cff" };
   S.lolingame = (m) => {
     const ev = m.ev, l = ev.live, sh = ev.hud.show, [L, R] = m.sides;
-    const o = m.lol || { towers: [0, 0], inhibs: [0, 0], dragons: [[], []], barons: [0, 0], heralds: [0, 0], ddVersion: "" };
+    const o = m.lol || { ddVersion: "", counters: { dragons: true, heralds: true, grubs: true }, timers: {}, buffs: {} };
     const icon = p => o.ddVersion && p.champKey ? `<img src="https://ddragon.leagueoflegends.com/cdn/${esc(o.ddVersion)}/img/champion/${encodeURIComponent(p.champKey)}.png" alt="">`
       : `<span>${esc(String(p.champion || p.display || "?").slice(0, 2))}</span>`;
     // objective counts are stored per game side (0 = blue); the HUD's left/right may be swapped
     const gs = s => (l.swap ? 1 - s : s);
-    const K = n => (n >= 1000 ? (n / 1000).toFixed(1) + "K" : String(n | 0));
-    const gold = [0, 1].map(s => m.players[s].reduce((a, p) => a + (p.gold || 0), 0));
-    const kills = [0, 1].map(s => m.players[s].reduce((a, p) => a + (p.kills || 0), 0));
-    const lead = gold[0] === gold[1] ? -1 : gold[0] > gold[1] ? 0 : 1;
+    const K = n => (Math.max(0, n) / 1000).toFixed(1) + "K"; // gold is always shown as 12.0K, 0.5K, +0.3K
+    // team totals come from the server (estimated gold, kills); every array is per game side, so index it with gs(hudSide)
+    const kills = [0, 1].map(s => (o.kills ? o.kills[gs(s)] : m.players[s].reduce((a, p) => a + (p.kills || 0), 0)));
+    const gold = [0, 1].map(s => (o.gold ? Math.round(o.gold[gs(s)]) : m.players[s].reduce((a, p) => a + (p.gold || 0), 0)));
+    const diff = gold[0] - gold[1], lead = diff >= 100 ? 0 : diff <= -100 ? 1 : -1; // the lead tab shows on the leading side only
     const ICON = {
       sword: `<svg viewBox="0 0 24 24"><path d="M5 19 17 7M14 4h6v6M4 20l3-1-2-2z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
       coin: `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2.2"/></svg>`,
       tower: `<svg viewBox="0 0 24 24"><path d="M6 21V10h2V6h2v2h4V6h2v4h2v11zM10 21v-5h4v5" fill="currentColor"/></svg>`,
       drake: `<svg viewBox="0 0 24 24"><path d="M12 2 21 12 12 22 3 12z" fill="currentColor"/></svg>`,
+      grub: `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="5.5" fill="currentColor"/><path d="M9 7v10M12.5 6.5v11M16 7.5v9" stroke="#07120e" stroke-width="1.4"/></svg>`,
+      herald: `<svg viewBox="0 0 24 24"><path d="M2 12c3-5 7-7 10-7s7 2 10 7c-3 5-7 7-10 7S5 17 2 12z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>`,
     };
-    const stat = (s, right) => { const t = gs(s);
-      return `<div class="l2-stat${right ? " r" : ""}"><span class="k">${ICON.sword}<b class="num">${kills[t]}</b></span><span class="g">${ICON.coin}<b class="num">${K(gold[t])}</b>${lead === t ? `<small>+${K(Math.abs(gold[0] - gold[1]))}</small>` : ""}</span></div>`; };
-    const objs = (s, right) => { const t = gs(s);
-      return `<div class="l2-obj${right ? " r" : ""}"><span>${ICON.tower}<b class="num">${o.towers[t] || 0}</b></span><span class="drk">${(o.dragons[t] || []).slice(0, 4).map(d => `<i style="color:${DRAKE[d] || "#888"}">${ICON.drake}</i>`).join("")}</span>${o.barons[t] ? `<span class="bar">B<b class="num">${o.barons[t]}</b></span>` : ""}</div>`; };
+    ICON.elder = ICON.drake; ICON.baron = `<i>B</i>`;
+    // Official objective icons are uploaded in the dashboard (Settings > Objective icons); the shapes above are the fallback.
+    const OI = k => (CTX.icons && CTX.icons[k] ? `<img class="oi" src="${esc(CTX.icons[k])}" alt="">` : "");
+    const ic = (k, fallback) => OI(k) || fallback;
+    const stat = (s, right) =>
+      `<div class="l2-stat${right ? " r" : ""}"><span class="k">${ICON.sword}<b class="num">${kills[s]}</b></span><span class="g">${ICON.coin}<b class="num">${K(gold[s])}</b>${lead === s ? `<small>+${K(Math.abs(diff))}</small>` : ""}</span></div>`;
+    const cnt = (k, s) => (o[k] ? o[k][gs(s)] : 0) || 0;
+    const objs = (s, right) => { const t = gs(s), C = o.counters || {}, drag = (o.dragons && o.dragons[t]) || [];
+      const buffs = ["baron", "elder"].map(b => (o.buffs && o.buffs[b] && o.buffs[b].side === t ? `<span class="bf ${b}">${b === "baron" ? "BARON" : "ELDER"} <b class="num">${fmt(o.buffs[b].secs)}</b></span>` : "")).join("");
+      return `<div class="l2-obj${right ? " r" : ""}">`
+        + (C.dragons !== false ? `<span class="drk">${drag.slice(0, 4).map(d => ic(d.toLowerCase(), `<i style="color:${DRAKE[d] || "#888"}">${ICON.drake}</i>`)).join("")}${cnt("elders", s) ? ic("elder", `<i style="color:${DRAKE.Elder}">${ICON.drake}</i>`) : ""}</span>` : "")
+        + (C.heralds !== false ? `<span>${ic("herald", ICON.herald)}<b class="num">${cnt("heralds", s)}</b></span>` : "")
+        + (C.grubs !== false ? `<span>${ic("grubs", ICON.grub)}<b class="num">${cnt("grubs", s)}</b></span>` : "")
+        + (cnt("barons", s) ? `<span class="bar">B<b class="num">${cnt("barons", s)}</b></span>` : "") + buffs + `</div>`; };
     const NOTE = { dragon: 1, baron: 1, herald: 1, tower: 1, inhib: 1, ace: 1, fb: 1, multi: 1 };
     const note = m.feed.slice().reverse().find(x => NOTE[x.type]);
     const row = p => `<div class="l-p${p.dead ? " dead" : ""}"><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div>
@@ -184,27 +197,43 @@
     // lower panel: each lane side by side with items, K/D/A, CS, gold and the lane's gold lead in the middle
     const item = id => (o.ddVersion && id ? `<img src="https://ddragon.leagueoflegends.com/cdn/${esc(o.ddVersion)}/img/item/${id}.png" alt="">` : `<i></i>`);
     const slots = p => Array.from({ length: 6 }, (_, i) => item((p.items || [])[i])).join("");
-    const half = (p, right) => !p ? `<div class="lp-h${right ? " r" : ""}"></div>` : `<div class="lp-h${right ? " r" : ""}${p.dead ? " dead" : ""}"><div class="it">${slots(p)}</div><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b></div>
-      <div class="nm"><b>${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div><div class="st"><b class="num">${K(p.gold || 0)}</b><small class="num">${p.cs || 0} CS</small></div></div>`;
+    const slots7 = p => Array.from({ length: 7 }, (_, i) => item((p.items || [])[i])).join(""); // six items and the trinket
+    const spell = k => (o.ddVersion && k ? `<img src="https://ddragon.leagueoflegends.com/cdn/${esc(o.ddVersion)}/img/spell/${esc(k)}.png" alt="">` : `<i></i>`);
+    const EYE = `<svg viewBox="0 0 24 24"><path d="M2 12c3-5 7-7 10-7s7 2 10 7c-3 5-7 7-10 7S5 17 2 12z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`;
+    // One row of the board, laid out like the in-game scoreboard: vision, items, spells, portrait with level, name and keystone, CS over K/D/A.
+    // (Health and mana aren't in Riot's live data, so there are no bars.) The right side is the same row mirrored.
+    const half = (p, right) => !p ? `<div class="lp-h${right ? " r" : ""}"></div>` : `<div class="lp-h${right ? " r" : ""}${p.dead ? " dead" : ""}">
+      <div class="vs"><b class="num">${p.ward || 0}</b>${EYE}</div><div class="it">${slots7(p)}</div>
+      <div class="sp">${spell((p.spells || [])[0])}${spell((p.spells || [])[1])}</div>
+      <div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div>
+      <div class="nm"><b>${esc(p.display)}</b>${p.keystone ? `<img class="rk" src="https://ddragon.leagueoflegends.com/cdn/img/${esc(p.keystone)}" alt="">` : ""}</div>
+      <div class="st"><b class="num">${p.cs || 0}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div></div>`;
     const lanes = Math.max(m.players[0].length, m.players[1].length);
     const panel = Array.from({ length: lanes }, (_, i) => { const a = m.players[0][i], b = m.players[1][i], d = ((a && a.gold) || 0) - ((b && b.gold) || 0);
       return `${half(a, false)}<div class="lp-d${d > 0 ? " l" : d < 0 ? " r" : ""}"><b class="num">${Math.abs(d)}</b></div>${half(b, true)}`; }).join("");
     let h = "";
-    if (sh.stats) { // objective timers, top-left corner
-      const sp = o.spawn || { dragon: 300, baron: 1200 };
-      const t = k => { const r = Math.round(sp[k] - m.clock); return r <= 0 ? `<b class="up">UP</b>` : `<b class="num">${fmt(r)}</b>`; };
-      h += `<div class="l2-timers"><div class="tm drake">${ICON.drake}${t("dragon")}<small>DRAGON</small></div><div class="tm baron"><i>B</i>${t("baron")}<small>BARON</small></div></div>`;
+    if (sh.stats) { // objective timers, top-left corner: a countdown, LIVE, or hidden once the objective is gone for the game
+      const chips = [["dragon", "DRAGON", "drake"], ["grubs", "VOID GRUBS", "grub"], ["herald", "HERALD", "herald"], ["elder", "ELDER", "elder"], ["baron", "BARON", "baron"]].map(([k, n, cls]) => {
+        const t = (o.timers || {})[k]; if (!t || !t.label) return "";
+        return `<div class="tm ${cls}" data-k="tm-${k}">${ic(k, ICON[cls])}<b class="${t.label === "LIVE" ? "up" : "num"}">${t.label}</b><small>${n}${k === "dragon" && o.nextDragonIsElder ? " (ELDER)" : ""}</small></div>`;
+      }).join("");
+      if (chips) h += `<div class="l2-timers">${chips}</div>`;
     }
-    if (sh.score) h += `<div class="l2-bar"><div class="l2-team l">${lg(L)}<span class="tg">${esc(L ? L.tag : "BLUE")}</span></div>${stat(0, false)}
-      <div class="l2-mid"><b class="num">${m.series[0]}</b><small>${esc(l.gameSeries || "BO" + l.bestOf)}</small><b class="num">${m.series[1]}</b></div>
-      ${stat(1, true)}<div class="l2-team r"><span class="tg">${esc(R ? R.tag : "RED")}</span>${lg(R)}</div></div>
-      <div class="l2-sub">${objs(0, false)}<div class="l2-time">${ICON.drake}<b class="num">${fmt(m.clock)}</b></div>${objs(1, true)}</div>
+    // Same layout as the in-game broadcast bar: [team] [turrets] [gold] [kills | kills] [gold] [turrets] [team], the clock underneath,
+    // and the claimed objectives (dragons, herald, grubs, baron) in the row beside it.
+    const need = Math.floor((+l.bestOf || 3) / 2) + 1;
+    const pipsOf = s => `<span class="pips">${Array.from({ length: need }, (_, i) => `<i class="${m.series[s] > i ? "on" : ""}"></i>`).join("")}</span>`;
+    const gdBlock = s => `<div class="l2-gd ${s ? "r" : "l"}"><span class="g">${ICON.coin}<b class="num">${K(gold[s])}</b></span>${lead === s ? `<small>+${K(Math.abs(diff))}</small>` : ""}</div>`;
+    const twBlock = s => `<div class="l2-tw ${s ? "r" : "l"}">${ic("tower", ICON.tower)}<b class="num">${cnt("towers", s)}</b></div>`;
+    if (sh.score) h += `<div class="l2-bar"><div class="l2-team l">${lg(L)}<span class="tg">${esc(L ? L.tag : "BLUE")}</span>${pipsOf(0)}</div>${twBlock(0)}${gdBlock(0)}
+      <div class="l2-kc"><b class="num">${kills[0]}</b><b class="num">${kills[1]}</b></div>
+      ${gdBlock(1)}${twBlock(1)}<div class="l2-team r">${pipsOf(1)}<span class="tg">${esc(R ? R.tag : "RED")}</span>${lg(R)}</div></div>
+      <div class="l2-sub">${objs(0, false)}<div class="l2-time"><b class="num">${fmt(m.clock)}</b></div>${objs(1, true)}</div>
       ${note ? `<div class="l2-note" style="--c:${m.colors[note.side] || "#FDC82F"}"><b>${esc(((note.main && note.main.name && m.sides[note.side]) ? m.sides[note.side].tag : "") )}</b> ${esc(note.label)}${note.main ? ` · ${esc(note.main.display || note.main.name)}` : ""}</div>` : ""}`;
-    if (sh.boost) h += `<div class="l-side l">${m.players[0].map(row).join("")}</div><div class="l-side r">${m.players[1].map(row).join("")}</div>`;
+    if (sh.boost) h += `<div class="l-side l" style="top:130px">${m.players[0].map(row).join("")}</div><div class="l-side r" style="top:130px">${m.players[1].map(row).join("")}</div>`; // optional: off by default, the board at the bottom has the same info
     // Auto: the lane panel normally, a compact strip while a teamfight is on. Health, mana and ultimate timers
     // aren't in Riot's live data, so the strip shows what is: level, items, K/D/A and death timers.
-    const fight = o.fight || { active: false, kills: [0, 0] }, mode = ev.hud.lolPanel || "auto";
-    const showFight = mode === "fight" || (mode === "auto" && fight.active);
+    const fight = o.fight || { active: false, kills: [0, 0] }, showFight = ev.hud.lolPanel === "fight"; // switched by the operator (F9 or the dashboard), never automatic
     const tile = p => !p ? "" : `<div class="tf-p${p.dead ? " dead" : ""}"><div class="it">${slots(p)}</div><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div><b class="nm">${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div>`;
     if (sh.card && showFight) h += `<div class="tf"><div class="tf-s">${m.players[0].map(tile).join("")}</div><div class="tf-m"><small>TEAMFIGHT</small><b class="num"><span style="color:var(--L)">${fight.kills[gs(0)]}</span> – <span style="color:var(--R)">${fight.kills[gs(1)]}</span></b></div><div class="tf-s">${m.players[1].map(tile).join("")}</div></div>`;
     else if (sh.card) h += `<div class="lp">${panel}</div>`;
@@ -248,11 +277,89 @@
     return { html: `<div class="h-full"><div class="h-eyebrow">${esc(m.ev.live.seriesTitle || m.ev.name)}</div><div class="h-title" style="font-size:80px">${esc(t.label)}</div><div class="h-timer num">${fmt(rem)}</div></div>`, cams: [] };
   };
 
+  /* ---------------- Minecraft: Hunger Games and Build Battle ---------------- */
+  // Player heads come from a public skin service. If it can't be reached (no internet), a letter tile is shown instead.
+  const BAD = new Set();
+  if (typeof document !== "undefined") document.addEventListener("error", e => { const t = e.target; if (t && t.tagName === "IMG" && t.dataset && t.dataset.head) BAD.add(t.src); }, true);
+  const headUrl = n => `https://mc-heads.net/avatar/${encodeURIComponent(n)}/64`;
+  const head = (n, cls = "") => `<span class="hd ${cls}"><i>${esc(String(n || "?").charAt(0).toUpperCase())}</i>${BAD.has(headUrl(n)) ? "" : `<img data-head="1" src="${headUrl(n)}" alt="">`}</span>`;
+  const HEART = `<svg viewBox="0 0 24 24"><path d="M12 21 3.5 12.5a5 5 0 0 1 7-7L12 7l1.5-1.5a5 5 0 0 1 7 7z"/></svg>`;
+  const hearts = hp => Array.from({ length: 10 }, (_, i) => { const f = Math.max(0, Math.min(1, (hp || 0) / 2 - i)); return `<span class="ht">${HEART}<span class="f" style="width:${f * 100}%">${HEART}</span></span>`; }).join("");
+  const clk = c => (c ? (c.base || 0) + (c.running ? (Date.now() - c.startedAt) / 1000 : 0) : 0);
+  const PHASE = { waiting: "STARTING SOON", building: "BUILDING", judging: "JUDGING", results: "RESULTS" };
+  const phaseOf = t => (/build/i.test(t) ? "building" : /judg|vote|rate/i.test(t) ? "judging" : /result|winner|final/i.test(t) ? "results" : /wait|lobby|start/i.test(t) ? "waiting" : null);
+
+  // Everything the Minecraft scenes need: the server feed (if connected) and the screen reader, with the roster for team tags.
+  function mcData(m) {
+    const ev = m.ev, cfg = ev.mc || {}, rc = m.mc, oc = m.mcOcr && Date.now() - m.mcOcr.t < 6000 ? m.mcOcr : null, connected = !!(rc && rc.connected);
+    const roster = new Map(); ev.teams.forEach(t => t.players.forEach(p => { if (p.ign) roster.set(p.ign.toLowerCase(), { name: p.ign, team: t }); }));
+    const list = [], seen = new Set();
+    if (rc) rc.players.forEach(p => { seen.add(p.name.toLowerCase()); const r = roster.get(p.name.toLowerCase()); list.push(Object.assign({}, p, { team: r ? r.team : null })); });
+    roster.forEach((r, k) => { if (!seen.has(k)) list.push({ name: r.name, health: null, food: null, mode: null, online: false, kills: 0, deaths: 0, alive: false, team: r.team, offline: true }); });
+    list.sort((a, b) => a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1);
+    const alive = connected ? list.filter(p => p.alive).length : oc && oc.alive != null ? oc.alive : null;
+    return { cfg, list, connected, oc, alive, total: cfg.total || (oc && oc.total) || list.length || 0,
+      elapsed: oc && oc.clock != null ? oc.clock : clk(cfg.clock), border: rc && rc.border != null ? rc.border : oc && oc.border != null ? oc.border : null,
+      feed: rc && rc.feed ? rc.feed.filter(f => Date.now() - f.t < 10000).slice(-4) : [] };
+  }
+  S.mcingame = (m) => {
+    const d = mcData(m);
+    return d.cfg.mode === "buildbattle" ? mcBuild(m, d) : mcHunger(m, d);
+  };
+  function mcHunger(m, d) {
+    const cfg = d.cfg, byKills = d.list.filter(p => p.kills > 0).sort((a, b) => b.kills - a.kills).slice(0, 5);
+    const spot = d.list.find(p => p.name === cfg.spotlight) || d.list.slice().sort((a, b) => b.kills - a.kills || (b.alive ? 1 : 0) - (a.alive ? 1 : 0))[0];
+    const n = d.list.length, tw = Math.max(26, Math.min(56, Math.floor(1210 / Math.max(1, n))));
+    let h = `<div class="mc-top"><div class="t">${esc(cfg.title || "HUNGER GAMES")}</div><div class="a"><b class="num">${d.alive ?? "–"}</b><small>/ ${d.total || "–"} ALIVE</small></div>
+      <div class="c"><b class="num">${fmt(d.elapsed)}</b>${d.border != null ? `<small>BORDER ${Math.round(d.border)}</small>` : ""}</div></div>`;
+    if (byKills.length) h += `<div class="mc-kills"><h4>KILLS</h4>${byKills.map((p, i) => `<div data-k="k${esc(p.name)}">${head(p.name)}<span class="nm">${esc(p.name)}</span><b class="num">${p.kills}</b></div>`).join("")}</div>`;
+    if (d.feed.length) h += `<div class="mc-feed">${d.feed.map(f => `<div data-k="f${f.id}">${f.killer ? `<b>${esc(f.killer)}</b><i>${esc(f.weapon || "ELIMINATED")}</i>` : ""}<span>${esc(f.victim)}</span>${f.killer ? "" : "<i>OUT</i>"}</div>`).join("")}</div>`;
+    if (spot) h += `<div class="mc-spot">${head(spot.name, "big")}<div class="nm"><b>${esc(spot.name)}</b><small>${spot.team ? esc(spot.team.tag) : ""}${spot.alive ? "" : " · OUT"}</small></div>
+      <div class="hearts">${hearts(spot.health)}</div><div class="r2"><span class="fd"><i style="width:${Math.max(0, Math.min(100, ((spot.food || 0) / 20) * 100))}%"></i></span><span class="kl num">${spot.kills} KILLS</span></div></div>`;
+    if (n) h += `<div class="mc-grid" style="--w:${tw}px">${d.list.map(p => `<div class="tile${p.alive ? "" : " out"}" data-k="p${esc(p.name)}">${head(p.name)}<span class="hpb"><i style="width:${Math.max(0, Math.min(100, ((p.health || 0) / 20) * 100))}%"></i></span>${p.kills ? `<b class="kb num">${p.kills}</b>` : ""}</div>`).join("")}</div>`;
+    return { html: h, cams: [] };
+  }
+  function mcBuild(m, d) {
+    const bb = d.cfg.bb || {}, oc = d.oc, phase = (oc && oc.phase && phaseOf(String(oc.phase))) || bb.phase || "waiting";
+    const theme = (oc && oc.theme) || bb.theme || "", rem = oc && oc.clock != null ? oc.clock : bb.endsAt ? Math.max(0, (bb.endsAt - Date.now()) / 1000) : bb.remaining || 0;
+    const scores = bb.scores || {};
+    if (phase === "results") {
+      const names = [...new Set([...Object.keys(scores), ...d.list.map(p => p.name)])];
+      const rows = names.map(n => ({ n, s: scores[n] })).sort((a, b) => (b.s ?? -1) - (a.s ?? -1)).slice(0, 10);
+      return { html: `<div class="h-full"><div class="h-eyebrow">${esc(theme || d.cfg.title || "BUILD BATTLE")}</div><div class="h-title" style="font-size:90px">RESULTS</div>
+        <table class="h-table" style="width:760px"><tbody>${rows.map((r, i) => `<tr class="${i === 0 ? "top" : ""}"><td class="num" style="width:60px">${i + 1}</td><td class="tm" style="text-align:left">${head(r.n, "sm")}${esc(r.n)}</td><td class="num">${r.s ?? "–"}</td></tr>`).join("")}</tbody></table></div>`, cams: [] };
+    }
+    let h = `<div class="bb-top"><div class="th"><small>THEME</small><b>${esc(theme || "–")}</b></div><div class="ph">${PHASE[phase]}</div><div class="tm num">${fmt(rem)}</div></div>`;
+    h += `<div class="bb-list">${d.list.slice(0, 14).map(p => `<div data-k="b${esc(p.name)}" class="${p.online ? "" : "off"}">${head(p.name, "sm")}<span class="nm">${esc(p.name)}</span>${scores[p.name] != null ? `<b class="num">${scores[p.name]}</b>` : ""}</div>`).join("")}</div>`;
+    if (phase === "judging" && bb.judging) h += `<div class="bb-judge">${head(bb.judging, "big")}<div><small>NOW JUDGING</small><b>${esc(bb.judging)}</b></div><div class="sc"><b class="num">${scores[bb.judging] ?? "–"}</b><small>/ 10</small></div></div>`;
+    return { html: h, cams: [] };
+  }
+
+  /* ---------------- Riftbound (card game): operator-driven ---------------- */
+  S.rbingame = (m) => {
+    const ev = m.ev, rb = ev.rb || {}, cards = new Map((rb.cards || []).map(c => [c.id, c]));
+    const elapsed = clk(rb.clock), shown = rb.limitMinutes ? Math.max(0, rb.limitMinutes * 60 - elapsed) : elapsed;
+    const nm = s => (rb.names && rb.names[s]) || (m.sides[s] && m.sides[s].name) || `PLAYER ${s + 1}`, col = s => (rb.colors && rb.colors[s]) || m.colors[s];
+    const pts = s => (rb.points && rb.points[s]) || 0, target = rb.target || 8;
+    const pips = s => Array.from({ length: target }, (_, i) => `<i class="${i < pts(s) ? "on" : ""}"></i>`).join("");
+    const tile = (id, key) => { const k = cards.get(id); if (!k) return ""; return `<div class="rb-card" data-k="${key}">${k.image ? `<img src="${esc(k.image)}" alt="${esc(k.name)}">` : `<b>${esc(k.name)}</b>`}</div>`; };
+    const panel = s => `<div class="rb-p${(rb.active || 0) === s ? " act" : ""}" style="--c:${esc(col(s))}"><div class="nm"><b>${esc(nm(s))}</b><small>${esc((rb.legends && rb.legends[s]) || "")}</small></div><div class="pt"><b class="num">${pts(s)}</b><small>/ ${target}</small></div><div class="pips">${pips(s)}</div></div>`;
+    let h = `<div class="rb-top">${panel(0)}<div class="mid"><div class="gw num">${(rb.games && rb.games[0]) || 0} – ${(rb.games && rb.games[1]) || 0}</div><small>${esc(rb.roundTitle || ev.live.gameSeries || "")}</small><div class="ck num">${fmt(shown)}</div><small>TURN ${rb.turn || 1}</small></div>${panel(1)}</div>`;
+    [0, 1].forEach(s => { const ids = ((rb.play && rb.play[s]) || []).slice(0, 10); if (ids.length) h += `<div class="rb-play ${s ? "r" : "l"}">${ids.map((id, i) => tile(id, `c${s}-${i}-${id}`)).join("")}</div>`; });
+    const sp = rb.spotlight && rb.spotlight.show ? cards.get(rb.spotlight.cardId) : null;
+    if (sp) h += `<div class="rb-spot" data-k="spot-${esc(sp.id)}">${sp.image ? `<img src="${esc(sp.image)}" alt="${esc(sp.name)}">` : `<div class="txt"><b>${esc(sp.name)}</b></div>`}<div class="cap">${esc(sp.name)}</div></div>`;
+    const log = (rb.log || []).slice(-3).reverse();
+    if (log.length) h += `<div class="rb-log">${log.map(l => { const k = cards.get(l.cardId); return k ? `<div data-k="l${l.t}"><span style="color:${esc(col(l.player))}">${esc(nm(l.player))}</span> played <b>${esc(k.name)}</b></div>` : ""; }).join("")}</div>`;
+    return { html: h, cams: [] };
+  };
+
   /* pick the scene: "auto" follows the dashboard, and the in-game HUD
      switches itself to Replay during goal replays and Team Stats on the podium */
   function resolveScene(ev, m, scene) {
     let s = scene === "auto" || !scene ? ev.hud.scene : scene;
     if (s === "ingame" && m.kind === "lol") return "lolingame";
+    if (s === "ingame" && m.kind === "mc") return "mcingame";
+    if (s === "ingame" && m.kind === "rb") return "rbingame";
     if (s === "ingame" && m.replay) s = "replay";
     if (s === "ingame" && m.podium && ev.hud.autoBoard) s = "statsteam";
     return S[s] ? s : "ingame";
@@ -288,7 +395,9 @@
     while (a.childNodes.length > next.length) a.removeChild(a.lastChild);
   }
 
-  function render(hudEl, ev, game, scene) {
+  let CTX = {}; // per-render extras: { icons } (the uploaded objective icons)
+  function render(hudEl, ev, game, scene, ctx) {
+    CTX = ctx || {};
     if (!hudEl.firstChild) hudEl.innerHTML = `<div class="lay"></div><div class="cams"></div>`;
     const m = model(ev, game);
     const s = resolveScene(ev, m, scene);
@@ -340,5 +449,7 @@
     vignette(.5);
   }
 
-  window.SquishHUD = { SCENES, model, render, drawBg, esc, fmt };
+  const api = { SCENES, model, render, drawBg, esc, fmt };
+  if (typeof window !== "undefined") window.SquishHUD = api;
+  if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

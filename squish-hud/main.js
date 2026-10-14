@@ -1,7 +1,7 @@
 // Desktop shell: runs the Squish server inside the app and shows the control room in its own window.
 // OBS still reads the overlay from http://localhost:7777/overlay while the app is open.
 "use strict";
-const { app, BrowserWindow, Menu, shell, dialog, clipboard } = require("electron");
+const { app, BrowserWindow, Menu, shell, dialog, clipboard, globalShortcut } = require("electron");
 const path = require("path");
 
 // `Saints HUD.exe --ocr-selftest` checks that screen capture and text reading work on this PC.
@@ -81,6 +81,9 @@ app.whenReady().then(() => {
   base = `http://127.0.0.1:${PORT}`;
   buildMenu();
   setupUpdates();
+  // F9 flips the League bottom board between the lane board and the teamfight strip, even while OBS has focus
+  if (!globalShortcut.register("F9", () => { fetch(base + "/api/lol/panel", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => {}); }))
+    console.log("F9 is already taken by another program, so the teamfight hotkey is unavailable. Use the dashboard button.");
   if (server.listening) createWindow(); else server.once("listening", createWindow);
   server.once("error", err => {
     dialog.showErrorBox("Saints HUD can't start",
@@ -89,4 +92,5 @@ app.whenReady().then(() => {
   });
 });
 app.on("second-instance", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+app.on("will-quit", () => globalShortcut.unregisterAll());
 app.on("window-all-closed", () => app.quit());
