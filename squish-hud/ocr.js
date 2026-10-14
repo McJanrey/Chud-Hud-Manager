@@ -33,6 +33,14 @@ async function frame(id, name) {
   const sz = img.getSize(), k = Math.min(1, 1280 / sz.width);
   return (k < 1 ? img.resize({ width: Math.round(sz.width * k), height: Math.round(sz.height * k) }) : img).toJPEG(80);
 }
+// A picture of one game window, found by (part of) its title, for the HUD preview. Only that window is captured.
+async function frameByName(fragments) {
+  const srcs = await desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 1280, height: 720 }, fetchWindowIcons: false });
+  const low = fragments.map(f => f.toLowerCase());
+  const s = srcs.find(x => x.name && !/saints hud/i.test(x.name) && low.some(f => x.name.toLowerCase().includes(f)));
+  if (!s || s.thumbnail.isEmpty()) throw new Error("The game window wasn't found.");
+  return s.thumbnail.toJPEG(75);
+}
 async function listSources() {
   const srcs = await desktopCapturer.getSources({ types: ["screen", "window"], thumbnailSize: { width: 256, height: 144 }, fetchWindowIcons: false });
   return srcs.filter(s => s.name && !s.thumbnail.isEmpty()).map(s => ({ id: s.id, name: s.name, kind: kindOf(s.id), thumb: s.thumbnail.toDataURL() }));
@@ -40,13 +48,16 @@ async function listSources() {
 
 /* ---------------------------------------------------------- preprocess */
 // Crop, enlarge, binarize (Otsu) and put dark text on a white background, which Tesseract reads best.
-function prepare(img, r, polarity) {
+// `pixel` is for blocky game fonts (Minecraft): threshold at the original size, then enlarge by whole pixels
+// so the letters keep their hard edges instead of being smoothed.
+function prepare(img, r, polarity, pixel, thickenOverride) {
   const full = img.getSize();
   const x = Math.max(0, Math.round(r.x * full.width)), y = Math.max(0, Math.round(r.y * full.height));
   const w = Math.max(4, Math.min(full.width - x, Math.round(r.w * full.width))), h = Math.max(4, Math.min(full.height - y, Math.round(r.h * full.height)));
   let c = img.crop({ x, y, width: w, height: h });
-  const k = Math.max(1, Math.min(6, Math.ceil(72 / h)));
-  if (k > 1) c = c.resize({ width: w * k, height: h * k, quality: "best" });
+  let k = Math.max(1, Math.min(8, Math.ceil(72 / h)));
+  if (!pixel && k > 1) { c = c.resize({ width: w * k, height: h * k, quality: "best" }); k = 1; }
+  const S = pixel ? k : 1;
   const { width, height } = c.getSize(), bmp = c.toBitmap(), n = width * height;
   const gray = new Uint8Array(n), hist = new Array(256).fill(0);
   for (let i = 0, p = 0; i < n; i++, p += 4) { const g = (bmp[p] * 29 + bmp[p + 1] * 150 + bmp[p + 2] * 77) >> 8; gray[i] = g; hist[g]++; }
@@ -59,11 +70,21 @@ function prepare(img, r, polarity) {
   }
   let bright = 0; for (let i = 0; i < n; i++) if (gray[i] > thr) bright++;
   const textIsLight = polarity === "light" ? true : polarity === "dark" ? false : bright < n / 2; // text is the minority class
-  const pad = 10, W = width + pad * 2, H = height + pad * 2, out = Buffer.alloc(W * H * 4, 255);
-  for (let yy = 0; yy < height; yy++) for (let xx = 0; xx < width; xx++) {
-    const isLight = gray[yy * width + xx] > thr, ink = textIsLight ? isLight : !isLight, o = ((yy + pad) * W + xx + pad) * 4;
-    const v = ink ? 0 : 255; out[o] = out[o + 1] = out[o + 2] = v; out[o + 3] = 255;
+  const pad = 10, W = width * S + pad * 2, H = height * S + pad * 2, out = Buffer.alloc(W * H * 4, 255);
+  let ink = new Uint8Array(W * H);
+  for (let yy = 0; yy < height * S; yy++) for (let xx = 0; xx < width * S; xx++) {
+    const isLight = gray[((yy / S) | 0) * width + ((xx / S) | 0)] > thr;
+    ink[(yy + pad) * W + xx + pad] = (textIsLight ? isLight : !isLight) ? 1 : 0;
   }
+  // Blocky fonts have hair-thin strokes that the text reader misses; thicken them a little.
+  const iters = thickenOverride != null ? thickenOverride : pixel ? 1 : 0;
+  for (let it = 0; it < iters; it++) {
+    const nx = new Uint8Array(ink.length);
+    for (let yy = 1; yy < H - 1; yy++) for (let xx = 1; xx < W - 1; xx++) { const o = yy * W + xx;
+      nx[o] = ink[o] | ink[o - 1] | ink[o + 1] | ink[o - W] | ink[o + W] | ink[o - W - 1] | ink[o - W + 1] | ink[o + W - 1] | ink[o + W + 1]; }
+    ink = nx;
+  }
+  for (let i = 0; i < W * H; i++) { const v = ink[i] ? 0 : 255, o = i * 4; out[o] = out[o + 1] = out[o + 2] = v; out[o + 3] = 255; }
   return nativeImage.createFromBitmap(out, { width: W, height: H });
 }
 
@@ -119,8 +140,26 @@ function accept(key, type, v) {
   if (v == null) { s.n = 0; s.cand = null; return s.value; }
   if (type === "time" && s.value != null && Math.abs(v - s.value) <= 2) { s.value = v; s.cand = null; s.n = 0; return v; }
   if (s.cand === v) s.n++; else { s.cand = v; s.n = 1; }
-  if (s.n >= 2 || s.value == null && type === "text" && s.n >= 1) s.value = v;
+  if (s.n >= 2) s.value = v;
   return s.value;
+}
+
+/* Read one box. Blocky game fonts are read at three stroke thicknesses and the majority answer wins
+   (unless the box has a fixed Stroke setting), because a single thickness is fragile. */
+async function readRegion(img, r) {
+  const type = r.type || "number", pol = r.polarity || "auto";
+  const fixed = r.thicken != null && r.thicken !== "auto" && r.thicken !== "" ? +r.thicken : null;
+  const levels = !r.pixel ? [null] : fixed != null ? [fixed] : [1, 2, 3];
+  const tries = [];
+  for (const th of levels) {
+    const png = prepare(img, r, pol, !!r.pixel, th == null ? undefined : th).toPNG();
+    const { raw, conf } = await recognise(png, type);
+    tries.push({ raw, conf, parsed: parse(raw, type), png });
+  }
+  const votes = new Map();
+  for (const t of tries) if (t.parsed != null) { const k = JSON.stringify(t.parsed), v = votes.get(k) || { n: 0, conf: 0, t }; v.n++; v.conf += t.conf; if (t.conf > v.t.conf) v.t = t; votes.set(k, v); }
+  const best = [...votes.values()].sort((a, b) => b.n - a.n || b.conf - a.conf)[0];
+  return best ? best.t : tries[0];
 }
 
 /* ---------------------------------------------------------------- loop */
@@ -129,20 +168,25 @@ async function readAll(img) {
   for (const r of cfg.regions || []) {
     const type = r.type || "number", t0 = Date.now();
     try {
-      const { raw, conf } = await recognise(prepare(img, r, r.polarity || "auto").toPNG(), type);
-      const parsed = parse(raw, type), value = accept(r.id, type, parsed);
+      const { raw, conf, parsed } = await readRegion(img, r);
+      const value = accept(r.id, type, parsed);
       readings[r.id] = { key: r.key, raw, conf, parsed, value, ok: value != null, ms: Date.now() - t0 };
       if (value != null && r.key && r.key !== "custom") vals[r.key] = value;
     } catch (e) { readings[r.id] = { key: r.key, raw: "", ok: false, error: e.message }; }
   }
   return { readings, vals };
 }
+const MC_KEYS = ["alive", "total", "kills", "border", "clock", "theme", "phase"];
 function toMessage(v) {
+  const out = [];
   const teams = [0, 1].map(i => ({ TeamNum: i, Score: v["score" + i], Name: v["name" + i] })).filter(t => t.Score != null || t.Name);
   const game = {};
   if (teams.length) game.Teams = teams;
   if (v.clock != null) game.TimeSeconds = v.clock;
-  return Object.keys(game).length ? { Event: "UpdateState", Data: { Players: [], Game: game } } : null;
+  if (Object.keys(game).length) out.push({ Event: "UpdateState", Data: { Players: [], Game: game } });
+  const mc = {}; for (const k of MC_KEYS) if (v[k] != null) mc[k] = v[k];
+  if (Object.keys(mc).length) out.push({ Event: "McOcr", Data: { values: mc } }); // Minecraft sidebar and build battle values
+  return out.length ? out : null;
 }
 async function loop() {
   if (!state.running) return;
@@ -171,10 +215,9 @@ function stop() { state.running = false; clearTimeout(timer); }
 function update(c) { cfg = c || {}; if (state.running) stable = {}; }
 async function testRegion(id, name, region) {
   const { img } = await grabFn(id, name);
-  const png = prepare(img, region, region.polarity || "auto").toPNG();
-  const { raw, conf } = await recognise(png, region.type || "number");
-  return { image: "data:image/png;base64," + png.toString("base64"), raw, conf, value: parse(raw, region.type || "number") };
+  const t = await readRegion(img, region);
+  return { image: "data:image/png;base64," + t.png.toString("base64"), raw: t.raw, conf: t.conf, value: t.parsed };
 }
 
-module.exports = { available: true, state: () => Object.assign({ available: true }, state), listSources, frame, start, stop, update, testRegion,
+module.exports = { available: true, state: () => Object.assign({ available: true }, state), listSources, frame, frameByName, start, stop, update, testRegion,
   _internals: { prepare, parse, recognise, grab, setGrab: f => { grabFn = f; } } };

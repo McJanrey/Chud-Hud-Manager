@@ -162,6 +162,9 @@ table.grid tr:last-child td{border-bottom:0}
 .testimg{max-width:100%;max-height:90px;background:#fff;border-radius:6px}
 .rp{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--field)}
 .rp input[type=range]{width:100%;accent-color:var(--accent);padding:0}
+.icgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:12px;margin-top:10px}
+.icslot{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--dim);text-align:center}
+.icslot .dz.mini img{max-height:44px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:50}
 </style>
 </head>
@@ -230,6 +233,8 @@ bracket:'<path d="M3 5h6v4H3zM3 15h6v4H3zM9 7h3v10H9M12 12h3M15 10h6v4h-6z" fill
 rank:'<path d="M4 20V12h4v8M10 20V6h4v14M16 20v-5h4v5" fill="currentColor"/>',
 events:'<circle cx="12" cy="7" r="3.5" fill="currentColor"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6z" fill="currentColor"/>',
 ocr:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 12h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+mcicon:'<path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9" fill="none" stroke="currentColor" stroke-width="2"/>',
+rbicon:'<rect x="5" y="3" width="11" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 21h8a2 2 0 0 0 2-2V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 copy:'<rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 4H6a2 2 0 0 0-2 2v10" fill="none" stroke="currentColor" stroke-width="2"/>',
 up:'<path d="M12 16V5m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
 swap:'<path d="M4 8h14m0 0-3-3m3 3-3 3M20 16H6m0 0 3-3m-3 3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -240,7 +245,7 @@ reset:'<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" fill="none" stroke="currentColo
 search:'<circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2"/>'};
 const ico=k=>`<svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
 const META={overview:["Overview","overview"],hud:["HUD Editor","hud"],teams:["Players & Teams","teams"],tournament:["Tournament","trophy"],talent:["Talent Profiles","talent"],
-  live:["Live Game","live"],ocr:["Screen OCR","ocr"],camera:["Camera feed","cam"],graphics:["Lower Thirds & Timer","gfx"],schedule:["Schedule","sched"],bracket:["Bracket","bracket"],standings:["Rankings","rank"]};
+  live:["Live Game","live"],ocr:["Screen OCR","ocr"],mc:["Minecraft","mcicon"],rb:["Riftbound","rbicon"],outputs:["Outputs","gfx"],camera:["Camera feed","cam"],graphics:["Lower Thirds & Timer","gfx"],schedule:["Schedule","sched"],bracket:["Bracket","bracket"],standings:["Rankings","rank"]};
 
 /* ---------- form helpers ---------- */
 const F={
@@ -271,8 +276,8 @@ function rail(e){
   const b=(v,cur)=>`<button type="button" data-act="nav" data-arg="${v}"${cur?' aria-current="page"':""}>${ico(META[v][1])}${META[v][0]}</button>`;
   const nav=e?`${b("overview",ui.view==="overview")}${b("hud",ui.view==="hud")}
     <div class="grp">EVENT SETUP</div>${b("teams",ui.view==="teams")}${b("tournament",ui.view==="tournament")}${b("talent",ui.view==="talent")}
-    <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${b("ocr",ui.view==="ocr")}${b("camera",ui.view==="camera")}
-    <div class="grp">BROADCAST</div>${b("graphics",ui.view==="graphics")}${b("schedule",ui.view==="schedule")}${b("bracket",ui.view==="bracket")}${b("standings",ui.view==="standings")}`
+    <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${e.game==="Minecraft"?b("mc",ui.view==="mc"):""}${e.game==="Riftbound"?b("rb",ui.view==="rb"):""}${b("ocr",ui.view==="ocr")}${b("camera",ui.view==="camera")}
+    <div class="grp">BROADCAST</div>${b("graphics",ui.view==="graphics")}${b("schedule",ui.view==="schedule")}${b("bracket",ui.view==="bracket")}${b("standings",ui.view==="standings")}${b("outputs",ui.view==="outputs")}`
     :`<button type="button" aria-current="page">${ico("events")}My Events</button>`;
   const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/saints-emblem.png";
   return`<aside><div class="me"><img class="logo" src="${esc(crest)}" alt="St. Clair Saints emblem"><div><b style="font-family:var(--f-head)">Saints HUD</b><small>${e?esc(e.name):"St. Clair Broadcast"}</small></div></div><nav class="nav" aria-label="Sections">${nav}</nav><div class="conn" id="conn"></div></aside>`;
@@ -302,7 +307,7 @@ function home(){
 }
 
 /* ---------- views ---------- */
-const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene currently on air.":"Preview of "+esc(SCENES[scene])+"."}</span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
+const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene currently on air.":"Preview of "+esc(SCENES[scene])+"."} <span data-bgnote></span></span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
 const overlayUrl=s=>`${location.origin}/overlay?scene=${s}`;
 const VIEWS={
 overview(e){
@@ -329,16 +334,17 @@ overview(e){
 hud(e){
   const h=e.hud;
   return`${!["Rocket League","League of Legends"].includes(e.game)?`<div class="banner">Scenes for ${esc(e.game)} use the Rocket League layout for now.</div>`:""}
-  ${e.game==="League of Legends"?`<p class="note">A teamfight is two or more kills within 12 seconds. League's live data has no health, mana or ultimate timers for other players, so the teamfight strip shows level, items, K/D/A and death timers.</p>`:""}
+  ${e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
   <div class="row" style="gap:24px">
     <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene on air",Object.entries(SCENES))}</div>
     <div class="fld" style="flex:none"><span>Colors</span><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}">Team</button></div></div>
     <div class="fld" style="flex:none"><span>Customise</span><div class="row c" style="gap:8px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></div></div>
-    ${e.game==="League of Legends"?`<div class="fld" style="flex:0 1 230px">${F.sel("hud.lolPanel","Bottom panel",[["auto","Auto (teamfight strip during fights)"],["lane","Always lane panel"],["fight","Always teamfight strip"]])}</div>`:""}
+    ${e.game==="League of Legends"?`<div class="fld" style="flex:none"><span>Bottom board (F9)</span><div class="seg">${[["lane","Lane board"],["fight","Teamfight strip"]].map(([k,l])=>`<button type="button" data-act="lolPanel" data-arg="${k}" aria-pressed="${(e.hud.lolPanel==="fight"?"fight":"lane")===k}">${l}</button>`).join("")}</div></div>`:""}
     <div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>
     ${h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
-  <div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Player Lists":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam","Player Webcam")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
+  <div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam","Player Webcam")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
+  ${e.game==="League of Legends"?lolSettings(e):""}
   ${stage()}`;
 },
 teams(e){
@@ -468,6 +474,21 @@ standings(e){
   ${e.standings.map((r,i)=>`<tr><td>${F.sel(`standings.${i}.team`,"",teamOpts(e))}</td><td>${F.num(`standings.${i}.w`,"")}</td><td>${F.num(`standings.${i}.l`,"")}</td><td>${F.num(`standings.${i}.gd`,"")}</td><td><button class="btn icon" type="button" data-act="delStanding" data-arg="${i}" aria-label="Remove row">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="5" class="sub" style="padding:16px">No rows yet.</td></tr>`}
   </tbody></table></div></div><div class="sec">${stage("rankings")}</div>`;
 }};
+/* League settings: objective icons, gold, which timers and counters show, and the objective timings */
+const IC_SLOTS=[["dragon","Dragon"],["infernal","Infernal"],["ocean","Ocean"],["mountain","Mountain"],["cloud","Cloud"],["hextech","Hextech"],["chemtech","Chemtech"],["elder","Elder"],["grubs","Void grubs"],["herald","Rift Herald"],["baron","Baron"],["tower","Tower"]];
+const TIMING_LABELS={dragonFirst:"Dragon first spawn (s)",dragonRespawn:"Dragon respawn (s)",elderRespawn:"Elder respawn (s)",grubsFirst:"Grubs first spawn (s)",grubsWaves:"Grub camps per game",grubsRespawn:"Grubs respawn (s)",grubsDespawn:"Grubs despawn (s)",heraldFirst:"Herald first spawn (s)",heraldDespawn:"Herald despawn (s)",baronFirst:"Baron first spawn (s)",baronRespawn:"Baron respawn (s)",baronBuff:"Baron buff length (s)",elderBuff:"Elder buff length (s)"};
+function lolSettings(e){
+  const ic=DB.settings.icons||{},L=e.lol||{};
+  return`<details class="sec" open><summary style="cursor:pointer;font:700 15px var(--f-head)">League settings</summary><div class="sec" style="gap:18px;margin-top:14px">
+    <div><b style="font:700 13px var(--f-head)">Objective icons</b><p class="note">The official League objective icons (dragon and each dragon type, elder, void grubs, Rift Herald, Baron, tower, inhibitor) are downloaded automatically the first time the app runs and kept on this PC. Upload an image over any slot only if you want a different one.</p>
+    <div class="icgrid">${IC_SLOTS.map(([k,l])=>`<div class="icslot"><div class="dz mini" style="width:52px;min-height:52px">${ic[k]?`<img src="${esc(ic[k])}" alt="">`:ico("up")}<input type="file" accept="image/*" id="ic-${k}" data-upload="!settings.icons.${k}" aria-label="Upload the ${l} icon"></div><span>${l}</span>${ic[k]?`<button class="btn sm" type="button" data-act="icClear" data-arg="${k}">Reset</button>`:""}</div>`).join("")}</div></div>
+    <div class="cols" style="--n:3">${F.sel("lol.goldMode","Gold",[["estimate","Estimated (recommended)"],["items","Value of items held"],["manual","Typed in"]])}${F.num("lol.goldScale","Estimate scale (1 = as modelled)",'step="0.01"')}${F.num("lol.passiveStart","Passive gold starts (s)")}</div>
+    ${L.goldMode==="manual"?`<div class="cols">${F.num("lol.manualGold.0","Blue side gold")}${F.num("lol.manualGold.1","Red side gold")}</div>`:""}
+    <div><b style="font:700 13px var(--f-head)">Timers shown (top-left)</b><div class="chks" style="margin-top:8px">${[["dragon","Dragon"],["grubs","Void grubs"],["herald","Rift Herald"],["elder","Elder"],["baron","Baron"]].map(([k,l])=>F.chk(`lol.showTimers.${k}`,l)).join("")}</div></div>
+    <div><b style="font:700 13px var(--f-head)">Claimed objectives shown (under the bar)</b><div class="chks" style="margin-top:8px">${[["dragons","Dragons"],["heralds","Heralds"],["grubs","Void grubs"]].map(([k,l])=>F.chk(`lol.counters.${k}`,l)).join("")}</div></div>
+    <details><summary class="note" style="cursor:pointer">Objective timings (Riot moves these between seasons)</summary><div class="cols" style="--n:3;margin-top:10px">${Object.keys(TIMING_LABELS).map(k=>F.num(`lol.timers.${k}`,TIMING_LABELS[k])).join("")}</div></details>
+  </div></details>`;
+}
 function teamList(e){const q=ui.teamq.toLowerCase();return e.teams.map((t,i)=>({t,i})).filter(({t})=>(t.name+t.tag).toLowerCase().includes(q)).map(({t,i})=>`<button type="button" class="item" data-act="selTeam" data-arg="${t.id}"${t.id===ui.team?' aria-current="true"':""}>${ml(t)}<span class="nm"><b data-mirror="teams.${i}.name">${esc(t.name)}</b><small data-mirror="teams.${i}.tag">${esc(t.tag)}</small></span><span class="count">${t.players.length}</span></button>`).join("")||`<p class="sub" style="padding:16px">No teams match.</p>`}
 function talentList(e){const q=ui.talentq.toLowerCase();return e.talent.map((t,i)=>({t,i})).filter(({t})=>t.name.toLowerCase().includes(q)).map(({t,i})=>`<button type="button" class="item" data-act="selTalent" data-arg="${t.id}"${t.id===ui.talent?' aria-current="true"':""}>${t.portrait?`<img class="ml" src="${esc(t.portrait)}" alt="">`:`<span class="ml">${esc(t.name.slice(0,2).toUpperCase())}</span>`}<span class="nm"><b data-mirror="talent.${i}.name">${esc(t.name)}</b><small data-mirror="talent.${i}.role">${esc(t.role)}</small></span></button>`).join("")||`<p class="sub" style="padding:16px">No talent matches.</p>`}
 
@@ -478,9 +499,26 @@ function updateStages(redraw){
   const e=ev();if(!e)return;
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
     const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
-    if(redraw||c.dataset.bg!==key){SquishHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
-    SquishHUD.render(h,e,GAME,st.dataset.stage);h.style.transform=`scale(${st.clientWidth/1280})`});
+    if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SquishHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
+    SquishHUD.render(h,e,GAME,st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons)});h.style.transform=`scale(${st.clientWidth/1280})`});
 }
+/* Preview background "Game": a live picture of the game's own window, when the desktop app can find it */
+const LIVEBG={ok:false,busy:false};
+async function liveBgTick(){
+  if(LIVEBG.busy||document.hidden)return;
+  const e=ev(),kind=e&&(e.hud.bg==="pitch"?"game":e.hud.bg),cvs=$$("[data-stage] canvas");
+  if(!e||kind!=="game"||!cvs.length){LIVEBG.ok=false;return}
+  LIVEBG.busy=true;
+  try{
+    const r=await fetch("/api/preview/frame?game="+encodeURIComponent(e.game)+"&t="+Date.now());if(!r.ok)throw new Error("none");
+    const bmp=await createImageBitmap(await r.blob());
+    cvs.forEach(c=>{if(c.width!==1280||c.height!==720){c.width=1280;c.height=720}const g=c.getContext("2d"),k=Math.max(1280/bmp.width,720/bmp.height),w=bmp.width*k,h=bmp.height*k;g.drawImage(bmp,(1280-w)/2,(720-h)/2,w,h);c.dataset.bg="live"});
+    LIVEBG.ok=true;
+  }catch(err){if(LIVEBG.ok){LIVEBG.ok=false;updateStages(true)}}  // lost the window: back to the placeholder backdrop
+  LIVEBG.busy=false;
+  $$("[data-bgnote]").forEach(n=>{n.textContent=LIVEBG.ok?"Live picture from the "+e.game+" window.":"Game window not found, so a placeholder backdrop is shown. Open the game in borderless or windowed mode to see it here."});
+}
+setInterval(liveBgTick,700);
 function liveBits(){
   railStatus();
   const e=ev();if(!e)return;
@@ -508,7 +546,11 @@ async function upload(input,file){
   if(!file||!file.type.startsWith("image/")){toast("That file isn't an image. Use PNG, JPG, SVG or WebP.");return}
   try{const r=await fetch("/api/upload",{method:"POST",headers:{"content-type":file.type},body:file});const j=await r.json();
     if(!r.ok)return toast(j.error||"Upload failed.");
-    if(input.dataset.upload==="!settings.brand.logo")await put("settings.brand",{logo:j.url},false);else await put(input.dataset.upload,j.url);render()}
+    const up=input.dataset.upload;
+    if(up==="!settings.brand.logo")await put("settings.brand",{logo:j.url},false);
+    else if(up.startsWith("!settings.icons."))await put("settings.icons",Object.assign({},DB.settings.icons||{},{[up.slice(16)]:j.url}),false);
+    else await put(up,j.url);
+    render()}
   catch(e){toast("Upload failed. Is the server running?")}
 }
 const blankTeam=()=>({id:uid(),name:"New Team",tag:"NEW",division:"",color:"#7c83f5",color2:"#ffffff",logos:["","",""],players:[]});
@@ -555,6 +597,8 @@ document.addEventListener("click",async ev0=>{
     case "resetSeries":put("live.series",[0,0]);break;
     case "source":await api("/api/source",{source:arg});DB.settings.source=arg;break;
     case "clearBrand":put("settings.brand",{logo:""},false);break;
+    case "icClear":{const ic=Object.assign({},DB.settings.icons||{});delete ic[arg];await put("settings.icons",ic,false);break}
+    case "lolPanel":e.hud.lolPanel=arg;await api("/api/lol/panel",{mode:arg});break;
     case "ocrSources":ocrLoadSources();return;
     case "ocrPick":{const s=OCR.shown[+arg],c=ocrCfg();c.sourceId=s.id;c.sourceName=s.name;ocrSourcesRender();ocrSave(true);return}
     case "ocrDel":{const c=ocrCfg();c.regions=c.regions.filter(r=>r.id!==arg);ocrBoxes();ocrRows();ocrSave();return}
@@ -618,11 +662,14 @@ document.addEventListener("dragleave",ev0=>{const dz=ev0.target.closest(".dz");i
 document.addEventListener("drop",ev0=>{const dz=ev0.target.closest(".dz");if(!dz)return;ev0.preventDefault();dz.classList.remove("over");const inp=dz.querySelector("input[type=file]");if(inp&&ev0.dataTransfer.files[0])upload(inp,ev0.dataTransfer.files[0])});
 
 /* ---------- screen OCR ---------- */
-const OCR_ROLES={score0:["Left score","number"],score1:["Right score","number"],clock:["Game clock","time"],name0:["Left team name","text"],name1:["Right team name","text"],custom:["Custom text","text"]};
-// starting positions only (fractions of the frame): every game's HUD is different
+const OCR_ROLES={score0:["Left score","number"],score1:["Right score","number"],clock:["Game clock","time"],name0:["Left team name","text"],name1:["Right team name","text"],
+  alive:["Players alive","number"],total:["Players total","number"],kills:["Kills","number"],border:["World border","number"],theme:["Build theme","text"],phase:["Round phase","text"],custom:["Custom text","text"]};
+// starting positions only (fractions of the frame; a 6th value turns on pixel-font reading): every game's HUD is different
 const OCR_LAYOUTS={
   top:[["name0",.30,.02,.13,.05],["score0",.44,.02,.04,.05],["clock",.47,.075,.06,.045],["score1",.52,.02,.04,.05],["name1",.57,.02,.13,.05]],
-  corners:[["score0",.05,.03,.06,.07],["score1",.89,.03,.06,.07],["clock",.47,.02,.06,.05]]};
+  corners:[["score0",.05,.03,.06,.07],["score1",.89,.03,.06,.07],["clock",.47,.02,.06,.05]],
+  mchg:[["alive",.93,.36,.05,.04,1],["kills",.93,.405,.05,.04,1],["clock",.92,.45,.06,.04,1],["border",.93,.495,.05,.04,1]],
+  mcbb:[["theme",.40,.03,.20,.05,1],["clock",.46,.085,.08,.045,1],["phase",.40,.14,.20,.04,1]]};
 let OCR={available:true,shown:[],sel:null},ocrTimer=null,ocrSaveT=null,ocrBusy=false;
 const ocrCfg=()=>DB.settings.ocr||(DB.settings.ocr={sourceId:"",sourceName:"",interval:800,regions:[]});
 function ocrSave(now){clearTimeout(ocrSaveT);const go=()=>api("/api/ocr/config",ocrCfg());return now?go():(ocrSaveT=setTimeout(go,300))}
