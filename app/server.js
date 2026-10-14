@@ -70,6 +70,16 @@ function upgrade(ev) {
   ev.teams.forEach(t => { if (t.tag === "SCC" && t.logos && !t.logos[0]) t.logos[0] = "/brand/saints-emblem.png"; });
   return ev;
 }
+const SQUAD = { "League of Legends": 5, "Rocket League": 3 };
+const seatPlayers = (ev, n) => ev.teams.forEach(t => { while (t.players.length < n) t.players.push({ id: uid(), ign: "", alias: "", country: "", avatar: "", cam: "" }); });
+function freshEvent(game, name = "New Event") {
+  const ev = newEvent(name, game);
+  const A = blankTeam("Blue Side", "BLU", "#2f7dff"), B = blankTeam("Orange Side", "ORG", "#ff9b1a");
+  ev.teams = [A, B]; Object.assign(ev.live, { left: A.id, right: B.id });
+  if (game === "League of Legends") { B.name = "Red Side"; B.tag = "RED"; B.color = "#e84057"; ev.hud.colorMode = "custom"; ev.hud.custom = ["#3a8dff", "#e84057"]; }
+  if (SQUAD[game]) seatPlayers(ev, SQUAD[game]);
+  return upgrade(ev);
+}
 function seed() {
   const rl = newEvent("RL - SCC", "Rocket League", "SCC");
   rl.hud.colorMode = "custom";
@@ -711,6 +721,10 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (p === "/api/state") return json(res, 200, { db: DB, game });
+    if (p === "/api/event-template") { // a clean, independent event for the chosen game (nothing copied from another event)
+      const g = new URL(req.url, "http://x").searchParams.get("game") || "Rocket League";
+      return json(res, 200, freshEvent(g));
+    }
     if (p === "/api/lol/replay") { // playback + render state, plus whether the Replay API is switched on
       return Promise.all([lolHttp("GET", "/replay/playback"), lolHttp("GET", "/replay/render")]).then(([pb, rn]) => {
         const cfg = readReplayApiSetting();
@@ -770,6 +784,7 @@ const server = http.createServer((req, res) => {
             const target = body.event ? DB.events.find(e => e.id === body.event) : DB;
             if (!target) return json(res, 404, { error: "event not found" });
             setPath(target, body.path, body.value);
+            if (body.event && body.path === "game") { upgrade(target); if (SQUAD[target.game] && target.teams.every(t => !t.players.length)) seatPlayers(target, SQUAD[target.game]); } // switching game gives that game's own settings
             save(); broadcastDb(body.by || "api");
             if (body.path === "onAir" || /(^|\.)game$/.test(body.path)) applySource(false); // auto source follows the on-air game
             return json(res, 200, { ok: true });

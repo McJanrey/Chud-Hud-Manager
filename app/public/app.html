@@ -559,14 +559,10 @@ document.addEventListener("click",async ev0=>{
     case "home":ui.cur=null;break;
     case "open":ui.cur=arg;ui.view="overview";ui.team=ui.talent=null;break;
     case "nav":ui.view=arg;break;
-    case "newEvent":{const r=await fetch("/api/state").then(r=>r.json()).catch(()=>null);
-      const tpl=JSON.parse(JSON.stringify(r&&r.db.events[0]||{}));
-      const x=Object.assign(tpl,{id:uid(),name:`New Event ${DB.events.length+1}`,organiser:"",teams:[],talent:[],schedule:[],standings:[]});
-      const A=Object.assign(blankTeam(),{name:"Blue Side",tag:"BLU",color:"#2f7dff"}),B=Object.assign(blankTeam(),{name:"Orange Side",tag:"ORG",color:"#ff9b1a"});
-      x.teams=[A,B];Object.assign(x.live,{left:A.id,right:B.id,score:[0,0],series:[0,0],eventTitle:"",seriesTitle:"",roundTitle:""});
-      x.tournament=Object.assign(x.tournament||{},{name:"",logos:["","","",""],sponsors:[]});x.camera.seats.forEach(s=>{s.talent="";s.url=""});
-      x.bracket.rounds.forEach(r=>r.matches.forEach(m=>{m.a=m.b="";m.sa=m.sb=""}));x.lowerThird={title:"",subtitle:""};
-      DB.events.push(x);await put("events",DB.events,false);ui.cur=x.id;ui.view="overview";toast("Event created");break;}
+    case "newEvent":{const x=await fetch("/api/event-template?game="+encodeURIComponent("Rocket League")).then(r=>r.json()).catch(()=>null);
+      if(!x)return toast("Couldn't create the event.");
+      x.name=`New Event ${DB.events.length+1}`;
+      DB.events.push(x);await put("events",DB.events,false);ui.cur=x.id;ui.view="overview";toast("Event created. Pick its game under Workspace.");break;}
     case "onAir":await put("onAir",e.id,false);toast(`${e.name} is now on air`);break;
     case "delEvent":if(!confirmTwice(b))return;await put("events",DB.events.filter(x=>x!==e),false);ui.cur=null;toast("Event deleted");break;
     case "copy":{const v=$("#ovUrl").value;try{await navigator.clipboard.writeText(v);toast("Overlay URL copied")}catch(err){$("#ovUrl").select();toast("Press Ctrl+C to copy")}return;}
