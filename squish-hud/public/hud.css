@@ -119,6 +119,9 @@
 .l2-timers .tm.drake svg{color:#FDC82F}.l2-timers .tm.baron i{color:#b48cff;border:2px solid #b48cff;border-radius:50%;width:24px;height:24px;font-size:15px;padding-top:2px}
 .l2-timers .tm b{font-size:26px;font-weight:600;line-height:1;padding-top:3px}
 .l2-timers .tm b.up{color:#7be3a3}
+.l2-timers .tm.grub svg{color:#9be15d}.l2-timers .tm.herald svg{color:#c8a2ff}.l2-timers .tm.elder svg{color:#b48cff}.l2-timers .tm.elder{border-left-color:#b48cff}
+.l2-obj .bf{display:none;font-size:15px;padding:2px 8px 0;border-radius:3px;background:rgba(180,140,255,.22);color:#d8c6ff;letter-spacing:.06em}.l2-obj .bf.elder{background:rgba(255,200,60,.2);color:#ffe08a}
+.l2-obj .bf b{color:inherit}
 .l2-timers .tm small{font-size:12px;letter-spacing:.14em;color:#9db3a8;line-height:1}
 
 /* ---------- League of Legends lower panel (lane by lane) ---------- */
@@ -273,3 +276,182 @@
 .h-replay .info{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);display:flex;background:rgba(5,24,17,.94);font-size:30px}
 .h-replay .info div{padding:10px 22px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .h-replay .info small{font-size:15px;color:#9a9ba3}
+
+/* compact objective timers: five chips fit above the player lists */
+.l2-timers{gap:4px}
+.l2-timers .tm{grid-template-columns:22px auto 1fr;grid-template-rows:auto;min-width:150px;padding:3px 10px 2px 6px;column-gap:7px}
+.l2-timers .tm svg,.l2-timers .tm i{grid-row:auto;width:20px;height:20px;font-size:15px}
+.l2-timers .tm.baron i{width:19px;height:19px;font-size:13px}
+.l2-timers .tm b{font-size:22px}
+.l2-timers .tm small{font-size:11px;white-space:nowrap}
+
+/* ---- League at the in-game broadcast size (1920x1080 reference scaled to this 1280x720 stage) ---- */
+.l2-bar{width:596px;height:40px;top:7px;display:grid;grid-template-columns:118px 40px 80px 120px 80px 40px 118px;align-items:stretch;filter:drop-shadow(0 3px 5px rgba(0,0,0,.4))}
+.l2-team{width:auto;gap:6px;padding:0 8px;font-size:24px;position:relative;min-width:0}
+.l2-team .lgbox{width:28px;height:28px}
+.l2-team .tg{padding-top:3px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+.l2-team.r{justify-content:flex-end}
+.l2-team .pips{display:flex;gap:3px;flex-direction:column;margin-left:2px}.l2-team.r .pips{margin:0 2px 0 0}
+.l2-team .pips i{width:6px;height:6px;border-radius:50%;border:1.5px solid rgba(255,255,255,.55)}.l2-team .pips i.on{background:var(--gold,#FDC82F);border-color:var(--gold,#FDC82F)}
+.l2-tw{display:flex;align-items:center;justify-content:center;gap:3px;color:#cbd6cf;background:rgba(5,24,17,.5)}
+.l2-tw svg{width:14px;height:14px}.l2-tw b{font-size:20px;padding-top:3px;font-weight:600;color:#fff}
+.l2-gd{position:relative;display:flex;align-items:center;justify-content:center}
+.l2-gd .g{display:flex;align-items:center;gap:4px;color:#cbd6cf}.l2-gd .g svg{width:14px;height:14px}.l2-gd .g b{font-size:22px;padding-top:3px;font-weight:600;color:#fff}
+.l2-gd small{position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:12px;padding:1px 7px 0;color:#fff;white-space:nowrap;z-index:2;background:var(--L)}
+.l2-gd.r small{background:var(--R)}
+.l2-kc{display:grid;grid-template-columns:1fr 1fr;align-items:center;text-align:center;background:rgba(2,14,10,.97)}
+.l2-kc b{font-size:26px;padding-top:4px;font-weight:600}.l2-kc b:first-child{color:var(--L)}.l2-kc b:last-child{color:var(--R)}
+.l2-sub{width:596px;top:47px;height:25px;display:grid;grid-template-columns:1fr 100px 1fr}
+.l2-obj{height:25px;gap:9px;padding:0 10px;font-size:15px}
+.l2-obj svg{width:13px;height:13px}.l2-obj b{font-size:17px}
+.l2-obj .drk i{width:13px;height:13px}
+.l2-time{width:auto;font-size:20px;color:#fff}
+.l2-time b{font-weight:500;padding-top:3px}
+.l2-note{top:78px}
+/* objective timers: small icons across the top-left corner */
+.l2-timers{top:8px;left:8px;flex-direction:row;flex-wrap:wrap;gap:3px;max-width:326px}
+.l2-timers .tm{display:flex;align-items:center;gap:5px;min-width:0;height:28px;padding:2px 8px 1px 5px;border-left-width:3px}
+.l2-timers .tm svg,.l2-timers .tm i{width:18px;height:18px;font-size:13px}
+.l2-timers .tm.baron i{width:17px;height:17px;font-size:12px}
+.l2-timers .tm b{font-size:18px}
+.l2-timers .tm small{display:none}
+/* bottom stats board at the in-game width (it sits between the two camera slots) */
+.lp{width:660px;grid-template-columns:1fr 54px 1fr}
+.lp-h{height:34px;gap:6px;padding:0 6px}
+.lp-h .it{gap:1px}.lp-h .it img,.lp-h .it i{width:18px;height:18px}
+.lp-h .ch{width:30px;height:30px;font-size:14px}.lp-h .ch .lv{font-size:10px;padding:0 3px;min-width:12px}
+.lp-h .nm b{font-size:16px;padding-top:3px}.lp-h .nm small{font-size:12px}
+.lp-h .st{width:42px}.lp-h .st b{font-size:16px;padding-top:3px}.lp-h .st small{font-size:11px}
+.lp-d{font-size:18px}
+.tf{width:660px}
+.tf-p{padding:4px 1px 3px;gap:2px}
+.tf-p .it img,.tf-p .it i{width:10px;height:10px}
+.tf-p .ch{width:34px;height:34px;font-size:15px}.tf-p .ch .lv{font-size:10px;padding:0 3px;min-width:12px}.tf-p .ch .rs{font-size:18px}
+.tf-p .nm{font-size:12px}.tf-p small{font-size:11px}
+.tf-m{width:64px}.tf-m b{font-size:20px}.tf-m small{font-size:10px}
+
+/* ---------- Minecraft: Hunger Games and Build Battle ---------- */
+.hd{position:relative;display:inline-block;width:var(--hs,28px);height:var(--hs,28px);flex:none;background:#2a2d3a;border-radius:3px;overflow:hidden}
+.hd i{position:absolute;inset:0;display:grid;place-items:center;font-style:normal;font-size:16px;color:#9db3a8}
+.hd img{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.hd.big{--hs:56px}.hd.sm{--hs:24px}
+.mc-top{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;height:46px;background:rgba(5,24,17,.94);border-bottom:3px solid var(--gold,#FDC82F);filter:drop-shadow(0 3px 5px rgba(0,0,0,.4))}
+.mc-top .t{padding:0 18px;display:grid;place-items:center;font-size:24px;letter-spacing:.14em;white-space:nowrap;background:linear-gradient(90deg,var(--L),transparent)}
+.mc-top .a{display:flex;align-items:baseline;justify-content:center;gap:6px;padding:0 20px;background:rgba(2,14,10,.97)}
+.mc-top .a b{font-size:38px;padding-top:4px}.mc-top .a small{font-size:16px;color:#9db3a8}
+.mc-top .c{padding:0 18px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.mc-top .c b{font-size:26px;font-weight:600;line-height:1;padding-top:3px}.mc-top .c small{font-size:12px;color:#9db3a8;letter-spacing:.1em}
+.mc-kills{position:absolute;top:70px;left:12px;width:210px;background:rgba(5,24,17,.9);padding:6px 8px;border-left:4px solid var(--gold,#FDC82F)}
+.mc-kills h4{margin:0 0 4px;font-size:15px;letter-spacing:.16em;color:var(--gold,#FDC82F);font-weight:500}
+.mc-kills div{display:flex;align-items:center;gap:8px;height:30px}
+.mc-kills .nm{flex:1;font-size:18px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-top:2px}
+.mc-kills b{font-size:22px;color:var(--gold,#FDC82F);padding-top:2px}
+.mc-feed{position:absolute;top:70px;right:12px;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.mc-feed div{background:rgba(5,24,17,.9);padding:5px 10px 2px;font-size:18px;display:flex;gap:8px;align-items:center;animation:hfade .3s}
+.mc-feed b{color:var(--gold,#FDC82F);font-weight:500}.mc-feed i{font-style:normal;font-size:13px;color:#9db3a8}.mc-feed span{color:#ff8a8a}
+.mc-spot{position:absolute;left:12px;bottom:96px;width:300px;display:grid;grid-template-columns:56px 1fr;gap:6px 10px;background:rgba(5,24,17,.93);padding:8px;border-left:4px solid var(--gold,#FDC82F)}
+.mc-spot .nm b{font-size:26px;display:block;line-height:1;padding-top:4px}.mc-spot .nm small{font-size:14px;color:#9db3a8}
+.mc-spot .hearts,.mc-spot .r2{grid-column:1/-1}
+.ht{position:relative;display:inline-block;width:20px;height:20px;margin-right:1px}
+.ht svg{position:absolute;inset:0;width:20px;height:20px;fill:rgba(255,255,255,.14)}
+.ht .f{position:absolute;left:0;top:0;bottom:0;overflow:hidden}.ht .f svg{fill:#ff4d5e}
+.fd{display:inline-block;width:150px;height:10px;background:rgba(255,255,255,.14);border-radius:2px;overflow:hidden}.fd i{display:block;height:100%;background:#e8a23a}
+.r2{display:flex;align-items:center;justify-content:space-between}.r2 .kl{font-size:20px;color:var(--gold,#FDC82F)}
+.mc-grid{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:1250px;padding:6px;background:rgba(5,24,17,.88);border-top:3px solid var(--gold,#FDC82F)}
+.mc-grid .tile{position:relative;width:var(--w);display:flex;flex-direction:column;gap:3px;align-items:center}
+.mc-grid .tile .hd{--hs:var(--w)}
+.mc-grid .hpb{display:block;width:100%;height:4px;background:rgba(255,255,255,.14)}.mc-grid .hpb i{display:block;height:100%;background:#4ade80;font-size:0}
+.mc-grid .kb{position:absolute;top:0;right:0;background:var(--gold,#FDC82F);color:#07120e;font-size:13px;padding:1px 4px 0;z-index:2}
+.mc-grid .tile.out{opacity:.4;filter:grayscale(1)}
+.bb-top{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;height:56px;background:rgba(5,24,17,.94);border-bottom:3px solid var(--gold,#FDC82F);filter:drop-shadow(0 3px 5px rgba(0,0,0,.4))}
+.bb-top .th{padding:0 22px;display:flex;flex-direction:column;justify-content:center;min-width:240px}
+.bb-top .th small{font-size:12px;letter-spacing:.2em;color:#9db3a8}.bb-top .th b{font-size:30px;line-height:1;font-weight:500}
+.bb-top .ph{padding:2px 18px 0;display:grid;place-items:center;font-size:20px;letter-spacing:.12em;background:var(--gold,#FDC82F);color:#07120e}
+.bb-top .tm{padding:4px 22px 0;display:grid;place-items:center;font-size:38px;font-weight:600;background:rgba(2,14,10,.97)}
+.bb-list{position:absolute;left:12px;top:80px;width:220px;display:flex;flex-direction:column;gap:3px}
+.bb-list div{display:flex;align-items:center;gap:8px;background:rgba(5,24,17,.88);padding:3px 8px;height:30px}
+.bb-list .nm{flex:1;font-size:18px;padding-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.bb-list b{color:var(--gold,#FDC82F);font-size:20px;padding-top:2px}.bb-list .off{opacity:.45}
+.bb-judge{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);display:flex;align-items:center;gap:18px;background:rgba(5,24,17,.95);padding:10px 24px;border-bottom:4px solid var(--gold,#FDC82F)}
+.bb-judge small{display:block;font-size:14px;letter-spacing:.2em;color:var(--gold,#FDC82F)}.bb-judge b{font-size:36px;line-height:1;font-weight:500}
+.bb-judge .sc{text-align:center}.bb-judge .sc b{font-size:56px;color:var(--gold,#FDC82F)}
+
+/* ---------- Riftbound ---------- */
+.rb-top{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;width:900px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.4))}
+.rb-p{flex:1;display:grid;grid-template-columns:1fr auto;align-items:center;background:rgba(5,24,17,.94);padding:6px 14px;border-bottom:4px solid var(--c)}
+.rb-p.act{box-shadow:inset 0 0 0 2px var(--gold,#FDC82F)}
+.rb-p .nm b{font-size:30px;line-height:1;display:block;padding-top:3px;font-weight:500}.rb-p .nm small{font-size:15px;color:#9db3a8}
+.rb-p .pt{text-align:right}.rb-p .pt b{font-size:56px;line-height:.9;color:var(--c);padding-top:4px;display:inline-block}.rb-p .pt small{font-size:16px;color:#9db3a8;margin-left:4px}
+.rb-p .pips{grid-column:1/-1;display:flex;gap:4px;margin-top:4px}.rb-p .pips i{flex:1;height:5px;background:rgba(255,255,255,.14)}.rb-p .pips i.on{background:var(--c)}
+.rb-top .mid{width:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(2,14,10,.97);gap:1px}
+.rb-top .mid .gw{font-size:34px;padding-top:3px}.rb-top .mid small{font-size:13px;letter-spacing:.1em;color:#9db3a8}.rb-top .mid .ck{font-size:30px;color:var(--gold,#FDC82F);padding-top:2px}
+.rb-play{position:absolute;top:130px;display:grid;grid-template-columns:repeat(2,86px);gap:8px}.rb-play.l{left:14px}.rb-play.r{right:14px}
+.rb-card{width:86px;height:120px;border-radius:6px;overflow:hidden;background:#1a2a22;border:2px solid rgba(255,255,255,.2);display:grid;place-items:center;text-align:center;font-size:14px;padding:3px;animation:hfade .35s}
+.rb-card img{width:100%;height:100%;object-fit:cover;margin:-3px}.rb-card b{font-weight:500}
+.rb-spot{position:absolute;left:calc(50% - 165px);top:130px;width:330px;animation:hfade .35s}
+.rb-spot img{width:100%;display:block;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.6)}
+.rb-spot .txt{height:460px;display:grid;place-items:center;background:#1a2a22;border-radius:12px;font-size:34px;text-align:center;padding:20px}
+.rb-spot .cap{margin-top:8px;text-align:center;background:var(--gold,#FDC82F);color:#07120e;font-size:24px;padding:5px 10px 1px}
+.rb-log{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:3px;align-items:center}
+.rb-log div{background:rgba(5,24,17,.9);padding:4px 14px 1px;font-size:18px;white-space:nowrap}.rb-log b{color:var(--gold,#FDC82F);font-weight:500}
+
+/* the bar (and the gold-lead tab hanging below it) sits above the clock row */
+.l2-bar{z-index:3}.l2-sub{z-index:2}
+.l2-gd small{font-size:14px;line-height:1;padding:3px 9px 1px;font-weight:600;letter-spacing:.02em;border-radius:0 0 4px 4px;box-shadow:0 2px 4px rgba(0,0,0,.35)}
+
+/* uploaded objective icons */
+.oi{width:20px;height:20px;object-fit:contain;display:block;flex:none}
+.l2-timers .tm img.oi{width:22px;height:22px}
+.l2-obj img.oi{width:16px;height:16px}
+.l2-tw img.oi{width:17px;height:17px}
+
+/* ---- bottom scoreboard, 1:1 with the in-game board (990x255 on 1920x1080 -> 660x170 here) ---- */
+.lp{width:660px;grid-template-columns:1fr 40px 1fr;border-top:2px solid rgba(255,255,255,.18);background:rgba(8,12,16,.94)}
+.lp-h{height:34px;display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid rgba(255,255,255,.07);min-width:0}
+.lp-h.r{flex-direction:row-reverse}
+.lp-h .vs{width:30px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;color:#c9a64b}
+.lp-h .vs b{font-size:15px;color:#e8d9a8;font-weight:500;padding-top:2px}.lp-h .vs svg{width:11px;height:11px;margin-top:1px}
+.lp-h .it{display:flex;gap:1px;flex:none;width:130px;padding:0 3px}
+.lp-h .it img,.lp-h .it i{width:17px;height:17px;border-radius:2px;background:rgba(255,255,255,.07);display:block;object-fit:cover;flex:none}
+.lp-h .it :last-child{margin-left:3px;border-radius:50%}
+.lp-h .sp{display:flex;flex-direction:column;gap:1px;flex:none;width:14px;margin:0 4px 0 3px}
+.lp-h .sp img,.lp-h .sp i{width:14px;height:14px;border-radius:2px;background:rgba(255,255,255,.07);display:block}
+.lp-h .ch{position:relative;width:30px;height:30px;flex:none;background:#1a1d24;display:grid;place-items:center;font-size:13px;border:1px solid rgba(255,255,255,.25)}
+.lp-h .ch img{width:100%;height:100%;object-fit:cover}
+.lp-h .ch .lv{position:absolute;left:0;bottom:0;background:rgba(0,0,0,.82);font-size:10px;line-height:1;padding:2px 3px 0;min-width:11px;text-align:center}
+.lp-h .ch .rs{position:absolute;inset:0;display:grid;place-items:center;font-size:17px;color:#ff6a6a;background:rgba(0,0,0,.55)}
+.lp-h.dead .ch img{filter:grayscale(1) brightness(.55)}
+.lp-h .nm{flex:1;min-width:0;display:flex;align-items:center;gap:3px;padding:0 5px;line-height:1}
+.lp-h.r .nm{justify-content:flex-end}
+.lp-h .nm b{font-size:15px;font-weight:500;padding-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-h .nm .rk{width:15px;height:15px;flex:none;object-fit:contain}
+.lp-h.r .nm{flex-direction:row-reverse}
+.lp-h .st{width:42px;flex:none;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;line-height:1;padding-right:4px}
+.lp-h.r .st{align-items:flex-start;padding:0 0 0 4px}
+.lp-h .st b{font-size:17px;font-weight:500;padding-top:2px}.lp-h .st small{font-size:12px;color:#cfd6dc;margin-top:1px}
+.lp-d{display:grid;place-items:center;font-size:17px;font-weight:500;background:rgba(2,6,10,.97);border-bottom:1px solid rgba(255,255,255,.07);color:#e8e8ec;position:relative}
+.lp-d b{padding-top:3px;font-weight:500}
+.lp-d.l::before,.lp-d.r::before{content:"";position:absolute;top:6px;bottom:6px;width:3px;background:currentColor;border-radius:1px}
+.lp-d.l::before{left:0;background:var(--L)}.lp-d.r::before{right:0;background:var(--R)}
+
+/* scoreboard: make room for full names, like the in-game board */
+.lp-h .vs{width:24px}.lp-h .vs b{font-size:14px}
+.lp-h .it{width:120px;padding:0 2px}.lp-h .it img,.lp-h .it i{width:16px;height:16px}
+.lp-h .sp{margin:0 3px 0 2px}
+.lp-h .ch{width:28px;height:28px}
+.lp-h .nm{padding:0 4px;gap:2px}.lp-h .nm b{font-size:13px;padding-top:2px}.lp-h .nm .rk{width:12px;height:12px}
+.lp-h .st{width:36px}.lp-h .st b{font-size:15px}.lp-h .st small{font-size:11px}
+
+/* Baron / Elder buff cards: down each side under the broadcast bar, with who took it and a draining timer */
+.l2-buffs{position:absolute;top:446px;left:8px;display:flex;flex-direction:column;gap:6px;width:230px}
+.l2-buffs.r{left:auto;right:8px}
+.l2-buff{position:relative;display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:8px;padding:5px 10px 7px 5px;background:rgba(2,14,10,.9);border-left:4px solid var(--c);overflow:hidden;animation:hfade .35s}
+.l2-buff.r{grid-template-columns:auto 1fr 38px;border-left:0;border-right:4px solid var(--c);text-align:right}
+.l2-buff.r .pt{order:3}.l2-buff.r .cd{order:1}.l2-buff.r .tx{order:2}
+.l2-buff .pt{width:38px;height:38px;border:2px solid var(--c);display:grid;place-items:center;overflow:hidden;color:#fff}
+.l2-buff .pt img{width:100%;height:100%;object-fit:cover}
+.l2-buff .tx{min-width:0;display:flex;flex-direction:column;line-height:1.05}
+.l2-buff .tx small{font-size:11px;letter-spacing:.12em;color:var(--c)}
+.l2-buff .tx b{font-size:18px;padding-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l2-buff .cd{font-size:24px;font-weight:600;padding-top:3px;color:var(--c)}
+.l2-buff .dr{position:absolute;left:0;bottom:0;height:3px;background:var(--c);transition:width 1s linear}
+.l2-buff.r .dr{left:auto;right:0}
