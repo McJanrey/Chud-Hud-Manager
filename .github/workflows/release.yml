@@ -4,6 +4,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch: {}   # Run workflow button: publishes v<version from app/package.json> (the release creates its own tag)
 permissions:
   contents: write
 jobs:
@@ -20,6 +21,7 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
       - name: Tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}" || { echo "Tag ${GITHUB_REF_NAME} doesn't match package.json version"; exit 1; }
       - run: npm ci
