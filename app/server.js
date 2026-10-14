@@ -1,4 +1,4 @@
-// Squish HUD server: dashboard + OBS overlays + Rocket League Stats API bridge.
+// Saints HUD server: dashboard + OBS overlays + Rocket League Stats API bridge.
 // Zero dependencies: needs only Node.js 18+.
 "use strict";
 const http = require("http");
@@ -14,7 +14,7 @@ const RL_PORT = +process.env.RL_PORT || 49123;
 
 const ROOT = __dirname;
 const PUB = path.join(ROOT, "public");
-const DATA = process.env.SQUISH_DATA || path.join(ROOT, "data"); // the desktop app points this at its user-data folder
+const DATA = process.env.SAINTS_DATA || path.join(ROOT, "data"); // the desktop app points this at its user-data folder
 const UPLOADS = path.join(DATA, "uploads");
 const DB_FILE = path.join(DATA, "db.json");
 fs.mkdirSync(UPLOADS, { recursive: true });
@@ -31,7 +31,7 @@ const talent = (name, role, socials = []) => ({ id: uid(), name, role, portrait:
 
 function newEvent(name, game = "Rocket League", organiser = "") {
   return {
-    id: uid(), name, game, organiser, kit: "Squish Default", created: Date.now(),
+    id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(),
     hud: { scene: "ingame", colorMode: "team", custom: ["#2f7dff", "#ff9b1a"], bg: "pitch", autoBoard: true,
       show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false } },
     teams: [],
@@ -61,6 +61,7 @@ function upgrade(ev) {
   const d = newEvent(ev.name);
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
+  if (typeof ev.kit === "string" && ev.kit.startsWith("Squish ")) ev.kit = "Saints " + ev.kit.slice(7); // events saved before the rename
   if (!ev.hud.lolPanel || ev.hud.lolPanel === "auto") ev.hud.lolPanel = "lane"; // the teamfight strip is a manual switch
   if (ev.game === "League of Legends") ev.lol = require("./league.js").merge(require("./league.js").DEFAULTS, ev.lol || {}); // every League setting has a visible value
   // League now follows the in-game layout: the stats board is at the bottom, so the side player lists start switched off (once)
@@ -698,6 +699,7 @@ const server = http.createServer((req, res) => {
   if (req.method === "GET") {
     if (p === "/" || p === "/dashboard") return sendFile(res, path.join(PUB, "app.html"));
     if (p === "/overlay") return sendFile(res, path.join(PUB, "overlay.html"));
+    if (p === "/launcher") return sendFile(res, path.join(PUB, "launcher.html"));
     if (p === "/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const c = { res, kind: url.searchParams.get("kind") === "overlay" ? "overlay" : "dashboard" };
@@ -827,7 +829,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.on("error", err => {
-  if (err.code === "EADDRINUSE") log(`Port ${PORT} is already in use. Close the other Squish window or set PORT to a different number.`);
+  if (err.code === "EADDRINUSE") log(`Port ${PORT} is already in use. Close the other Saints HUD window or set PORT to a different number.`);
   else log("Server error:", err.message);
   if (require.main === module) process.exit(1);
 });

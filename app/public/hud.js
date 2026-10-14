@@ -458,6 +458,6 @@
   }
 
   const api = { SCENES, model, render, drawBg, esc, fmt };
-  if (typeof window !== "undefined") window.SquishHUD = api;
+  if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

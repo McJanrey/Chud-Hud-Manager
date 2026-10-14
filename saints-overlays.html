@@ -1,4 +1,4 @@
-<title>Squish Overlays</title>
+<title>Saints HUD Overlays</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Archivo:wght@400;500;700&family=Silkscreen:wght@400;700&display=swap">
@@ -184,14 +184,14 @@ footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;paddin
 
 <div class="wrap">
   <nav aria-label="Main">
-    <a class="logo" href="#top"><i></i>SQUISH</a>
+    <a class="logo" href="#top"><i></i>SAINTS HUD</a>
     <div class="navlinks"><a href="#demo">Live demo</a><a href="#features">Features</a><a href="#dashboard">Dashboard</a></div>
     <a class="btn" href="#dashboard">Open dashboard</a>
   </nav>
 
   <header class="slab hero" id="top">
     <h1>Real time <span class="rot" id="rot">HUDs</span><br>for your events</h1>
-    <p>Squish gives tournament organisers scoreboards, player cards and killfeeds that update the moment the round does. Pick a look, plug in your teams, and go live from one control panel.</p>
+    <p>Saints HUD gives tournament organisers scoreboards, player cards and killfeeds that update the moment the round does. Pick a look, plug in your teams, and go live from one control panel.</p>
     <div class="ctas"><a class="btn blue" href="#dashboard">Try the dashboard</a><a class="btn ghost" href="#demo">Watch the demo</a></div>
     <canvas class="mascot" id="mascot" width="24" height="24" aria-hidden="true"></canvas>
   </header>
@@ -302,7 +302,7 @@ footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;paddin
     </div>
   </section>
 
-  <footer><span>Squish Overlays · a demo build with simulated match data</span><span>Built for LAN nights and league finals</span></footer>
+  <footer><span>Saints HUD Overlays · a demo build with simulated match data</span><span>Built for LAN nights and league finals</span></footer>
 </div>
 
 <script>
@@ -318,15 +318,15 @@ function freshPlayers(){
 function freshState(){
   return {teams:[{name:"NIGHT OWLS",tag:"OWL",color:"#4f7cff",score:6},{name:"SALT GOATS",tag:"GOT",color:"#ff6aa6",score:6}],
     round:13,maxRounds:24,map:"DUST II",timer:ROUND_TIME,running:true,sim:true,
-    casters:"CASTERS: @mira_casts & @deskjockey  ·  GRAND FINAL · BEST OF 3  ·  overlay by SQUISH",
+    casters:"CASTERS: @mira_casts & @deskjockey  ·  GRAND FINAL · BEST OF 3  ·  overlay by SAINTS HUD",
     show:{scorebar:true,players:true,killfeed:true,focus:true,ticker:true},
     players:freshPlayers(),focus:0,feed:[],banner:null};
 }
 let S;
-try{S=JSON.parse(localStorage.getItem("squish-hud")||"null")}catch(e){S=null}
+try{S=JSON.parse(localStorage.getItem("saints-hud")||"null")}catch(e){S=null}
 if(!S||!S.players||S.players.length!==10)S=freshState();
 S.banner=null;
-const save=()=>{try{localStorage.setItem("squish-hud",JSON.stringify(S))}catch(e){}};
+const save=()=>{try{localStorage.setItem("saints-hud",JSON.stringify(S))}catch(e){}};
 
 /* ---------- stage backdrop (pixel-art map scene) ---------- */
 function drawBg(c){
@@ -527,7 +527,7 @@ const words=[["HUDs","var(--pink)"],["killfeeds","var(--lime)"],["scorebars","va
 let wi=0;setInterval(()=>{wi=(wi+1)%words.length;const r=$("#rot");r.textContent=words[wi][0];r.style.color=words[wi][1];},2200);
 const mq="SCOREBAR <b>✦</b> PLAYER CARDS <b>✦</b> KILLFEED <b>✦</b> CASTER TICKER <b>✦</b> ROUND BANNERS <b>✦</b> SPECTATOR CAM <b>✦</b> ";
 $("#mq").innerHTML=`<span>${mq}</span><span>${mq}</span>`;
-// pixel mascot: a squishy jelly with a headset
+// pixel mascot: a jelly with a headset
 (()=>{const c=$("#mascot"),g=c.getContext("2d");const P={".":null,"o":"#17161c","p":"#ff3d8b","l":"#ff86b6","d":"#c4205f","w":"#ffffff","k":"#17161c","h":"#7c83f5","s":"#4cc3ff"};
 const art=["........................","........hhhhhhhh........","......hh........hh......",".....h............h.....",".....h...oooooo...h.....","....hhoooppppppooohh....","...shoppppllppppppohs...","...sopppplllppppppops...","...soppppplpppppppops...","....oppwwppppppwwppo....","...oppwkkwppppwkkwppo...","...oppwkkwppppwkkwppo...","...opppwwppppppwwpppo...","...oppppppppppppppppo...","...opppppkppppkpppppo...","...oppppppkkkkppppppo...","...oppppppppppppppppo...","...odppppppppppppppdo...","....oddpppppppppddoo....",".....ooddddddddddoo.....","......oooooooooooo......","........................","........................","........................"];
 let t=0;function draw(){g.clearRect(0,0,24,24);const sq=Math.round(Math.sin(t)*1);art.forEach((row,y)=>[...row].forEach((ch,x)=>{if(P[ch]){g.fillStyle=P[ch];g.fillRect(x,y+(y>12?0:sq*-0)+ (y<5?sq:0),1,1)}}));}

@@ -1,5 +1,5 @@
 node_modules/
-squish-hud/data/
+app/data/
 *.log
 .claude/
-squish-hud/dist/
+app/dist/

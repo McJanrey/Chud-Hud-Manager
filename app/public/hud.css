@@ -1,4 +1,4 @@
-﻿/* Squish HUD scenes. Every scene is laid out on a 1280x720 stage and scaled to fit. */
+﻿/* Saints HUD scenes. Every scene is laid out on a 1280x720 stage and scaled to fit. */
 .hud{--gold:#FDC82F;--green:#00693C;position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;font-family:"Teko","Arial Narrow",Impact,sans-serif;color:#fff;text-transform:uppercase;line-height:1;--L:#2f7dff;--R:#ff9b1a;overflow:hidden}
 .hud *{box-sizing:border-box}
 .hud .lay,.hud .cams{position:absolute;inset:0}
