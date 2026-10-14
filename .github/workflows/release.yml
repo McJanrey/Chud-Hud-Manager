@@ -31,6 +31,7 @@ jobs:
           node test/icons-test.js
           node test/minecraft-selftest.js
           node test/security-test.js
+          node test/minecraft-rcon-test.js
       - name: Build and publish
         run: npx electron-builder --win nsis --publish always
         env:

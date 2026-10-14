@@ -53,7 +53,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
       bb: { theme: "", phase: "waiting", buildSeconds: 900, endsAt: 0, remaining: 900, judging: "", scores: {} } },
     // Riftbound (trading card game): operator-driven scoring
     rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
-      limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "" },
+      limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "", play: [[], []], log: [] },
   };
 }
 // Older saved data may predate some fields: fill them in.
@@ -62,6 +62,7 @@ function upgrade(ev) {
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
   while (ev.camera.seats.length < 5) ev.camera.seats.push({ talent: "", url: "" }); // older events kept three seats
+  ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
   if (typeof ev.kit === "string" && ev.kit.startsWith("Squish ")) ev.kit = "Saints " + ev.kit.slice(7); // events saved before the rename
   if (!ev.hud.lolPanel || ev.hud.lolPanel === "auto") ev.hud.lolPanel = "lane"; // the teamfight strip is a manual switch
   if (ev.game === "League of Legends") ev.lol = require("./league.js").merge(require("./league.js").DEFAULTS, ev.lol || {}); // every League setting has a visible value
@@ -126,6 +127,25 @@ if (!DB || !Array.isArray(DB.events)) DB = seed();
 DB.settings = Object.assign({ source: "auto" }, DB.settings);
 if (!DB.settings.v) { DB.settings.v = 2; if (DB.settings.source === "demo") DB.settings.source = "auto"; } // the demo is no longer the default
 DB.events.forEach(upgrade);
+// Ready-made events for Minecraft (Hunger Games and Build Battle) and Riftbound, added once to a saved workspace that has none.
+if (!DB.settings.extraEvents) {
+  DB.settings.extraEvents = true;
+  const has = g => DB.events.some(e => e.game === g);
+  const withTeams = (ev, ...teams) => { ev.teams = teams; return ev; };
+  if (!has("Minecraft")) {
+    const hg = withTeams(newEvent("MC - HUNGER GAMES", "Minecraft", "SCC"), blankTeam("Players", "PLR", "#1d8a4a", "#f2b51c"));
+    hg.mc.mode = "hungergames"; hg.mc.title = "HUNGER GAMES"; hg.live.seriesTitle = "SCC HUNGER GAMES";
+    const bb = withTeams(newEvent("MC - BUILD BATTLE", "Minecraft", "SCC"), blankTeam("Players", "PLR", "#1d8a4a", "#f2b51c"));
+    bb.mc.mode = "buildbattle"; bb.mc.title = "BUILD BATTLE"; bb.live.seriesTitle = "SCC BUILD BATTLE";
+    DB.events.push(upgrade(hg), upgrade(bb));
+  }
+  if (!has("Riftbound")) {
+    const rb = withTeams(newEvent("RB - RIFTBOUND", "Riftbound", "SCC"), blankTeam("Player 1", "P1", "#2f7dff"), blankTeam("Player 2", "P2", "#ff9b1a"));
+    Object.assign(rb.live, { left: rb.teams[0].id, right: rb.teams[1].id, seriesTitle: "SCC RIFTBOUND", bestOf: 3, gameSeries: "BEST OF 3" });
+    DB.events.push(upgrade(rb));
+  }
+  setImmediate(save); // save() needs the state that is declared further down, so run it after startup
+}
 // Each broadcast kit owns its caster-seat count (1 to 5), shared by every event that uses the kit. Camera links stay on the event.
 // A kit that has no setting yet starts from the layout its first event already had.
 DB.settings.kits = DB.settings.kits || {};

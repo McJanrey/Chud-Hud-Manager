@@ -16,9 +16,9 @@ Live broadcast graphics for St. Clair Saints esports. One desktop app runs the c
 |---|---|---|
 | **Rocket League** | The game's official Stats API: score, clock, overtime, boost, goals, assists, saves, demos, replays, the spectated player | One line in the game's `.ini`, see [Rocket League](#rocket-league) |
 | **League of Legends** | Riot's Live Client Data API: live games, spectating and replays | None |
-| **Minecraft** (Hunger Games, Build Battle) | The server's RCON port and `latest.log`, or the screen | Set through the API for now, see [Minecraft](#minecraft) |
+| **Minecraft** (Hunger Games, Build Battle) | The server's RCON port and `latest.log`, or the screen | Enter the server on the Minecraft page, see [Minecraft](#minecraft) |
 | **Overwatch 2, Call of Duty, Deadlock, Fortnite, Valorant, Counter-Strike 2** | Screen OCR: scores, the clock and team names read from your capture | Draw boxes once, see [Screen OCR](#screen-ocr-other-games) |
-| **Riftbound** (card game) | Operator-driven scoring, cards and clock | Set through the API for now |
+| **Riftbound** (card game) | Operator-driven scoring, cards and clock | None, see [Riftbound](#riftbound) |
 | **Anything else** | `POST /api/ingest` | See [Other trackers](#other-trackers) |
 
 The default data source is **Auto**: it follows the game of the event that is on air. The only simulated feed is **Test match** in Live Game, and it is clearly marked.
@@ -94,6 +94,7 @@ The overlay is built for a 1280×720 stage and scales to the source size. Its fo
 | **Talent Profiles** | Casters, hosts and observers with portraits and socials |
 | **Live Game** | Data source, team tracking, score and series, Rocket League camera control, League replay controls |
 | **Screen OCR** | Pick a screen or window, draw boxes, start reading |
+| **Minecraft**, **Riftbound** | Appear in the sidebar for events of that game: server connection, roster, mode and scoring for Minecraft; the scoreboard and cards for Riftbound |
 | **Camera feed** | Caster seats, 1 to 5, with VDO.Ninja or any web camera link. The seat count belongs to the broadcast kit, so every event using that kit shares it; who sits where and the camera links are set per event |
 | **Lower Thirds & Timer** | Headline and subline, countdown timer |
 | **Schedule, Bracket, Rankings** | Content for the matching scenes |
@@ -140,19 +141,30 @@ The bottom board mirrors the in-game scoreboard row by row: vision, items, summo
 
 ### Minecraft
 
-Hunger Games and Build Battle scenes read a Java server through two built-in channels, so no plugin or mod is needed:
+Two ready-made events, **MC - HUNGER GAMES** and **MC - BUILD BATTLE**, are added to a saved workspace the first time you run a version that has them. Open one and use the **Minecraft** page in the sidebar.
 
-- **RCON** (`enable-rcon=true` in `server.properties`): who is online, health, food, game mode and the world border.
-- **`latest.log`** (path set in the app): deaths and kills, parsed from the server's death messages.
+The scenes read a Java server through two built-in channels, so no plugin or mod is needed:
 
-There is no control-room page for this yet, so connect with the API (curl sends no `Origin`, so it is accepted):
+- **RCON** (`enable-rcon=true`, `rcon.port` and `rcon.password` in `server.properties`): who is online, health, food, game mode and the world border.
+- **`logslatest.log`** (path set on the page): deaths and kills, parsed from the server's death messages. Lines written before the app connects are ignored.
 
-```
-curl -X POST http://localhost:7777/api/mc/test   -d "{\"host\":\"127.0.0.1\",\"port\":25575,\"password\":\"secret\",\"logPath\":\"C:/server/logs/latest.log\"}"
-curl -X POST http://localhost:7777/api/mc/config -d "{\"host\":\"127.0.0.1\",\"port\":25575,\"password\":\"secret\",\"logPath\":\"C:/server/logs/latest.log\"}"
-```
+Enter the host, port, password and log path, use **Test connection**, then **Save and connect**. It connects while a Minecraft event is on air. Add the player names under **Roster** (exactly as in Minecraft); they label the HUD and match kills from the log.
 
-`/api/mc/test` checks the connection without saving; `/api/mc/config` saves it, and the app connects while a Minecraft event is on air. Without a server, Screen OCR can read the alive count, kills, clock, border, theme and round phase from the screen.
+**Hunger Games:** title, players at the start, a spotlight player (or automatic: most kills), a match clock, and a reset for kills and the feed. The HUD shows the title, players alive out of the total, the clock and world border, a kills leaderboard, an elimination feed, the spotlight player's hearts and food, and a head for every player with a health bar. Spectators count as out.
+
+**Build Battle:** theme, phase (starting soon, building, judging, results), a build timer, the player being judged, and a score out of 10 for each player. The results phase shows a ranked table.
+
+With no server, **Screen OCR** can read the alive count, kills, clock, border, theme and round phase from the screen. Player heads come from a public skin service, with a letter tile when there is no internet.
+
+### Riftbound
+
+A ready-made **RB - RIFTBOUND** event is added the same way. The **Riftbound** page is the operator's scoreboard; there is no live data feed for the game.
+
+- **Match:** each player's name, legend and colour, points (first to the target, 8 by default), games won, best of 1, 3 or 5, a round title, the turn number and whose turn it is, and a match clock with an optional time limit that counts down.
+- **Cards:** upload the card images you want on screen. **→ player** puts a card in play beside that player and adds it to the play log; **Spotlight** shows one large in the middle; the cross removes it. Card images are yours to upload, nothing is downloaded.
+- **Games:** **wins the game** adds a game win and clears points, cards, the log and the clock for the next game; the loser goes first. **Reset the board** does the same without scoring.
+
+The HUD shows both players with point pips, the game score, the clock and turn, the cards in play, the spotlight card and the last three plays.
 
 ### Screen OCR (other games)
 
@@ -239,7 +251,7 @@ On top of that the server refuses requests that a web page on another site could
 - Player webcams show every player who has a camera link, but nothing switches to the player in the action automatically.
 - The Baron and Elder buff timers keep running if the killer dies.
 - League's live data doesn't say who won a spectated game, so the series is usually set by hand there.
-- Minecraft and Riftbound have in-game scenes and data fields, but no control-room page yet. Their settings are changed through the HTTP API (see [Minecraft](#minecraft)).
+- The Minecraft connector has only been tested against a stand-in RCON server and sample log lines, not a live Minecraft server.
 - Sign-in is a local profile, not an account with a provider.
 - Scenes for games other than Rocket League, League of Legends, Minecraft and Riftbound use the Rocket League layout.
 
@@ -254,6 +266,7 @@ On top of that the server refuses requests that a web page on another site could
    node test/icons-test.js
    node test/minecraft-selftest.js
    node test/security-test.js
+   node test/minecraft-rcon-test.js
    ```
 
    `npm test` runs the OCR self-check inside Electron.

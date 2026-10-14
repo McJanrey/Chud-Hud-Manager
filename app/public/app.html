@@ -17,6 +17,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:14px;line-height:1.45;padding:14px 16px}
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -262,6 +263,8 @@ function screensText(){return`${SCREENS.overlay||0} overlay${SCREENS.overlay===1
 function sourceState(){
   if(!online)return["bad","Server offline"];
   if(!GAME)return["warn","Waiting…"];
+  if(GAME.source==="manual")return["ok","Riftbound · scored by hand"];
+  if(GAME.source==="mc"){const s=GAME.mc;return s&&s.connected?["ok","Minecraft · server connected"]:GAME.connected?["ok","Minecraft · screen OCR"]:["warn","Minecraft · no server or screen reading"]}
   const src={rl:"Rocket League",lol:"League of Legends",ocr:"Screen OCR",demo:"Demo (test)",push:"External feed"}[GAME.source]||GAME.source||"No source";
   const eg=(ev()||{}).game,fg={rl:"Rocket League",lol:"League of Legends"}[GAME.source];
   if(fg&&eg&&fg!==eg)return["bad","Feed is "+fg+" but the event is "+eg];
@@ -275,7 +278,7 @@ function rail(e){
   const b=(v,cur)=>`<button type="button" data-act="nav" data-arg="${v}"${cur?' aria-current="page"':""}>${ico(META[v][1])}${META[v][0]}</button>`;
   const nav=e?`${b("overview",ui.view==="overview")}${b("hud",ui.view==="hud")}
     <div class="grp">EVENT SETUP</div>${b("teams",ui.view==="teams")}${b("tournament",ui.view==="tournament")}${b("talent",ui.view==="talent")}
-    <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${b("ocr",ui.view==="ocr")}${b("camera",ui.view==="camera")}
+    <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${e.game==="Minecraft"?b("mc",ui.view==="mc"):""}${e.game==="Riftbound"?b("rb",ui.view==="rb"):""}${b("ocr",ui.view==="ocr")}${b("camera",ui.view==="camera")}
     <div class="grp">BROADCAST</div>${b("graphics",ui.view==="graphics")}${b("schedule",ui.view==="schedule")}${b("bracket",ui.view==="bracket")}${b("standings",ui.view==="standings")}${b("outputs",ui.view==="outputs")}`
     :`<button type="button" aria-current="page">${ico("events")}My Events</button>`;
   const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/saints-emblem.png";
@@ -333,7 +336,7 @@ overview(e){
 },
 hud(e){
   const h=e.hud,inGame=h.scene==="ingame"; // boost lists, lane panel, League timers and icons only matter for the in-game scene
-  return`${!["Rocket League","League of Legends"].includes(e.game)?`<div class="banner">Scenes for ${esc(e.game)} use the Rocket League layout for now.</div>`:""}
+  return`${!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?`<div class="banner">Scenes for ${esc(e.game)} use the Rocket League layout for now.</div>`:""}
   ${inGame&&e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
   <div class="row" style="gap:24px">
     <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene on air",Object.entries(SCENES),"data-rerender")}</div>
@@ -343,7 +346,7 @@ hud(e){
     ${inGame?`<div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>`:""}
     ${inGame&&h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
-  ${inGame?`<div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
+  ${inGame&&!["Minecraft","Riftbound"].includes(e.game)?`<div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
   ${e.game==="League of Legends"?lolSettings(e):""}`:""}
   ${stage()}`;
 },
@@ -386,12 +389,14 @@ talent(e){
   :`<p class="sub">Add casters, hosts and observers.</p>`}</div></div>`;
 },
 live(e){
-  const l=e.live,pick=DB.settings.source,src=(GAME&&GAME.source)||(pick==="auto"?({"Rocket League":"rl","League of Legends":"lol"}[e.game]||"ocr"):pick);
+  const l=e.live,pick=DB.settings.source,src=(GAME&&GAME.source)||(pick==="auto"?({"Rocket League":"rl","League of Legends":"lol","Minecraft":"mc","Riftbound":"manual"}[e.game]||"ocr"):pick);
   return`<div class="split"><div class="sec" style="gap:24px">
     <div class="sec"><div class="sechead"><h2>Data source</h2><span class="pill" id="srcPill">…</span></div>
       <div class="seg">${[["auto","Auto"],["rl","Rocket League"],["lol","League of Legends"],["ocr","Screen OCR"],["push","External"],["demo","Test match"]].map(([k,n])=>`<button type="button" data-act="source" data-arg="${k}" aria-pressed="${pick===k}">${n}</button>`).join("")}</div>
       ${pick==="auto"?`<p class="note">Auto reads the real game for the on-air event: ${esc(LIVE_FEED[e.game]||"screen OCR (this game has no live data feed)")}.</p>`:""}
       ${src==="lol"?`<p class="note">Reads Riot's Live Client Data API on this PC. It works for live games, spectating and replays. Name roster IGNs exactly like the in-game Riot ID (without the #tag) for auto team tracking.</p><div id="replayPanel"></div>`
+      :src==="mc"?`<p class="note">Reads your Minecraft server (RCON and the server log), and Screen OCR can add the clock and border. Set the server up on the Minecraft page.</p><div class="row c"><button class="btn sm blue" type="button" data-act="nav" data-arg="mc">Open Minecraft</button></div>`
+      :src==="manual"?`<p class="note">Riftbound has no live data feed. You score the match by hand on the Riftbound page.</p><div class="row c"><button class="btn sm blue" type="button" data-act="nav" data-arg="rb">Open Riftbound</button></div>`
       :src==="ocr"?`<p class="note">Reads scores, the clock and team names from a screen or window you choose. Set it up on the Screen OCR page.</p><div class="row c"><button class="btn sm blue" type="button" data-act="nav" data-arg="ocr">Open Screen OCR</button></div>`
       :src==="rl"?`<p class="note">Reads the official Stats API on port 49123 of this PC. Spectate the match for boost and the player card.</p>
         <div class="row c"><span class="note">Camera</span>${[["Ball","Ball"],["Camera_Director","Director"],["AutoCam","AutoCam"],["Fly","Fly"]].map(([v,n])=>`<button class="btn sm" type="button" data-act="pov" data-arg="${v}">${n}</button>`).join("")}
@@ -475,6 +480,56 @@ standings(e){
   ${e.standings.map((r,i)=>`<tr><td>${F.sel(`standings.${i}.team`,"",teamOpts(e))}</td><td>${F.num(`standings.${i}.w`,"")}</td><td>${F.num(`standings.${i}.l`,"")}</td><td>${F.num(`standings.${i}.gd`,"")}</td><td><button class="btn icon" type="button" data-act="delStanding" data-arg="${i}" aria-label="Remove row">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="5" class="sub" style="padding:16px">No rows yet.</td></tr>`}
   </tbody></table></div></div><div class="sec">${stage("rankings")}</div>`;
 }};
+/* ---------- Minecraft and Riftbound ---------- */
+const NAMERE=/^[A-Za-z0-9_]{3,16}$/;
+const roster=e=>[...new Set(e.teams.flatMap(t=>t.players.map(p=>p.ign)).filter(Boolean))];
+const clkSecs=c=>c?(c.base||0)+(c.running?(Date.now()-c.startedAt)/1000:0):0;
+const clockBtns=p=>`<span class="row c"><b class="mono" data-clk="${p}">0:00</b><button class="btn sm" type="button" data-act="clk" data-arg="${p}|start">Start / pause</button><button class="btn sm" type="button" data-act="clk" data-arg="${p}|reset">Reset</button></span>`;
+const mcForm=()=>({host:$("#mcHost").value,port:$("#mcPort").value,password:$("#mcPass").value,logPath:$("#mcLog").value});
+Object.assign(VIEWS,{
+mc(e){
+  const m=e.mc,bb=m.bb,hg=m.mode!=="buildbattle",c=DB.settings.mc||{},names=roster(e);
+  return`<div class="split"><div class="sec" style="gap:24px">
+    <div class="sec"><div class="sechead"><h2>Mode</h2><span class="pill" id="mcPill">…</span></div>
+      <div class="seg">${[["hungergames","Hunger Games"],["buildbattle","Build Battle"]].map(([k,l])=>`<button type="button" data-act="mcMode" data-arg="${k}" aria-pressed="${m.mode===k}">${l}</button>`).join("")}</div>
+      <div class="cols">${F.text("mc.title","Title on screen","HUNGER GAMES")}${hg?F.num("mc.total","Players at the start"):F.text("mc.bb.theme","Build theme","e.g. Medieval castle")}</div></div>
+    ${hg?`<div class="sec"><h2>Hunger Games</h2>
+      <div class="cols">${F.sel("mc.spotlight","Spotlight player",[["","Auto (most kills)"],...names])}<div class="fld"><span>Match clock</span>${clockBtns("mc.clock")}</div></div>
+      <div class="row c"><button class="btn sm" type="button" data-act="mcReset">Reset kills and feed</button><span class="note">Kills and deaths come from the server log, so set the log path below. With no server, Screen OCR can read the alive count, kills, clock and border.</span></div></div>`
+    :`<div class="sec"><h2>Build Battle</h2>
+      <div class="fld"><span>Phase</span><div class="seg">${[["waiting","Starting soon"],["building","Building"],["judging","Judging"],["results","Results"]].map(([k,l])=>`<button type="button" data-act="bbPhase" data-arg="${k}" aria-pressed="${bb.phase===k}">${l}</button>`).join("")}</div></div>
+      <div class="row"><label class="fld" style="max-width:170px"><span>Build time (minutes)</span><input type="number" id="mcBuildMin" min="1" max="180" step="0.5" value="${bb.buildSeconds/60}"></label>
+        <span class="row c"><button class="btn" type="button" data-act="bbTimer" data-arg="start">${bb.endsAt?"Pause":"Start"}</button><button class="btn" type="button" data-act="bbTimer" data-arg="reset">Reset</button><b class="mono" data-bbtimer>0:00</b></span></div>
+      ${F.sel("mc.bb.judging","Now judging",[["","Nobody"],...names])}
+      <div class="sechead"><div><b>Scores (out of 10)</b><p class="note">Shown beside each name and on the results screen.</p></div><button class="btn sm" type="button" data-act="bbClear">Clear scores</button></div>
+      ${names.length?`<div class="cols" style="--n:3">${names.map(n=>F.num(`mc.bb.scores.${n}`,esc(n),'min="0" max="10"')).join("")}</div>`:`<p class="sub">Add players below first.</p>`}</div>`}
+    <div class="sec"><div><h2>Roster</h2><p class="sub">Player names exactly as they appear in Minecraft. They label the HUD and match kills from the server log. Remove players on Players &amp; Teams.</p></div>
+      <div class="row nowrap"><label class="fld"><span>Add players (separated by spaces, commas or new lines)</span><textarea id="mcNames" rows="2" style="background:var(--field);border:1px solid var(--line);border-radius:9px;padding:8px 11px;width:100%;font:inherit;color:inherit"></textarea></label><button class="btn" type="button" data-act="mcAddNames">Add</button></div>
+      <p class="note">${names.length?`${names.length} player${names.length===1?"":"s"}: ${esc(names.join(", "))}`:"No players yet."}</p></div>
+    <div class="sec"><div><h2>Server connection</h2><p class="sub">Reads a Java server you run, with no plugin or mod. In <code>server.properties</code> set <code>enable-rcon=true</code>, <code>rcon.port</code> and <code>rcon.password</code>, then give the path of <code>logs\\latest.log</code> so deaths and kills are counted. It connects while a Minecraft event is on air.</p></div>
+      <div class="cols">${[["mcHost","Host",c.host||"127.0.0.1"],["mcPort","RCON port",c.port||25575],["mcPass","RCON password",c.password||""],["mcLog","Path to latest.log",c.logPath||""]].map(([id,l,v])=>`<label class="fld"><span>${l}</span><input id="${id}" ${id==="mcPass"?'type="password"':""} value="${esc(v)}"></label>`).join("")}</div>
+      <div class="row c"><button class="btn" type="button" data-act="mcTest">Test connection</button><button class="btn blue" type="button" data-act="mcSave">Save and connect</button><span class="note" id="mcTestMsg"></span></div></div>
+  </div><div class="sec">${stage("ingame")}</div></div>`;
+},
+rb(e){
+  const r=e.rb,cards=r.cards||[],play=r.play||[[],[]],nm=s=>r.names[s]||`Player ${s+1}`,byId=id=>cards.find(c=>c.id===id);
+  return`<div class="split"><div class="sec" style="gap:24px">
+    <div class="sec"><div class="sechead"><h2>Match</h2><span class="pill ok" data-rbwin hidden></span></div>
+      <div class="cols">${[0,1].map(s=>`<div class="box"><b>Player ${s+1}</b>${F.text(`rb.names.${s}`,"Name","Player "+(s+1))}${F.text(`rb.legends.${s}`,"Legend","e.g. Jinx")}
+        <div class="fld"><span>Colour</span><input type="color" id="${fid(`rb.colors.${s}`)}" data-bind="rb.colors.${s}" value="${esc(r.colors[s])}" aria-label="Colour"></div>
+        <div class="fld"><span>Points</span>${F.step(`rb.points.${s}`)}</div><div class="fld"><span>Games won</span>${F.step(`rb.games.${s}`)}</div></div>`).join("")}</div>
+      <div class="cols" style="--n:3">${F.num("rb.target","Points to win")}${F.sel("rb.bestOf","Best of",[[1,"1"],[3,"3"],[5,"5"]],"data-num")}${F.text("rb.roundTitle","Round title","Grand Final")}</div>
+      <div class="row c"><span class="note">Turn</span>${F.step("rb.turn")}<span class="seg">${[0,1].map(s=>`<button type="button" data-act="rbActive" data-arg="${s}" aria-pressed="${(r.active||0)===s}">${esc(nm(s))}</button>`).join("")}</span><button class="btn sm" type="button" data-act="rbNext">Next turn</button></div>
+      <div class="row"><div class="fld" style="flex:none"><span>Match clock</span>${clockBtns("rb.clock")}</div><label class="fld" style="max-width:190px"><span>Time limit (minutes, 0 counts up)</span><input type="number" min="0" max="240" id="rbLimit" value="${r.limitMinutes||0}"></label></div>
+      <div class="row c">${[0,1].map(s=>`<button class="btn" type="button" data-act="rbAward" data-arg="${s}">${esc(nm(s))} wins the game</button>`).join("")}<button class="btn danger" type="button" data-act="rbResetGame">Reset the board</button></div>
+      <p class="note">"Wins the game" adds a game win, then clears points, cards, the log and the clock for the next game. The loser goes first.</p></div>
+    <div class="sec"><h2>In play</h2><div class="cols">${[0,1].map(s=>`<div class="box"><b>${esc(nm(s))}</b><div class="chks">${(play[s]||[]).map((id,j)=>{const c=byId(id);return`<button class="btn sm" type="button" data-act="rbUnplay" data-arg="${s}|${j}">${esc(c?c.name:"?")} ×</button>`}).join("")||`<span class="note">Nothing in play</span>`}</div><div><button class="btn sm" type="button" data-act="rbClearPlay" data-arg="${s}">Clear</button></div></div>`).join("")}</div></div>
+    <div class="sec"><div class="sechead"><h2>Spotlight</h2>${F.sw("rb.spotlight.show","Show on screen")}</div>${F.sel("rb.spotlight.cardId","Card",[["","None"],...cards.map(c=>[c.id,c.name])])}</div>
+  </div><div class="sec">
+    <div class="sechead"><div><h2>Cards</h2><p class="sub">Upload the card images you want on screen. Played cards appear beside each player, and a spotlight card shows large in the middle.</p></div><button class="btn" type="button" data-act="rbAddCard">+ Add card</button></div>
+    ${cards.map((c,i)=>`<div class="row c nowrap">${F.dz(`rb.cards.${i}.image`,"Image","mini")}${F.text(`rb.cards.${i}.name`,"","Card name")}<button class="btn sm" type="button" data-act="rbPlay" data-arg="${i}|0" title="Play for ${esc(nm(0))}">→ ${esc(nm(0))}</button><button class="btn sm" type="button" data-act="rbPlay" data-arg="${i}|1" title="Play for ${esc(nm(1))}">→ ${esc(nm(1))}</button><button class="btn sm" type="button" data-act="rbSpot" data-arg="${i}">Spotlight</button><button class="btn icon" type="button" data-act="rbDelCard" data-arg="${i}" aria-label="Delete card">${ico("x")}</button></div>`).join("")||`<p class="sub">No cards yet.</p>`}
+    ${stage("ingame")}</div></div>`;
+}});
 /* League settings: gold, which timers and counters show, and the objective timings */
 const TIMING_LABELS={dragonFirst:"Dragon first spawn (s)",dragonRespawn:"Dragon respawn (s)",elderRespawn:"Elder respawn (s)",grubsFirst:"Grubs first spawn (s)",grubsWaves:"Grub camps per game",grubsRespawn:"Grubs respawn (s)",grubsDespawn:"Grubs despawn (s)",heraldFirst:"Herald first spawn (s)",heraldDespawn:"Herald despawn (s)",baronFirst:"Baron first spawn (s)",baronRespawn:"Baron respawn (s)",baronBuff:"Baron buff length (s)",elderBuff:"Elder buff length (s)"};
 function lolSettings(e){
@@ -525,6 +580,10 @@ function liveBits(){
   const pl=$("#plist");
   if(pl){pl.innerHTML=m.live?m.all.map(p=>`<div class="pl${m.focus===p?" f":""}" style="--c:${m.colors[p.side]}"><b>${esc(p.display)}${m.kind==="lol"?` <span class="note">${esc(p.champion||"")}</span>`:""}</b><span class="bst" style="width:auto">${m.kind==="lol"?`${p.kills}/${p.deaths}/${p.assists}`:p.boost??""}</span>${DB.settings.source==="rl"?`<button class="btn sm" type="button" data-act="spectate" data-arg="${p.shortcut}">Watch</button>`:""}</div>`).join(""):`<p class="sub">No players in a match yet.</p>`}
   const tr=$("#trackRow");if(tr)tr.innerHTML=[0,1].map(s=>`<div class="tracked${m.tracked[s]?"":" manual"}">${m.tracked[s]?"Tracked via team data: "+esc(m.sides[s].name):"Using the team picked above"}</div>`).join("");
+  $$("[data-clk]").forEach(el=>{el.textContent=SaintsHUD.fmt(Math.floor(clkSecs(get(e,el.dataset.clk))))});
+  const bt=$("[data-bbtimer]");if(bt&&e.mc){const b=e.mc.bb;bt.textContent=SaintsHUD.fmt(b.endsAt?Math.max(0,Math.round((b.endsAt-Date.now())/1000)):b.remaining)}
+  const mp=$("#mcPill");if(mp){const s=GAME&&GAME.mc;mp.className="pill "+(s&&s.connected?"ok":"");mp.textContent=s?(s.connected?`Server connected · ${s.players.filter(p=>p.online).length} online`:(s.error||"Server not connected")):"Not on air"}
+  const rw=$("[data-rbwin]");if(rw&&e.rb){const r=e.rb,w=[0,1].find(s=>(r.points[s]||0)>=r.target);rw.hidden=w==null;if(w!=null)rw.textContent=`${r.names[w]||"Player "+(w+1)} has reached ${r.target} points`}
   const tt=$("[data-timer]");if(tt){const t=e.timer;tt.textContent=SaintsHUD.fmt(t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining)}
   if(ui.view==="ocr")ocrLive();
 }
@@ -623,6 +682,37 @@ document.addEventListener("click",async ev0=>{
     case "delBMatch":e.bracket.rounds[+arg].matches.pop();put("bracket",e.bracket);break;
     case "addStanding":e.standings.push({team:"",w:0,l:0,gd:0});put("standings",e.standings);break;
     case "delStanding":e.standings.splice(+arg,1);put("standings",e.standings);break;
+    case "clk":{const[p,what]=arg.split("|"),c=get(e,p)||{},s=clkSecs(c);
+      if(what==="reset")put(p,{running:false,base:0,startedAt:0});else if(c.running)put(p,{running:false,base:s,startedAt:0});else put(p,{running:true,base:s,startedAt:Date.now()});break}
+    case "mcMode":{put("mc.mode",arg);const t=e.mc.title;if(!t||/^(HUNGER GAMES|BUILD BATTLE)$/i.test(t))put("mc.title",arg==="buildbattle"?"BUILD BATTLE":"HUNGER GAMES");break}
+    case "mcAddNames":{const names=($("#mcNames").value||"").split(/[\s,;]+/).filter(Boolean),bad=names.filter(n=>!NAMERE.test(n));
+      if(bad.length)return toast(`Not a Minecraft name: ${bad.slice(0,3).join(", ")} (3 to 16 letters, digits or _)`);
+      if(!names.length)return toast("Type or paste some player names first.");
+      if(!e.teams.length){const t=blankTeam();t.name="Players";t.tag="PLR";e.teams.push(t)}
+      const t=e.teams[0],have=new Set(roster(e).map(n=>n.toLowerCase()));let added=0;
+      names.forEach(n=>{if(!have.has(n.toLowerCase())){t.players.push(Object.assign(blankPlayer(),{ign:n}));have.add(n.toLowerCase());added++}});
+      put("teams",e.teams);toast(`${added} player${added===1?"":"s"} added`);break}
+    case "mcReset":await api("/api/mc/reset",{});toast("Kills and feed cleared");return;
+    case "mcTest":{const j=await fetch("/api/mc/test",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(mcForm())}).then(r=>r.json()).catch(()=>({message:"Test failed."}));const m=$("#mcTestMsg");if(m){m.textContent=j.message||j.error||"";m.className="note"+(j.ok?"":" red")}return}
+    case "mcSave":{const j=await api("/api/mc/config",mcForm());if(j&&j.ok)toast("Saved. It connects while a Minecraft event is on air.");return}
+    case "bbPhase":put("mc.bb.phase",arg);break;
+    case "bbClear":put("mc.bb.scores",{});break;
+    case "bbTimer":{const bb=Object.assign({},e.mc.bb);
+      if(arg==="start"){if(bb.endsAt){bb.remaining=Math.max(0,Math.round((bb.endsAt-Date.now())/1000));bb.endsAt=0}else{bb.endsAt=Date.now()+bb.remaining*1000;if(bb.phase==="waiting")bb.phase="building"}}
+      else{bb.remaining=bb.buildSeconds;bb.endsAt=0}
+      put("mc.bb",bb);break}
+    case "rbActive":put("rb.active",+arg);break;
+    case "rbNext":put("rb.turn",(e.rb.turn||1)+1);put("rb.active",(e.rb.active||0)?0:1);break;
+    case "rbAward":case "rbResetGame":{const r=e.rb,g=[...(r.games||[0,0])],w=a==="rbAward"?+arg:-1;if(w>=0)g[w]=(g[w]||0)+1;
+      put("rb",Object.assign({},r,{games:g,points:[0,0],turn:1,active:w>=0?1-w:0,play:[[],[]],log:[],clock:{running:false,base:0,startedAt:0}}));break}
+    case "rbAddCard":put("rb.cards",[...(e.rb.cards||[]),{id:uid(),name:"New card",image:""}]);break;
+    case "rbDelCard":{const r=e.rb,id=r.cards[+arg].id;put("rb",Object.assign({},r,{cards:r.cards.filter((_,i)=>i!==+arg),play:(r.play||[[],[]]).map(a=>a.filter(x=>x!==id)),spotlight:r.spotlight.cardId===id?{cardId:"",show:false}:r.spotlight}));break}
+    case "rbPlay":{const[i,s]=arg.split("|").map(Number),r=e.rb,id=r.cards[i].id,play=(r.play||[[],[]]).map(a=>[...a]);
+      if(play[s].length>=10)return toast("That side already has 10 cards in play.");
+      play[s].push(id);put("rb.play",play);put("rb.log",[...(r.log||[]),{t:Date.now(),player:s,cardId:id}].slice(-30));break}
+    case "rbUnplay":{const[s,j]=arg.split("|").map(Number),play=(e.rb.play||[[],[]]).map(a=>[...a]);play[s].splice(j,1);put("rb.play",play);break}
+    case "rbClearPlay":{const play=(e.rb.play||[[],[]]).map(a=>[...a]);play[+arg]=[];put("rb.play",play);break}
+    case "rbSpot":put("rb.spotlight",{cardId:e.rb.cards[+arg].id,show:true});break;
     default:return;
   }
   render();
@@ -633,6 +723,8 @@ document.addEventListener("input",ev0=>{
   if(el.id==="talentq"){ui.talentq=el.value;$("#talentlist").innerHTML=talentList(e);return}
   if(el.id==="ovScene"){ui.ovScene=el.value;$("#ovUrl").value=overlayUrl(el.value);return}
   if(el.id==="ocrInterval"){ocrCfg().interval=Math.max(250,+el.value||800);ocrSave();return}
+  if(el.id==="mcBuildMin"){const s=Math.max(60,Math.round((+el.value||15)*60)),bb=e.mc.bb;put("mc.bb",Object.assign({},bb,{buildSeconds:s,remaining:bb.endsAt?bb.remaining:s}));return}
+  if(el.id==="rbLimit"){put("rb.limitMinutes",Math.max(0,+el.value||0));return}
   if(el.id==="timerMin"){const s=Math.max(0,Math.round((+el.value||0)*60));put("timer",Object.assign({},e.timer,{seconds:s,remaining:e.timer.endsAt?e.timer.remaining:s}));return}
   const p=el.dataset.bind;if(!p||!e)return;
   let v=el.type==="checkbox"?el.checked:el.dataset.num!==undefined?(parseInt(el.value)||0):el.value;
