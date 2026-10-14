@@ -17,7 +17,15 @@
     const tn = s => (sw ? 1 - s : s); // HUD side -> game team number
     const sideOfTeam = t => (sw ? 1 - t : t);
     const live = !!(game && game.players && game.players.length);
+    const hasScore = !!(game && game.scoreLive), hasClock = !!(game && game.clockLive);
     const sides = [byId(l.left), byId(l.right)], tracked = [false, false];
+    if (l.autoTeams && !live && game && game.source === "ocr") { // OCR gives team names only: match them to the event's teams
+      [0, 1].forEach(s => {
+        const nm = low(game.teams[tn(s)] && game.teams[tn(s)].name);
+        const t = nm && ev.teams.find(x => low(x.name) === nm || low(x.tag) === nm || (nm.length > 3 && (low(x.name).includes(nm) || nm.includes(low(x.name)))));
+        if (t) { sides[s] = t; tracked[s] = true; }
+      });
+    }
     if (l.autoTeams && live) {
       [0, 1].forEach(s => {
         const names = game.players.filter(p => p.team === tn(s)).map(p => low(p.name));
@@ -44,10 +52,10 @@
     });
     const all = players[0].concat(players[1]);
     const find = w => w && all.find(p => (w.shortcut && p.shortcut === w.shortcut) || low(p.name) === low(w.name));
-    const score = l.autoScore && live ? [game.teams[tn(0)].score, game.teams[tn(1)].score] : l.score;
+    const score = l.autoScore && (live || hasScore) ? [game.teams[tn(0)].score, game.teams[tn(1)].score] : l.score;
     const colors = ev.hud.colorMode === "custom" ? ev.hud.custom : [sides[0] ? sides[0].color : "#2f7dff", sides[1] ? sides[1].color : "#ff9b1a"];
     const feed = (game && game.feed || []).filter(f => Date.now() - f.t < 9000).slice(-4).map(f => ({
-      label: f.type === "goal" ? "GOAL" : f.label || f.type, main: find(f.main) || f.main, second: find(f.second) || f.second,
+      type: f.type, label: f.type === "goal" ? "GOAL" : f.label || f.type, main: find(f.main) || f.main, second: find(f.second) || f.second,
       side: f.main && f.main.team >= 0 ? sideOfTeam(f.main.team) : 0, text: f.text || "", id: f.id }));
     let goal = null;
     if (game && game.lastGoal && Date.now() - game.lastGoal.t < 5500 && game.lastGoal.team >= 0) {
@@ -60,7 +68,7 @@
     return {
       ev, live, kind, lol: game && game.lol, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
       series: l.series, focus: live ? find(game.target) : null,
-      clock: live ? game.time : 300, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
+      clock: live || hasClock ? game.time : 300, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
       connected: !!(game && game.connected), source: game ? game.source : "",
     };
   }
@@ -91,7 +99,7 @@
     if (sh.stats) h += `<div class="h-stats">${[["shots", "SHOTS"], ["saves", "SAVES"], ["demos", "DEMOS"]].map(([k, n]) => `<div><b class="num">${sum(k, 0)}</b><span>${n}</span><b class="num">${sum(k, 1)}</b></div>`).join("")}</div>`;
     if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 160 : 20}px">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
     if (sh.card && f) {
-      h += `<div class="h-card" style="--c:${fc}">${lg(f.team)}<div class="who"><b>${esc(f.display)}</b><small>${esc(f.team ? f.team.tag : "")}${f.supersonic ? " · SUPERSONIC" : ""}</small></div><div class="st">${[["score", "SCORE"], ["goals", "GOALS"], ["assists", "ASSISTS"], ["saves", "SAVES"], ["shots", "SHOTS"]].map(([k, n]) => `<div><b class="num">${f[k] || 0}</b><small>${n}</small></div>`).join("")}</div></div>
+      h += `<div class="h-card" style="--c:${fc}">${lg(f.team)}<div class="who"><b>${esc(f.display)}</b><small>${esc(f.team ? f.team.tag : "")}${f.supersonic ? " · SUPERSONIC" : ""}</small></div><div class="st">${[["score", "SCORE"], ["goals", "GOALS"], ["assists", "ASSISTS"], ["saves", "SAVES"], ["shots", "SHOTS"]].map(([k, n]) => `<div><b class="num">${f[k] || 0}</b><small>${n}</small></div>`).join("")}</div>${f.avatar ? `<img class="cut" src="${esc(f.avatar)}" alt="">` : ""}</div>
       <div class="h-gauge"><svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="9" stroke-dasharray="${arc} 999"/><circle cx="70" cy="70" r="58" fill="none" stroke="${fc}" stroke-width="9" stroke-dasharray="${arc * (f.boost || 0) / 100} 999"/></svg><b class="num">${f.boost ?? 0}</b><small>BOOST</small></div>`;
       if (sh.playerCam && f.cam) cams.push({ key: "pc-" + f.cam, url: f.cam, x: 16, y: 440, w: 256, h: 144 });
     }
@@ -153,16 +161,47 @@
     const o = m.lol || { towers: [0, 0], inhibs: [0, 0], dragons: [[], []], barons: [0, 0], heralds: [0, 0], ddVersion: "" };
     const icon = p => o.ddVersion && p.champKey ? `<img src="https://ddragon.leagueoflegends.com/cdn/${esc(o.ddVersion)}/img/champion/${encodeURIComponent(p.champKey)}.png" alt="">`
       : `<span>${esc(String(p.champion || p.display || "?").slice(0, 2))}</span>`;
-    const objs = s => { const sd = m.live ? s : s; const t = l.swap ? 1 - sd : sd;
-      return `<div class="l-obj ${s ? "r" : "l"}"><span>TOWERS <b class="num">${o.towers[t] || 0}</b></span><span>BARONS <b class="num">${o.barons[t] || 0}</b></span><span class="drk">${(o.dragons[t] || []).map(d => `<i style="background:${DRAKE[d] || "#888"}" title="${esc(d)}"></i>`).join("")}</span></div>`; };
+    // objective counts are stored per game side (0 = blue); the HUD's left/right may be swapped
+    const gs = s => (l.swap ? 1 - s : s);
+    const K = n => (n >= 1000 ? (n / 1000).toFixed(1) + "K" : String(n | 0));
+    const gold = [0, 1].map(s => m.players[s].reduce((a, p) => a + (p.gold || 0), 0));
+    const kills = [0, 1].map(s => m.players[s].reduce((a, p) => a + (p.kills || 0), 0));
+    const lead = gold[0] === gold[1] ? -1 : gold[0] > gold[1] ? 0 : 1;
+    const ICON = {
+      sword: `<svg viewBox="0 0 24 24"><path d="M5 19 17 7M14 4h6v6M4 20l3-1-2-2z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      coin: `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2.2"/></svg>`,
+      tower: `<svg viewBox="0 0 24 24"><path d="M6 21V10h2V6h2v2h4V6h2v4h2v11zM10 21v-5h4v5" fill="currentColor"/></svg>`,
+      drake: `<svg viewBox="0 0 24 24"><path d="M12 2 21 12 12 22 3 12z" fill="currentColor"/></svg>`,
+    };
+    const stat = (s, right) => { const t = gs(s);
+      return `<div class="l2-stat${right ? " r" : ""}"><span class="k">${ICON.sword}<b class="num">${kills[t]}</b></span><span class="g">${ICON.coin}<b class="num">${K(gold[t])}</b>${lead === t ? `<small>+${K(Math.abs(gold[0] - gold[1]))}</small>` : ""}</span></div>`; };
+    const objs = (s, right) => { const t = gs(s);
+      return `<div class="l2-obj${right ? " r" : ""}"><span>${ICON.tower}<b class="num">${o.towers[t] || 0}</b></span><span class="drk">${(o.dragons[t] || []).slice(0, 4).map(d => `<i style="color:${DRAKE[d] || "#888"}">${ICON.drake}</i>`).join("")}</span>${o.barons[t] ? `<span class="bar">B<b class="num">${o.barons[t]}</b></span>` : ""}</div>`; };
+    const NOTE = { dragon: 1, baron: 1, herald: 1, tower: 1, inhib: 1, ace: 1, fb: 1, multi: 1 };
+    const note = m.feed.slice().reverse().find(x => NOTE[x.type]);
     const row = p => `<div class="l-p${p.dead ? " dead" : ""}"><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div>
-      <div class="nm"><b>${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0} · ${p.cs || 0} CS</small></div></div>`;
+      <div class="nm"><b>${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0} · ${p.cs || 0} CS · ${K(p.gold || 0)}</small></div></div>`;
+    // lower panel: each lane side by side with items, K/D/A, CS, gold and the lane's gold lead in the middle
+    const item = id => (o.ddVersion && id ? `<img src="https://ddragon.leagueoflegends.com/cdn/${esc(o.ddVersion)}/img/item/${id}.png" alt="">` : `<i></i>`);
+    const slots = p => Array.from({ length: 6 }, (_, i) => item((p.items || [])[i])).join("");
+    const half = (p, right) => !p ? `<div class="lp-h${right ? " r" : ""}"></div>` : `<div class="lp-h${right ? " r" : ""}${p.dead ? " dead" : ""}"><div class="it">${slots(p)}</div><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b></div>
+      <div class="nm"><b>${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div><div class="st"><b class="num">${K(p.gold || 0)}</b><small class="num">${p.cs || 0} CS</small></div></div>`;
+    const lanes = Math.max(m.players[0].length, m.players[1].length);
+    const panel = Array.from({ length: lanes }, (_, i) => { const a = m.players[0][i], b = m.players[1][i], d = ((a && a.gold) || 0) - ((b && b.gold) || 0);
+      return `${half(a, false)}<div class="lp-d${d > 0 ? " l" : d < 0 ? " r" : ""}"><b class="num">${Math.abs(d)}</b></div>${half(b, true)}`; }).join("");
     let h = "";
-    if (sh.score) h += `<div class="l-top"><div class="l-t l">${lg(L)}<span class="tg">${esc(L ? L.tag : "BLUE")}</span><b class="num">${m.score[0]}</b></div>
-      <div class="l-mid"><b class="num">${fmt(m.clock)}</b><small>${esc(l.gameSeries || "BEST OF " + l.bestOf)} · ${m.series[0]}-${m.series[1]}</small></div>
-      <div class="l-t r"><b class="num">${m.score[1]}</b><span class="tg">${esc(R ? R.tag : "RED")}</span>${lg(R)}</div></div>
-      <div class="l-objs">${objs(0)}${objs(1)}</div>`;
+    if (sh.stats) { // objective timers, top-left corner
+      const sp = o.spawn || { dragon: 300, baron: 1200 };
+      const t = k => { const r = Math.round(sp[k] - m.clock); return r <= 0 ? `<b class="up">UP</b>` : `<b class="num">${fmt(r)}</b>`; };
+      h += `<div class="l2-timers"><div class="tm drake">${ICON.drake}${t("dragon")}<small>DRAGON</small></div><div class="tm baron"><i>B</i>${t("baron")}<small>BARON</small></div></div>`;
+    }
+    if (sh.score) h += `<div class="l2-bar"><div class="l2-team l">${lg(L)}<span class="tg">${esc(L ? L.tag : "BLUE")}</span></div>${stat(0, false)}
+      <div class="l2-mid"><b class="num">${m.series[0]}</b><small>${esc(l.gameSeries || "BO" + l.bestOf)}</small><b class="num">${m.series[1]}</b></div>
+      ${stat(1, true)}<div class="l2-team r"><span class="tg">${esc(R ? R.tag : "RED")}</span>${lg(R)}</div></div>
+      <div class="l2-sub">${objs(0, false)}<div class="l2-time">${ICON.drake}<b class="num">${fmt(m.clock)}</b></div>${objs(1, true)}</div>
+      ${note ? `<div class="l2-note" style="--c:${m.colors[note.side] || "#FDC82F"}"><b>${esc(((note.main && note.main.name && m.sides[note.side]) ? m.sides[note.side].tag : "") )}</b> ${esc(note.label)}${note.main ? ` · ${esc(note.main.display || note.main.name)}` : ""}</div>` : ""}`;
     if (sh.boost) h += `<div class="l-side l">${m.players[0].map(row).join("")}</div><div class="l-side r">${m.players[1].map(row).join("")}</div>`;
+    if (sh.card) h += `<div class="lp">${panel}</div>`;
     if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 420 : 110}px">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
     return { html: h, cams: [] };
   };

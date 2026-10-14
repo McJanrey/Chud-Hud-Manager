@@ -4,6 +4,8 @@
 const { app, BrowserWindow, Menu, shell, dialog, clipboard } = require("electron");
 const path = require("path");
 
+// `Saints HUD.exe --ocr-selftest` checks that screen capture and text reading work on this PC.
+if (process.argv.includes("--ocr-selftest")) { require("./test/ocr-selftest.js"); return; }
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 
 process.env.SQUISH_DATA = process.env.SQUISH_DATA || path.join(app.getPath("userData"), "data");
@@ -73,7 +75,8 @@ function buildMenu() {
 }
 
 app.whenReady().then(() => {
-  const { server, PORT } = require("./server.js");
+  const { server, PORT, setOcrProvider } = require("./server.js");
+  setOcrProvider(require("./ocr.js"));
   base = `http://127.0.0.1:${PORT}`;
   buildMenu();
   setupUpdates();

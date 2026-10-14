@@ -93,13 +93,14 @@ function seed() {
   lol.teams = [s2, o2]; lol.hud.colorMode = "custom"; lol.hud.custom = ["#3a8dff", "#e84057"];
   Object.assign(lol.live, { left: s2.id, right: o2.id, seriesTitle: "NACE VARSITY", eventTitle: "SCC vs OPP", gameSeries: "BEST OF 3", bestOf: 3 });
   lol.talent = rl.talent.map(t => Object.assign({}, t, { id: uid(), socials: t.socials.map(s => Object.assign({}, s)) }));
-  return { events: [rl, lol], onAir: rl.id, settings: { source: "demo" } };
+  return { events: [rl, lol], onAir: rl.id, settings: { source: "auto", v: 2 } };
 }
 
 let DB;
 try { DB = JSON.parse(fs.readFileSync(DB_FILE, "utf8")); } catch { DB = null; }
 if (!DB || !Array.isArray(DB.events)) DB = seed();
-DB.settings = Object.assign({ source: "demo" }, DB.settings);
+DB.settings = Object.assign({ source: "auto" }, DB.settings);
+if (!DB.settings.v) { DB.settings.v = 2; if (DB.settings.source === "demo") DB.settings.source = "auto"; } // the demo is no longer the default
 DB.events.forEach(upgrade);
 
 let saveTimer = null;
@@ -116,9 +117,18 @@ function save() {
 const onAirEvent = () => DB.events.find(e => e.id === DB.onAir) || DB.events[0];
 
 /* ------------------------------------------------------- live game state */
+// "auto" follows the on-air event's game; games without a live feed fall back to screen OCR.
+let activeSource = "";
+const AUTO_SOURCE = { "Rocket League": "rl", "League of Legends": "lol" };
+function resolveSource() {
+  const s = DB.settings.source;
+  if (s !== "auto") return s;
+  const ev = onAirEvent();
+  return AUTO_SOURCE[ev && ev.game] || "ocr";
+}
 const blankGame = () => ({
-  kind: "rl", lol: null,
-  source: DB.settings.source, connected: false, inMatch: false, lastPacket: 0, matchGuid: "", arena: "",
+  kind: "rl", lol: null, ocr: null, scoreLive: false, clockLive: false,
+  source: activeSource, connected: false, inMatch: false, lastPacket: 0, matchGuid: "", arena: "",
   teams: [{ name: "Blue", score: 0, color: "" }, { name: "Orange", score: 0, color: "" }],
   time: 300, overtime: false, replay: false, paused: false, podium: false, hasWinner: false, winner: -1,
   target: null, players: [], feed: [], lastGoal: null,
@@ -162,12 +172,15 @@ function handleMessage(msg) {
       }));
       if (Array.isArray(g.Teams)) g.Teams.forEach(t => {
         const i = t.TeamNum ?? 0; if (i > 1) return;
+        if (t.Score == null) { if (t.Name) game.teams[i].name = t.Name; return; } // name-only update (OCR)
         game.teams[i] = { name: t.Name || (i ? "Orange" : "Blue"), score: t.Score | 0, color: t.ColorPrimary ? "#" + t.ColorPrimary : "" };
       });
       if (g.TimeSeconds != null) game.time = g.TimeSeconds;
       game.overtime = !!g.bOvertime;
       game.replay = !!g.bReplay;
       game.arena = g.Arena || game.arena;
+      game.scoreLive = Array.isArray(g.Teams) && g.Teams.some(t => t.Score != null);
+      game.clockLive = g.TimeSeconds != null;
       game.hasWinner = !!g.bHasWinner;
       game.target = g.bHasTarget && g.Target && g.Target.Name ? who(g.Target) : null;
       break;
@@ -229,7 +242,7 @@ function makeSplitter(onObject) {
 let rlSock = null, rlTimer = null, rlWarned = false;
 function connectRL() {
   clearTimeout(rlTimer);
-  if (DB.settings.source !== "rl") return;
+  if (activeSource !== "rl") return;
   const sock = net.connect({ host: RL_HOST, port: RL_PORT });
   rlSock = sock;
   sock.setEncoding("utf8");
@@ -240,7 +253,7 @@ function connectRL() {
   });
   sock.on("close", () => {
     if (rlSock === sock) { rlSock = null; game.connected = false; touch(); }
-    if (DB.settings.source === "rl") rlTimer = setTimeout(connectRL, 2000);
+    if (activeSource === "rl") rlTimer = setTimeout(connectRL, 2000);
   });
 }
 function sendRL(cmd) {
@@ -270,6 +283,7 @@ function handleLoL(d) {
     return { name: lolName(p), id: p.riotId || p.summonerName || "", team: p.team === "CHAOS" ? 1 : 0, shortcut: i + 1,
       champion: p.championName || "", champKey: String(p.rawChampionName || "").replace("game_character_displayname_", ""),
       level: p.level | 0, kills: s.kills | 0, deaths: s.deaths | 0, assists: s.assists | 0, cs: s.creepScore | 0, ward: Math.round(s.wardScore || 0),
+      gold: (p.items || []).reduce((a, x) => a + (x.price | 0) * (x.count || 1), 0), // value of items owned (the API doesn't expose total gold)
       dead: !!p.isDead, respawn: Math.round(p.respawnTimer || 0), items: (p.items || []).map(x => x.itemID),
       // RL-shaped fields so generic scenes still work
       score: (s.kills | 0) * 3 + (s.assists | 0), goals: s.kills | 0, saves: 0, shots: 0, demos: 0, boost: null };
@@ -281,7 +295,12 @@ function handleLoL(d) {
   [0, 1].forEach(t => { game.teams[t] = { name: t ? "Red" : "Blue", score: game.players.filter(p => p.team === t).reduce((a, p) => a + p.kills, 0), color: "" }; });
 
   const events = (d.events && d.events.Events) || [];
-  const lol = { towers: [0, 0], inhibs: [0, 0], dragons: [[], []], barons: [0, 0], heralds: [0, 0], grubs: [0, 0], ddVersion };
+  // Objective spawn times (game seconds). The API gives kills but not spawn clocks, so these follow Summoner's Rift
+  // rules: dragon first spawns at 5:00 and returns 5:00 after each kill; Baron first spawns at 20:00 and returns 6:00 after each kill.
+  // Adjust here if a patch changes them.
+  const SPAWN = { dragonFirst: 300, dragonGap: 300, baronFirst: 1200, baronGap: 360 };
+  const lol = { towers: [0, 0], inhibs: [0, 0], dragons: [[], []], barons: [0, 0], heralds: [0, 0], grubs: [0, 0], ddVersion,
+    spawn: { dragon: SPAWN.dragonFirst, baron: SPAWN.baronFirst } };
   const initial = lolLastEvent < 0 || (events.length && events[events.length - 1].EventID < lolLastEvent);
   if (initial) { lolLastEvent = -1; game.feed = []; }
   for (const e of events) {
@@ -299,8 +318,8 @@ function handleLoL(d) {
       case "Ace": if (fresh) pushFeed({ type: "ace", label: "ACE", main: { name: e.Acer, team: e.AcingTeam === "CHAOS" ? 1 : 0 } }); break;
       case "TurretKilled": { const s = structSide(e.TurretKilled); if (s >= 0) lol.towers[s]++; if (fresh) pushFeed({ type: "tower", label: "TOWER", main: { name: e.KillerName, team: s } }); break; }
       case "InhibKilled": { const s = structSide(e.InhibKilled); if (s >= 0) lol.inhibs[s]++; if (fresh) pushFeed({ type: "inhib", label: "INHIBITOR", main: { name: e.KillerName, team: s } }); break; }
-      case "DragonKill": if (kt >= 0) lol.dragons[kt].push(DRAGONS[e.DragonType] || e.DragonType); if (fresh) pushFeed({ type: "dragon", label: `${(DRAGONS[e.DragonType] || e.DragonType || "").toUpperCase()} DRAGON${e.Stolen === "True" ? " (STOLEN)" : ""}`, main: { name: e.KillerName, team: kt } }); break;
-      case "BaronKill": if (kt >= 0) lol.barons[kt]++; if (fresh) pushFeed({ type: "baron", label: "BARON", main: { name: e.KillerName, team: kt } }); break;
+      case "DragonKill": lol.spawn.dragon = (e.EventTime || 0) + SPAWN.dragonGap; if (kt >= 0) lol.dragons[kt].push(DRAGONS[e.DragonType] || e.DragonType); if (fresh) pushFeed({ type: "dragon", label: `${(DRAGONS[e.DragonType] || e.DragonType || "").toUpperCase()} DRAGON${e.Stolen === "True" ? " (STOLEN)" : ""}`, main: { name: e.KillerName, team: kt } }); break;
+      case "BaronKill": lol.spawn.baron = (e.EventTime || 0) + SPAWN.baronGap; if (kt >= 0) lol.barons[kt]++; if (fresh) pushFeed({ type: "baron", label: "BARON", main: { name: e.KillerName, team: kt } }); break;
       case "HeraldKill": if (kt >= 0) lol.heralds[kt]++; if (fresh) pushFeed({ type: "herald", label: "RIFT HERALD", main: { name: e.KillerName, team: kt } }); break;
       case "HordeKill": if (kt >= 0) lol.grubs[kt]++; break;
       case "GameEnd":
@@ -319,7 +338,7 @@ function handleLoL(d) {
 
 function pollLoL() {
   clearTimeout(lolTimer);
-  if (DB.settings.source !== "lol") return;
+  if (activeSource !== "lol") return;
   const req = https.get({ host: LOL_HOST, port: 2999, path: "/liveclientdata/allgamedata", rejectUnauthorized: false, timeout: 1500 }, res => {
     let s = ""; res.setEncoding("utf8");
     res.on("data", c => (s += c));
@@ -392,7 +411,7 @@ function demoStart() {
   touch();
 }
 function demoTick() {
-  if (DB.settings.source !== "demo") return;
+  if (activeSource !== "demo") return;
   const ev = onAirEvent();
   if (ev && ev.game === "League of Legends") { if (!game.paused) lolDemoTick(); return; } // runs at 4x speed
   if (game.kind === "lol") { game = blankGame(); demo = null; }
@@ -448,18 +467,68 @@ function demoTick() {
 }
 setInterval(demoTick, 250);
 
-function setSource(src) {
-  if (!["rl", "lol", "demo", "push"].includes(src)) return;
-  DB.settings.source = src; save();
+// Switch the live connector when the chosen source (or the on-air event's game, for "auto") changes.
+function applySource(force) {
+  const want = resolveSource();
+  if (!force && want === activeSource) return;
+  activeSource = want;
+  clearTimeout(rlTimer); clearTimeout(lolTimer);
   if (rlSock) { rlSock.destroy(); rlSock = null; }
-  clearTimeout(lolTimer);
-  demo = null; lolDemo = null; lolLastEvent = -1; lolWarned = false;
+  demo = null; lolDemo = null; lolLastEvent = -1; lolWarned = false; rlWarned = false;
   game = blankGame();
-  if (src === "rl") connectRL();
-  if (src === "lol") pollLoL();
-  if (src === "push") game.connected = false;
+  if (want === "rl") connectRL();
+  if (want === "lol") pollLoL();
   touch(); broadcastDb("server");
-  log("Data source:", src);
+  log("Data source:", want + (DB.settings.source === "auto" ? " (auto)" : ""));
+}
+function setSource(src) {
+  if (!["auto", "rl", "lol", "ocr", "push", "demo"].includes(src)) return;
+  DB.settings.source = src; save();
+  applySource(true);
+}
+setInterval(() => applySource(false), 1500);
+
+/* ---------------------------------------------------- screen OCR (desktop app) */
+// The Electron shell registers a provider (ocr.js). In plain Node there is none and the OCR endpoints say so.
+let ocr = null;
+function setOcrProvider(p) { ocr = p; }
+// OCR readings arrive as Stats API–shaped messages; they only drive the HUD while OCR is the active source.
+function ocrIngest(msg) { if (activeSource === "ocr") { game.connected = true; handleMessage(msg); } }
+
+/* -------------------------------------------- League replay and game config */
+function lolHttp(method, pth, body) {
+  return new Promise(resolve => {
+    const data = body ? Buffer.from(JSON.stringify(body)) : null;
+    const req = https.request({ host: LOL_HOST, port: 2999, path: pth, method, rejectUnauthorized: false, timeout: 3000,
+      headers: data ? { "content-type": "application/json", "content-length": data.length } : {} }, res => {
+      let s = ""; res.setEncoding("utf8"); res.on("data", c => (s += c));
+      res.on("end", () => { let j = null; try { j = s ? JSON.parse(s) : null; } catch { j = s; } resolve({ status: res.statusCode, json: j }); });
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", e => resolve({ status: 0, error: e.code || e.message }));
+    if (data) req.write(data);
+    req.end();
+  });
+}
+function lolGameCfg() {
+  const dirs = [process.env.LOL_DIR, "C:\\Riot Games\\League of Legends", "D:\\Riot Games\\League of Legends", "E:\\Riot Games\\League of Legends"].filter(Boolean);
+  for (const d of dirs) { const f = path.join(d, "Config", "game.cfg"); if (fs.existsSync(f)) return f; }
+  return null;
+}
+function readReplayApiSetting() {
+  const f = lolGameCfg(); if (!f) return { found: false };
+  const txt = fs.readFileSync(f, "utf8");
+  return { found: true, file: f, enabled: /^\s*EnableReplayApi\s*=\s*1\s*$/mi.test(txt) };
+}
+function enableReplayApi() {
+  const f = lolGameCfg(); if (!f) throw new Error("Couldn't find League's Config\\game.cfg. Set LOL_DIR to your League of Legends folder.");
+  let txt = fs.readFileSync(f, "utf8");
+  const eol = txt.includes("\r\n") ? "\r\n" : "\n";
+  if (/^\s*EnableReplayApi\s*=/mi.test(txt)) txt = txt.replace(/^\s*EnableReplayApi\s*=.*$/mi, "EnableReplayApi=1");
+  else if (/^\[General\]/mi.test(txt)) txt = txt.replace(/^\[General\][^\S\r\n]*\r?\n/mi, m => m + "EnableReplayApi=1" + eol);
+  else txt += eol + "[General]" + eol + "EnableReplayApi=1" + eol;
+  fs.writeFileSync(f, txt);
+  return f;
 }
 
 /* ------------------------------------------------------------- broadcast */
@@ -469,10 +538,15 @@ function broadcastDb(by) { const payload = { db: DB, by, screens: screens() }; c
 function notice(text) { clients.forEach(c => sse(c.res, "notice", { text })); }
 function screens() { const s = { dashboard: 0, overlay: 0 }; clients.forEach(c => { s[c.kind] = (s[c.kind] || 0) + 1; }); return s; }
 setInterval(() => {
-  if (DB.settings.source === "push") game.connected = Date.now() - game.lastPacket < 5000;
+  if (activeSource === "push") game.connected = Date.now() - game.lastPacket < 5000;
+  if (activeSource === "ocr") {
+    const st = ocr ? ocr.state() : { available: false };
+    game.ocr = st; game.connected = !!(st.running && st.lastRead && Date.now() - st.lastRead < 5000);
+    if (st.running) gameDirty = true;
+  }
   if (!gameDirty) return;
   gameDirty = false;
-  game.source = DB.settings.source;
+  game.source = activeSource;
   clients.forEach(c => sse(c.res, "game", game));
 }, 100);
 setInterval(() => clients.forEach(c => c.res.write(": ping\n\n")), 15000);
@@ -526,6 +600,25 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (p === "/api/state") return json(res, 200, { db: DB, game });
+    if (p === "/api/lol/replay") { // playback + render state, plus whether the Replay API is switched on
+      return Promise.all([lolHttp("GET", "/replay/playback"), lolHttp("GET", "/replay/render")]).then(([pb, rn]) => {
+        const cfg = readReplayApiSetting();
+        json(res, 200, { available: pb.status === 200, playback: pb.status === 200 ? pb.json : null, render: rn.status === 200 ? rn.json : null,
+          reason: pb.status === 200 ? "" : pb.status === 0 ? "League isn't running a game or replay." : "The Replay API is off. Turn it on, then restart the replay.", config: cfg });
+      });
+    }
+    if (p === "/api/lol/swagger") return lolHttp("GET", "/swagger/v3/openapi.json").then(r => json(res, r.status === 200 ? 200 : 502, r.json || { error: r.error }));
+    if (p === "/api/ocr/state") return json(res, 200, ocr ? Object.assign({ available: true, config: DB.settings.ocr || null }, ocr.state()) : { available: false, config: DB.settings.ocr || null });
+    if (p === "/api/ocr/sources") {
+      if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+      return ocr.listSources().then(s => json(res, 200, s)).catch(e => json(res, 500, { error: e.message }));
+    }
+    if (p === "/api/ocr/frame") {
+      if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+      return ocr.frame(url.searchParams.get("source") || (DB.settings.ocr || {}).sourceId, (DB.settings.ocr || {}).sourceName)
+        .then(buf => { res.writeHead(200, { "content-type": "image/jpeg", "cache-control": "no-store" }); res.end(buf); })
+        .catch(e => json(res, 404, { error: e.message }));
+    }
     if (p.startsWith("/uploads/")) { const f = safeJoin(UPLOADS, p.slice(9)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
     const f = safeJoin(PUB, p.slice(1));
     return f ? sendFile(res, f) : json(res, 404, { error: "not found" });
@@ -551,7 +644,29 @@ const server = http.createServer((req, res) => {
             if (!target) return json(res, 404, { error: "event not found" });
             setPath(target, body.path, body.value);
             save(); broadcastDb(body.by || "api");
+            if (body.path === "onAir" || /(^|\.)game$/.test(body.path)) applySource(false); // auto source follows the on-air game
             return json(res, 200, { ok: true });
+          }
+          case "/api/lol/playback": case "/api/lol/render": { // forwarded to League's Replay API
+            return lolHttp("POST", "/replay/" + p.split("/").pop(), body).then(r => json(res, r.status === 200 ? 200 : 409,
+              r.status === 200 ? (r.json || { ok: true }) : { error: r.status === 0 ? "League isn't running a replay." : "The Replay API rejected that.", detail: r.json }));
+          }
+          case "/api/lol/enable-replay-api": { const file = enableReplayApi(); return json(res, 200, { ok: true, file }); }
+          case "/api/ocr/config": {
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            DB.settings.ocr = body; save(); ocr.update(body); broadcastDb("server");
+            return json(res, 200, { ok: true });
+          }
+          case "/api/ocr/start": {
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            if (DB.settings.source !== "ocr") setSource("ocr");
+            return ocr.start(DB.settings.ocr || {}, ocrIngest).then(() => json(res, 200, { ok: true })).catch(e => json(res, 400, { error: e.message }));
+          }
+          case "/api/ocr/stop": if (ocr) ocr.stop(); return json(res, 200, { ok: true });
+          case "/api/ocr/test": {
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            return ocr.testRegion(body.source || (DB.settings.ocr || {}).sourceId, (DB.settings.ocr || {}).sourceName, body.region)
+              .then(r => json(res, 200, r)).catch(e => json(res, 400, { error: e.message }));
           }
           case "/api/source": setSource(body.source); return json(res, 200, { ok: true });
           case "/api/rl": { // forward a Stats API command, e.g. {Command:"ChangePOV",Data:{Focus:"1"}}
@@ -578,14 +693,12 @@ server.on("error", err => {
   else log("Server error:", err.message);
   if (require.main === module) process.exit(1);
 });
-module.exports = { server, PORT, DATA };
+module.exports = { server, PORT, DATA, setOcrProvider, getDb: () => DB };
 
 server.listen(PORT, HOST, () => {
   const shown = HOST === "0.0.0.0" ? "localhost" : HOST;
-  log(`Squish HUD running`);
+  log(`Saints HUD running`);
   log(`  Dashboard:  http://${shown}:${PORT}/`);
   log(`  Overlay:    http://${shown}:${PORT}/overlay   (add as an OBS Browser Source, 1920x1080)`);
-  log(`  Data source: ${DB.settings.source}`);
-  if (DB.settings.source === "rl") connectRL();
-  if (DB.settings.source === "lol") pollLoL();
+  applySource(true);
 });

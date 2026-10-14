@@ -1,15 +1,16 @@
 {
   "name": "saints-hud",
   "productName": "Saints HUD",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Esports broadcast control room and OBS overlays with live Rocket League and League of Legends data.",
+  "description": "St. Clair Saints broadcast control room and OBS overlays with live Rocket League and League of Legends data, plus screen OCR for other games.",
   "author": "St. Clair Saints Broadcast",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "server": "node server.js",
     "lan": "node -e \"process.env.HOST='0.0.0.0';require('./server.js')\"",
+    "test": "electron test/ocr-selftest.js",
     "dist": "electron-builder --win nsis portable --publish never",
     "release": "electron-builder --win nsis --publish always"
   },
@@ -27,9 +28,12 @@
   "build": {
     "appId": "ca.stclair.saintshud",
     "productName": "Saints HUD",
+    "asar": false,
     "files": [
       "main.js",
       "server.js",
+      "ocr.js",
+      "test/ocr-selftest.js",
       "public/**/*",
       "package.json"
     ],
@@ -62,6 +66,8 @@
     }
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "@tesseract.js-data/eng": "^1.0.0",
+    "electron-updater": "^6.8.9",
+    "tesseract.js": "^5.1.1"
   }
 }
