@@ -698,6 +698,7 @@ const server = http.createServer((req, res) => {
   if (req.method === "GET") {
     if (p === "/" || p === "/dashboard") return sendFile(res, path.join(PUB, "app.html"));
     if (p === "/overlay") return sendFile(res, path.join(PUB, "overlay.html"));
+    if (p === "/launcher") return sendFile(res, path.join(PUB, "launcher.html"));
     if (p === "/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const c = { res, kind: url.searchParams.get("kind") === "overlay" ? "overlay" : "dashboard" };
