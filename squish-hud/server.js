@@ -48,6 +48,12 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     standings: [],
     lowerThird: { title: "", subtitle: "" },
     timer: { label: "BACK SOON", seconds: 300, endsAt: 0, remaining: 300 },
+    // Minecraft: Hunger Games and Build Battle
+    mc: { mode: "hungergames", title: "HUNGER GAMES", total: 24, spotlight: "", clock: { running: false, base: 0, startedAt: 0 },
+      bb: { theme: "", phase: "waiting", buildSeconds: 900, endsAt: 0, remaining: 900, judging: "", scores: {} } },
+    // Riftbound (trading card game): operator-driven scoring
+    rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
+      limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "" },
   };
 }
 // Older saved data may predate some fields: fill them in.
@@ -55,6 +61,12 @@ function upgrade(ev) {
   const d = newEvent(ev.name);
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
+  if (!ev.hud.lolPanel || ev.hud.lolPanel === "auto") ev.hud.lolPanel = "lane"; // the teamfight strip is a manual switch
+  if (ev.game === "League of Legends") ev.lol = require("./league.js").merge(require("./league.js").DEFAULTS, ev.lol || {}); // every League setting has a visible value
+  // League now follows the in-game layout: the stats board is at the bottom, so the side player lists start switched off (once)
+  if (ev.game === "League of Legends" && !ev.hud.lolLayout2) { ev.hud.show.boost = false; ev.hud.lolLayout2 = true; }
+  // the St. Clair Saints team gets the emblem until a team logo is uploaded
+  ev.teams.forEach(t => { if (t.tag === "SCC" && t.logos && !t.logos[0]) t.logos[0] = "/brand/saints-emblem.png"; });
   return ev;
 }
 function seed() {
@@ -93,14 +105,21 @@ function seed() {
   lol.teams = [s2, o2]; lol.hud.colorMode = "custom"; lol.hud.custom = ["#3a8dff", "#e84057"];
   Object.assign(lol.live, { left: s2.id, right: o2.id, seriesTitle: "NACE VARSITY", eventTitle: "SCC vs OPP", gameSeries: "BEST OF 3", bestOf: 3 });
   lol.talent = rl.talent.map(t => Object.assign({}, t, { id: uid(), socials: t.socials.map(s => Object.assign({}, s)) }));
-  return { events: [rl, lol], onAir: rl.id, settings: { source: "demo" } };
+  return { events: [rl, lol], onAir: rl.id, settings: { source: "auto", v: 2 } };
 }
 
 let DB;
 try { DB = JSON.parse(fs.readFileSync(DB_FILE, "utf8")); } catch { DB = null; }
 if (!DB || !Array.isArray(DB.events)) DB = seed();
-DB.settings = Object.assign({ source: "demo" }, DB.settings);
+DB.settings = Object.assign({ source: "auto" }, DB.settings);
+if (!DB.settings.v) { DB.settings.v = 2; if (DB.settings.source === "demo") DB.settings.source = "auto"; } // the demo is no longer the default
 DB.events.forEach(upgrade);
+// official objective icons are kept apart from icons the user uploads (an earlier build stored both together)
+if (DB.settings.icons) {
+  const mine = {}, official = DB.settings.iconsOfficial || {};
+  for (const [k, v] of Object.entries(DB.settings.icons)) if (String(v).startsWith("/objective-icons/")) official[k] = v; else mine[k] = v;
+  DB.settings.icons = mine; DB.settings.iconsOfficial = official;
+}
 
 let saveTimer = null;
 function save() {
@@ -116,9 +135,18 @@ function save() {
 const onAirEvent = () => DB.events.find(e => e.id === DB.onAir) || DB.events[0];
 
 /* ------------------------------------------------------- live game state */
+// "auto" follows the on-air event's game; games without a live feed fall back to screen OCR.
+let activeSource = "";
+const AUTO_SOURCE = { "Rocket League": "rl", "League of Legends": "lol", "Minecraft": "mc", "Riftbound": "manual" };
+function resolveSource() {
+  const s = DB.settings.source;
+  if (s !== "auto") return s;
+  const ev = onAirEvent();
+  return AUTO_SOURCE[ev && ev.game] || "ocr";
+}
 const blankGame = () => ({
-  kind: "rl", lol: null,
-  source: DB.settings.source, connected: false, inMatch: false, lastPacket: 0, matchGuid: "", arena: "",
+  kind: "rl", lol: null, ocr: null, mc: null, mcOcr: null, scoreLive: false, clockLive: false,
+  source: activeSource, connected: false, inMatch: false, lastPacket: 0, matchGuid: "", arena: "",
   teams: [{ name: "Blue", score: 0, color: "" }, { name: "Orange", score: 0, color: "" }],
   time: 300, overtime: false, replay: false, paused: false, podium: false, hasWinner: false, winner: -1,
   target: null, players: [], feed: [], lastGoal: null,
@@ -162,14 +190,21 @@ function handleMessage(msg) {
       }));
       if (Array.isArray(g.Teams)) g.Teams.forEach(t => {
         const i = t.TeamNum ?? 0; if (i > 1) return;
+        if (t.Score == null) { if (t.Name) game.teams[i].name = t.Name; return; } // name-only update (OCR)
         game.teams[i] = { name: t.Name || (i ? "Orange" : "Blue"), score: t.Score | 0, color: t.ColorPrimary ? "#" + t.ColorPrimary : "" };
       });
       if (g.TimeSeconds != null) game.time = g.TimeSeconds;
       game.overtime = !!g.bOvertime;
       game.replay = !!g.bReplay;
       game.arena = g.Arena || game.arena;
+      game.scoreLive = Array.isArray(g.Teams) && g.Teams.some(t => t.Score != null);
+      game.clockLive = g.TimeSeconds != null;
       game.hasWinner = !!g.bHasWinner;
       game.target = g.bHasTarget && g.Target && g.Target.Name ? who(g.Target) : null;
+      break;
+    }
+    case "McOcr": { // values read from a Minecraft screen: alive, total, kills, border, clock, theme, phase
+      game.mcOcr = Object.assign({}, d.values || {}, { t: Date.now() });
       break;
     }
     case "ClockUpdatedSeconds": game.time = d.TimeSeconds ?? game.time; game.overtime = !!d.bOvertime; break;
@@ -229,7 +264,7 @@ function makeSplitter(onObject) {
 let rlSock = null, rlTimer = null, rlWarned = false;
 function connectRL() {
   clearTimeout(rlTimer);
-  if (DB.settings.source !== "rl") return;
+  if (activeSource !== "rl") return;
   const sock = net.connect({ host: RL_HOST, port: RL_PORT });
   rlSock = sock;
   sock.setEncoding("utf8");
@@ -240,7 +275,7 @@ function connectRL() {
   });
   sock.on("close", () => {
     if (rlSock === sock) { rlSock = null; game.connected = false; touch(); }
-    if (DB.settings.source === "rl") rlTimer = setTimeout(connectRL, 2000);
+    if (activeSource === "rl") rlTimer = setTimeout(connectRL, 2000);
   });
 }
 function sendRL(cmd) {
@@ -253,24 +288,27 @@ function sendRL(cmd) {
 // Riot serves this on https://127.0.0.1:2999 (self-signed cert) while a game or spectate is running.
 const https = require("https");
 const LOL_HOST = process.env.LOL_HOST || "127.0.0.1";
-let ddVersion = "";
-https.get("https://ddragon.leagueoflegends.com/api/versions.json", res => {
-  let s = ""; res.on("data", c => (s += c)); res.on("end", () => { try { ddVersion = JSON.parse(s)[0]; } catch { } });
-}).on("error", () => log("Couldn't reach Data Dragon, so champion icons will show initials."));
+const league = require("./league.js");
+const dd = league.createDDragon(path.join(DATA, "ddragon_cache.json"), log); // item prices and the patch version for icons
 
 let lolLastEvent = -1, lolTimer = null, lolWarned = false;
 const lolName = p => p.riotIdGameName || (p.riotId || "").split("#")[0] || p.summonerName || "";
-const DRAGONS = { Fire: "Infernal", Water: "Ocean", Earth: "Mountain", Air: "Cloud", Hextech: "Hextech", Chemtech: "Chemtech", Elder: "Elder" };
 
 function handleLoL(d) {
   const players = d.allPlayers || [];
   game.kind = "lol"; game.inMatch = true; game.connected = true; game.lastPacket = Date.now();
+  const lol = league.build(d, (onAirEvent() || {}).lol, dd); // objectives, timers, gold
   game.players = players.map((p, i) => {
     const s = p.scores || {};
     return { name: lolName(p), id: p.riotId || p.summonerName || "", team: p.team === "CHAOS" ? 1 : 0, shortcut: i + 1,
       champion: p.championName || "", champKey: String(p.rawChampionName || "").replace("game_character_displayname_", ""),
       level: p.level | 0, kills: s.kills | 0, deaths: s.deaths | 0, assists: s.assists | 0, cs: s.creepScore | 0, ward: Math.round(s.wardScore || 0),
-      dead: !!p.isDead, respawn: Math.round(p.respawnTimer || 0), items: (p.items || []).map(x => x.itemID),
+      gold: Math.round(lol.playerGold[i]), itemGold: league.itemValue(p, dd), position: p.position || "",
+      dead: !!p.isDead, respawn: Math.round(p.respawnTimer || 0),
+      items: (p.items || []).reduce((a, x) => { a[x.slot != null ? x.slot : a.filter(Boolean).length] = x.itemID; return a; }, Array(7).fill(0)), // by slot: 6 items + trinket
+      spells: [p.summonerSpells && p.summonerSpells.summonerSpellOne, p.summonerSpells && p.summonerSpells.summonerSpellTwo]
+        .map(s => { const m = /SummonerSpell_(\w+?)_DisplayName/.exec((s && s.rawDisplayName) || ""); return m ? m[1] : ""; }),
+      keystone: (p.runes && p.runes.keystone && dd.runes[p.runes.keystone.id]) || "",
       // RL-shaped fields so generic scenes still work
       score: (s.kills | 0) * 3 + (s.assists | 0), goals: s.kills | 0, saves: 0, shots: 0, demos: 0, boost: null };
   });
@@ -281,7 +319,6 @@ function handleLoL(d) {
   [0, 1].forEach(t => { game.teams[t] = { name: t ? "Red" : "Blue", score: game.players.filter(p => p.team === t).reduce((a, p) => a + p.kills, 0), color: "" }; });
 
   const events = (d.events && d.events.Events) || [];
-  const lol = { towers: [0, 0], inhibs: [0, 0], dragons: [[], []], barons: [0, 0], heralds: [0, 0], grubs: [0, 0], ddVersion };
   const initial = lolLastEvent < 0 || (events.length && events[events.length - 1].EventID < lolLastEvent);
   if (initial) { lolLastEvent = -1; game.feed = []; }
   for (const e of events) {
@@ -297,12 +334,11 @@ function handleLoL(d) {
         break;
       case "FirstBlood": if (fresh) pushFeed({ type: "fb", label: "FIRST BLOOD", main: { name: e.Recipient, team: teamOf(e.Recipient) } }); break;
       case "Ace": if (fresh) pushFeed({ type: "ace", label: "ACE", main: { name: e.Acer, team: e.AcingTeam === "CHAOS" ? 1 : 0 } }); break;
-      case "TurretKilled": { const s = structSide(e.TurretKilled); if (s >= 0) lol.towers[s]++; if (fresh) pushFeed({ type: "tower", label: "TOWER", main: { name: e.KillerName, team: s } }); break; }
-      case "InhibKilled": { const s = structSide(e.InhibKilled); if (s >= 0) lol.inhibs[s]++; if (fresh) pushFeed({ type: "inhib", label: "INHIBITOR", main: { name: e.KillerName, team: s } }); break; }
-      case "DragonKill": if (kt >= 0) lol.dragons[kt].push(DRAGONS[e.DragonType] || e.DragonType); if (fresh) pushFeed({ type: "dragon", label: `${(DRAGONS[e.DragonType] || e.DragonType || "").toUpperCase()} DRAGON${e.Stolen === "True" ? " (STOLEN)" : ""}`, main: { name: e.KillerName, team: kt } }); break;
-      case "BaronKill": if (kt >= 0) lol.barons[kt]++; if (fresh) pushFeed({ type: "baron", label: "BARON", main: { name: e.KillerName, team: kt } }); break;
-      case "HeraldKill": if (kt >= 0) lol.heralds[kt]++; if (fresh) pushFeed({ type: "herald", label: "RIFT HERALD", main: { name: e.KillerName, team: kt } }); break;
-      case "HordeKill": if (kt >= 0) lol.grubs[kt]++; break;
+      case "TurretKilled": { const s = structSide(e.TurretKilled); if (fresh) pushFeed({ type: "tower", label: "TOWER", main: { name: e.KillerName, team: s } }); break; }
+      case "InhibKilled": { const s = structSide(e.InhibKilled); if (fresh) pushFeed({ type: "inhib", label: "INHIBITOR", main: { name: e.KillerName, team: s } }); break; }
+      case "DragonKill": if (fresh) pushFeed({ type: "dragon", label: `${((e.DragonType === "Elder" ? "Elder" : league.DRAGON_NAMES[e.DragonType]) || e.DragonType || "").toUpperCase()} DRAGON${e.Stolen === "True" ? " (STOLEN)" : ""}`, main: { name: e.KillerName, team: kt } }); break;
+      case "BaronKill": if (fresh) pushFeed({ type: "baron", label: "BARON", main: { name: e.KillerName, team: kt } }); break;
+      case "HeraldKill": if (fresh) pushFeed({ type: "herald", label: "RIFT HERALD", main: { name: e.KillerName, team: kt } }); break;
       case "GameEnd":
         if (fresh && !game.hasWinner) {
           const ap = d.activePlayer ? game.players.find(p => p.name === lolName(d.activePlayer)) : null;
@@ -313,13 +349,22 @@ function handleLoL(d) {
     }
     if (e.EventID > lolLastEvent) lolLastEvent = e.EventID;
   }
+  // A teamfight is two or more kills within 12 seconds of each other, still ongoing 8 seconds after the latest kill.
+  let cluster = [];
+  for (const e of events) if (e.EventName === "ChampionKill") {
+    const t = e.EventTime || 0;
+    if (cluster.length && t - cluster[cluster.length - 1].t > 12) cluster = [];
+    cluster.push({ t, team: teamOf(e.KillerName) });
+  }
+  const lastK = cluster[cluster.length - 1], since = lastK ? game.time - lastK.t : 999;
+  lol.fight = { active: cluster.length >= 2 && since >= 0 && since <= 8, kills: [0, 1].map(s => cluster.filter(k => k.team === s).length), since: cluster.length ? cluster[0].t : 0 };
   game.lol = lol;
   touch();
 }
 
 function pollLoL() {
   clearTimeout(lolTimer);
-  if (DB.settings.source !== "lol") return;
+  if (activeSource !== "lol") return;
   const req = https.get({ host: LOL_HOST, port: 2999, path: "/liveclientdata/allgamedata", rejectUnauthorized: false, timeout: 1500 }, res => {
     let s = ""; res.setEncoding("utf8");
     res.on("data", c => (s += c));
@@ -392,7 +437,7 @@ function demoStart() {
   touch();
 }
 function demoTick() {
-  if (DB.settings.source !== "demo") return;
+  if (activeSource !== "demo") return;
   const ev = onAirEvent();
   if (ev && ev.game === "League of Legends") { if (!game.paused) lolDemoTick(); return; } // runs at 4x speed
   if (game.kind === "lol") { game = blankGame(); demo = null; }
@@ -448,18 +493,146 @@ function demoTick() {
 }
 setInterval(demoTick, 250);
 
-function setSource(src) {
-  if (!["rl", "lol", "demo", "push"].includes(src)) return;
-  DB.settings.source = src; save();
+// Part of each game's window title, used to find the game on screen for the live preview background.
+const GAME_WINDOWS = { "League of Legends": ["League of Legends (TM) Client"], "Rocket League": ["Rocket League"], "Minecraft": ["Minecraft"], "Overwatch 2": ["Overwatch"],
+  "Call of Duty": ["Call of Duty", "Warzone", "Black Ops", "Modern Warfare"], "Deadlock": ["Deadlock"], "Fortnite": ["Fortnite"], "Valorant": ["VALORANT"], "Counter-Strike 2": ["Counter-Strike 2"], "Riftbound": ["Riftbound"] };
+
+/* ------------------------------------------------ official League objective icons */
+// Riot's own in-game minimap icons, published by Community Dragon. They are downloaded on the user's click and kept in the
+// app's data folder, never bundled with the app or the source code.
+const ICON_BASE = process.env.ICON_BASE || "https://raw.communitydragon.org/latest/game/assets/ux/minimap/icons/";
+const ICON_DIR = path.join(DATA, "objective-icons");
+const ICON_FILES = { dragon: "dragon.png", infernal: "dragon_infernal.png", ocean: "dragon_ocean.png", mountain: "dragon_mountain.png", cloud: "dragon_cloud.png",
+  hextech: "dragon_hextech.png", chemtech: "dragon_chemtech.png", elder: "dragon_elder.png", grubs: "grub.png", herald: "riftherald.png", baron: "baron.png",
+  tower: "icon_ui_tower_minimap.png", inhib: "inhibitor.png" };
+function fetchPng(url, hops = 3) {
+  return new Promise((resolve, reject) => {
+    const get = url.startsWith("https") ? https : http;
+    get.get(url, { timeout: 10000 }, r => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && hops > 0) { r.resume(); return resolve(fetchPng(new URL(r.headers.location, url).href, hops - 1)); }
+      if (r.statusCode !== 200) { r.resume(); return reject(new Error("HTTP " + r.statusCode)); }
+      const chunks = []; let size = 0;
+      r.on("data", c => { size += c.length; if (size > 512 * 1024) { r.destroy(); reject(new Error("file too large")); } else chunks.push(c); });
+      r.on("end", () => { const b = Buffer.concat(chunks); b.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])) ? resolve(b) : reject(new Error("not a PNG")); });
+    }).on("error", reject).on("timeout", function () { this.destroy(new Error("timed out")); });
+  });
+}
+async function fetchOfficialIcons() {
+  fs.mkdirSync(ICON_DIR, { recursive: true });
+  const icons = Object.assign({}, DB.settings.iconsOfficial || {}), failed = []; // kept apart from any icons the user uploads (settings.icons)
+  for (const [key, file] of Object.entries(ICON_FILES)) {
+    try { fs.writeFileSync(path.join(ICON_DIR, file), await fetchPng(ICON_BASE + file)); icons[key] = "/objective-icons/" + file; }
+    catch (e) { failed.push(`${file} (${e.message})`); }
+  }
+  DB.settings.iconsOfficial = icons; save(); broadcastDb("server");
+  return { ok: Object.keys(ICON_FILES).length - failed.length, total: Object.keys(ICON_FILES).length, failed };
+}
+// The icons simply appear: fetched on first run, and retried every 10 minutes until they're all there.
+let iconTimer = null;
+async function ensureOfficialIcons() {
+  clearTimeout(iconTimer);
+  const missing = Object.values(ICON_FILES).filter(f => !fs.existsSync(path.join(ICON_DIR, f)));
+  if (!missing.length) { // already on disk: just make sure the settings point at them
+    const icons = {}; for (const [k, f] of Object.entries(ICON_FILES)) icons[k] = "/objective-icons/" + f;
+    if (JSON.stringify(DB.settings.iconsOfficial) !== JSON.stringify(icons)) { DB.settings.iconsOfficial = icons; save(); }
+    return;
+  }
+  const r = await fetchOfficialIcons().catch(e => ({ failed: [e.message] }));
+  if (r.failed && r.failed.length) { log(`Objective icons: ${r.failed.length} not downloaded yet (no internet?). Trying again in 10 minutes.`); iconTimer = setTimeout(ensureOfficialIcons, 10 * 60 * 1000); }
+  else log("Objective icons are ready.");
+}
+
+/* ------------------------------------------ data outputs (vMix / GT Title Designer) */
+// The live fields as JSON, XML or CSV: at /hud.json, /hud.xml, /hud.csv and as files in <data>/output, rewritten every second.
+const fieldsLib = require("./fields.js");
+const OUT_DIR = path.join(DATA, "output");
+fs.mkdirSync(OUT_DIR, { recursive: true });
+function currentFields(query = {}, base = "") {
+  return fieldsLib.build(DB, onAirEvent(), game, { dataDir: DATA, appDir: ROOT, images: query.images, base });
+}
+let lastCsv = "", lastJson = "";
+function atomicWrite(file, text) { const tmp = file + ".tmp"; fs.writeFile(tmp, text, err => { if (!err) fs.rename(tmp, file, () => {}); }); } // vMix never reads half a file
+setInterval(() => {
+  try {
+    const { fields } = currentFields(), csv = fieldsLib.toCsv(fields), json = JSON.stringify(fields, null, 1);
+    if (csv !== lastCsv) { lastCsv = csv; atomicWrite(path.join(OUT_DIR, "hud.csv"), csv); }
+    if (json !== lastJson) { lastJson = json; atomicWrite(path.join(OUT_DIR, "hud.json"), json); atomicWrite(path.join(OUT_DIR, "hud.xml"), fieldsLib.toXml(fields)); }
+  } catch (e) { /* a game mid-update can't break the overlay */ }
+}, 1000);
+
+/* ------------------------------------------------------------- Minecraft */
+const mcc = require("./minecraft.js").create(log);
+function mcRoster() { const ev = onAirEvent(); return ev ? ev.teams.flatMap(t => t.players.map(p => p.ign)).filter(Boolean) : []; }
+function startMc() {
+  const c = DB.settings.mc || {};
+  if (c.host || c.logPath) mcc.start(Object.assign({}, c, { roster: mcRoster() })); // only connect once a server is set up
+}
+
+// Switch the live connector when the chosen source (or the on-air event's game, for "auto") changes.
+function applySource(force) {
+  const want = resolveSource();
+  if (!force && want === activeSource) return;
+  activeSource = want;
+  clearTimeout(rlTimer); clearTimeout(lolTimer);
   if (rlSock) { rlSock.destroy(); rlSock = null; }
-  clearTimeout(lolTimer);
-  demo = null; lolDemo = null; lolLastEvent = -1; lolWarned = false;
+  demo = null; lolDemo = null; lolLastEvent = -1; lolWarned = false; rlWarned = false;
   game = blankGame();
-  if (src === "rl") connectRL();
-  if (src === "lol") pollLoL();
-  if (src === "push") game.connected = false;
+  mcc.stop();
+  if (want === "rl") connectRL();
+  if (want === "lol") pollLoL();
+  if (want === "mc") startMc();
   touch(); broadcastDb("server");
-  log("Data source:", src);
+  log("Data source:", want + (DB.settings.source === "auto" ? " (auto)" : ""));
+}
+function setSource(src) {
+  if (!["auto", "rl", "lol", "ocr", "push", "demo"].includes(src)) return;
+  DB.settings.source = src; save();
+  applySource(true);
+}
+setInterval(() => applySource(false), 1500);
+setInterval(() => { if (activeSource === "mc") mcc.update({ roster: mcRoster() }); }, 5000);
+
+/* ---------------------------------------------------- screen OCR (desktop app) */
+// The Electron shell registers a provider (ocr.js). In plain Node there is none and the OCR endpoints say so.
+let ocr = null;
+function setOcrProvider(p) { ocr = p; }
+// OCR readings arrive as Stats API–shaped messages; they only drive the HUD while OCR is the active source.
+function ocrIngest(msg) { if (activeSource === "ocr" || activeSource === "mc") { game.connected = true; [].concat(msg).forEach(handleMessage); } }
+
+/* -------------------------------------------- League replay and game config */
+function lolHttp(method, pth, body) {
+  return new Promise(resolve => {
+    const data = body ? Buffer.from(JSON.stringify(body)) : null;
+    const req = https.request({ host: LOL_HOST, port: 2999, path: pth, method, rejectUnauthorized: false, timeout: 3000,
+      headers: data ? { "content-type": "application/json", "content-length": data.length } : {} }, res => {
+      let s = ""; res.setEncoding("utf8"); res.on("data", c => (s += c));
+      res.on("end", () => { let j = null; try { j = s ? JSON.parse(s) : null; } catch { j = s; } resolve({ status: res.statusCode, json: j }); });
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", e => resolve({ status: 0, error: e.code || e.message }));
+    if (data) req.write(data);
+    req.end();
+  });
+}
+function lolGameCfg() {
+  const dirs = [process.env.LOL_DIR, "C:\\Riot Games\\League of Legends", "D:\\Riot Games\\League of Legends", "E:\\Riot Games\\League of Legends"].filter(Boolean);
+  for (const d of dirs) { const f = path.join(d, "Config", "game.cfg"); if (fs.existsSync(f)) return f; }
+  return null;
+}
+function readReplayApiSetting() {
+  const f = lolGameCfg(); if (!f) return { found: false };
+  const txt = fs.readFileSync(f, "utf8");
+  return { found: true, file: f, enabled: /^\s*EnableReplayApi\s*=\s*1\s*$/mi.test(txt) };
+}
+function enableReplayApi() {
+  const f = lolGameCfg(); if (!f) throw new Error("Couldn't find League's Config\\game.cfg. Set LOL_DIR to your League of Legends folder.");
+  let txt = fs.readFileSync(f, "utf8");
+  const eol = txt.includes("\r\n") ? "\r\n" : "\n";
+  if (/^\s*EnableReplayApi\s*=/mi.test(txt)) txt = txt.replace(/^\s*EnableReplayApi\s*=.*$/mi, "EnableReplayApi=1");
+  else if (/^\[General\]/mi.test(txt)) txt = txt.replace(/^\[General\][^\S\r\n]*\r?\n/mi, m => m + "EnableReplayApi=1" + eol);
+  else txt += eol + "[General]" + eol + "EnableReplayApi=1" + eol;
+  fs.writeFileSync(f, txt);
+  return f;
 }
 
 /* ------------------------------------------------------------- broadcast */
@@ -469,10 +642,20 @@ function broadcastDb(by) { const payload = { db: DB, by, screens: screens() }; c
 function notice(text) { clients.forEach(c => sse(c.res, "notice", { text })); }
 function screens() { const s = { dashboard: 0, overlay: 0 }; clients.forEach(c => { s[c.kind] = (s[c.kind] || 0) + 1; }); return s; }
 setInterval(() => {
-  if (DB.settings.source === "push") game.connected = Date.now() - game.lastPacket < 5000;
+  if (activeSource === "push") game.connected = Date.now() - game.lastPacket < 5000;
+  if (activeSource === "ocr") {
+    const st = ocr ? ocr.state() : { available: false };
+    game.ocr = st; game.connected = !!(st.running && st.lastRead && Date.now() - st.lastRead < 5000);
+    if (st.running) gameDirty = true;
+  }
+  if (activeSource === "mc") { // server feed and screen OCR both land here; the HUD prefers whichever is live
+    game.mc = mcc.state(); game.ocr = ocr ? ocr.state() : null;
+    game.connected = !!(game.mc.connected || (game.ocr && game.ocr.running && game.ocr.lastRead && Date.now() - game.ocr.lastRead < 5000));
+    gameDirty = true;
+  }
   if (!gameDirty) return;
   gameDirty = false;
-  game.source = DB.settings.source;
+  game.source = activeSource;
   clients.forEach(c => sse(c.res, "game", game));
 }, 100);
 setInterval(() => clients.forEach(c => c.res.write(": ping\n\n")), 15000);
@@ -526,6 +709,41 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (p === "/api/state") return json(res, 200, { db: DB, game });
+    if (p === "/api/lol/replay") { // playback + render state, plus whether the Replay API is switched on
+      return Promise.all([lolHttp("GET", "/replay/playback"), lolHttp("GET", "/replay/render")]).then(([pb, rn]) => {
+        const cfg = readReplayApiSetting();
+        json(res, 200, { available: pb.status === 200, playback: pb.status === 200 ? pb.json : null, render: rn.status === 200 ? rn.json : null,
+          reason: pb.status === 200 ? "" : pb.status === 0 ? "League isn't running a game or replay." : "The Replay API is off. Turn it on, then restart the replay.", config: cfg });
+      });
+    }
+    if (p === "/hud.json" || p === "/hud.xml" || p === "/hud.csv") {
+      const q = Object.fromEntries(url.searchParams), base = `http://${req.headers.host || "localhost:" + PORT}`;
+      const { fields, detail } = currentFields(q, base);
+      const [type, body] = p === "/hud.json" ? ["application/json", JSON.stringify(q.detail ? { fields, detail } : fields, null, 1)]
+        : p === "/hud.xml" ? ["application/xml; charset=utf-8", fieldsLib.toXml(fields)] : ["text/csv; charset=utf-8", fieldsLib.toCsv(fields)];
+      res.writeHead(200, { "content-type": type, "cache-control": "no-store", "access-control-allow-origin": "*" }); return res.end(body);
+    }
+    if (p === "/api/outputs") return json(res, 200, { dir: OUT_DIR, files: ["hud.csv", "hud.json", "hud.xml"], port: PORT, lan: HOST === "0.0.0.0" });
+    if (p === "/api/preview/frame") { // the game's window, live, behind the HUD preview (desktop app only)
+      if (!ocr) return json(res, 501, { error: "The live game picture needs the desktop app." });
+      const g = url.searchParams.get("game") || "", names = GAME_WINDOWS[g] || [g];
+      return ocr.frameByName(names).then(buf => { res.writeHead(200, { "content-type": "image/jpeg", "cache-control": "no-store" }); res.end(buf); })
+        .catch(e => json(res, 404, { error: e.message }));
+    }
+    if (p === "/api/mc/state") return json(res, 200, { config: DB.settings.mc || null, state: mcc.state() });
+    if (p === "/api/lol/swagger") return lolHttp("GET", "/swagger/v3/openapi.json").then(r => json(res, r.status === 200 ? 200 : 502, r.json || { error: r.error }));
+    if (p === "/api/ocr/state") return json(res, 200, ocr ? Object.assign({ available: true, config: DB.settings.ocr || null }, ocr.state()) : { available: false, config: DB.settings.ocr || null });
+    if (p === "/api/ocr/sources") {
+      if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+      return ocr.listSources().then(s => json(res, 200, s)).catch(e => json(res, 500, { error: e.message }));
+    }
+    if (p === "/api/ocr/frame") {
+      if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+      return ocr.frame(url.searchParams.get("source") || (DB.settings.ocr || {}).sourceId, (DB.settings.ocr || {}).sourceName)
+        .then(buf => { res.writeHead(200, { "content-type": "image/jpeg", "cache-control": "no-store" }); res.end(buf); })
+        .catch(e => json(res, 404, { error: e.message }));
+    }
+    if (p.startsWith("/objective-icons/")) { const f = safeJoin(ICON_DIR, p.slice(17)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
     if (p.startsWith("/uploads/")) { const f = safeJoin(UPLOADS, p.slice(9)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
     const f = safeJoin(PUB, p.slice(1));
     return f ? sendFile(res, f) : json(res, 404, { error: "not found" });
@@ -551,7 +769,42 @@ const server = http.createServer((req, res) => {
             if (!target) return json(res, 404, { error: "event not found" });
             setPath(target, body.path, body.value);
             save(); broadcastDb(body.by || "api");
+            if (body.path === "onAir" || /(^|\.)game$/.test(body.path)) applySource(false); // auto source follows the on-air game
             return json(res, 200, { ok: true });
+          }
+          case "/api/lol/playback": case "/api/lol/render": { // forwarded to League's Replay API
+            return lolHttp("POST", "/replay/" + p.split("/").pop(), body).then(r => json(res, r.status === 200 ? 200 : 409,
+              r.status === 200 ? (r.json || { ok: true }) : { error: r.status === 0 ? "League isn't running a replay." : "The Replay API rejected that.", detail: r.json }));
+          }
+          case "/api/lol/enable-replay-api": { const file = enableReplayApi(); return json(res, 200, { ok: true, file }); }
+          case "/api/ocr/config": {
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            DB.settings.ocr = body; save(); ocr.update(body); broadcastDb("server");
+            return json(res, 200, { ok: true });
+          }
+          case "/api/ocr/start": {
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            if (!["ocr", "mc"].includes(activeSource)) setSource("ocr");
+            return ocr.start(DB.settings.ocr || {}, ocrIngest).then(() => json(res, 200, { ok: true })).catch(e => json(res, 400, { error: e.message }));
+          }
+          case "/api/ocr/stop": if (ocr) ocr.stop(); return json(res, 200, { ok: true });
+          case "/api/mc/config": {
+            DB.settings.mc = { host: String(body.host || "127.0.0.1"), port: +body.port || 25575, password: String(body.password || ""), logPath: String(body.logPath || "") };
+            save(); mcc.stop(); if (activeSource === "mc") startMc(); broadcastDb("server");
+            return json(res, 200, { ok: true });
+          }
+          case "/api/icons/fetch": return fetchOfficialIcons().then(r => json(res, 200, r)).catch(e => json(res, 500, { error: e.message }));
+          case "/api/lol/panel": { // flip (or set) the bottom board between the lane board and the teamfight strip on the on-air event
+            const ev = onAirEvent(); if (!ev) return json(res, 404, { error: "No event is on air." });
+            ev.hud.lolPanel = body.mode === "lane" || body.mode === "fight" ? body.mode : ev.hud.lolPanel === "fight" ? "lane" : "fight";
+            save(); broadcastDb("hotkey"); return json(res, 200, { mode: ev.hud.lolPanel });
+          }
+          case "/api/mc/test": return mcc.test(body).then(r => json(res, 200, r));
+          case "/api/mc/reset": mcc.reset(); return json(res, 200, { ok: true });
+          case "/api/ocr/test": {
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            return ocr.testRegion(body.source || (DB.settings.ocr || {}).sourceId, (DB.settings.ocr || {}).sourceName, body.region)
+              .then(r => json(res, 200, r)).catch(e => json(res, 400, { error: e.message }));
           }
           case "/api/source": setSource(body.source); return json(res, 200, { ok: true });
           case "/api/rl": { // forward a Stats API command, e.g. {Command:"ChangePOV",Data:{Focus:"1"}}
@@ -578,14 +831,13 @@ server.on("error", err => {
   else log("Server error:", err.message);
   if (require.main === module) process.exit(1);
 });
-module.exports = { server, PORT, DATA };
+module.exports = { server, PORT, DATA, setOcrProvider, getDb: () => DB };
 
 server.listen(PORT, HOST, () => {
   const shown = HOST === "0.0.0.0" ? "localhost" : HOST;
-  log(`Squish HUD running`);
+  log(`Saints HUD running`);
   log(`  Dashboard:  http://${shown}:${PORT}/`);
   log(`  Overlay:    http://${shown}:${PORT}/overlay   (add as an OBS Browser Source, 1920x1080)`);
-  log(`  Data source: ${DB.settings.source}`);
-  if (DB.settings.source === "rl") connectRL();
-  if (DB.settings.source === "lol") pollLoL();
+  applySource(true);
+  ensureOfficialIcons();
 });

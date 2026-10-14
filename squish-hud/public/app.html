@@ -3,34 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Squish Control Room</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Teko:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<title>Saints HUD Control Room</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Montserrat:wght@600;700;800&family=Teko:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/hud.css">
 <style>
 /* Layout: fixed left rail + one rounded workspace panel; HUD previews are 1280×720 stages scaled to fit */
 :root{
-  --bg:#0d0e11; --panel:#141519; --raised:#1a1b20; --field:#101115; --line:#24252b; --line2:#30313a;
-  --fg:#ebebef; --dim:#8b8d97; --faint:#5d5f69;
-  --accent:#3d7bff; --brand:#ff3d8b; --ok:#3ecf72; --bad:#ff5d5d; --warn:#ffb020;
-  --f-ui:"Figtree","Segoe UI",system-ui,sans-serif; --f-mono:"JetBrains Mono",Consolas,monospace;
+  /* St. Clair Saints: college green #00693C and gold #FDC82F on dark green neutrals */
+  --bg:#08110d; --panel:#0d1713; --raised:#12201a; --field:#0a120f; --line:#1c2c24; --line2:#27402f;
+  --fg:#eef3ef; --dim:#8fa399; --faint:#5e7468;
+  --accent:#FDC82F; --on-accent:#14200a; --brand:#00693C; --ok:#3ecf72; --bad:#ff5d5d; --warn:#ffb020;
+  --f-ui:"Libre Franklin","Segoe UI",system-ui,sans-serif; --f-head:"Montserrat","Libre Franklin",system-ui,sans-serif; --f-mono:"JetBrains Mono",Consolas,monospace;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:14px;line-height:1.45;padding:14px 16px}
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-h1,h2,h3{margin:0;font-weight:600}
-h1{font-size:22px}h2{font-size:17px}
+h1,h2,h3{margin:0;font-weight:700;font-family:var(--f-head)}
+h1{font-size:22px}h2{font-size:16px}
 p{margin:0}
 .app{display:grid;grid-template-columns:210px minmax(0,1fr);gap:14px;min-height:calc(100vh - 28px)}
 aside{display:flex;flex-direction:column;gap:6px;min-width:0}
 .me{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:10px}
-.logo{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;font-weight:800;color:#111}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--brand);border-bottom:4px solid var(--accent);display:grid;place-items:center;font:800 15px var(--f-head);color:var(--accent);flex:none;overflow:hidden}
+img.logo{object-fit:contain;background:none;border:0;border-radius:0;width:44px;height:44px}
 .me b{display:block}.me small{color:var(--dim);font-size:12px}
 .nav{display:flex;flex-direction:column;gap:3px}
 .nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:10px;padding:8px 12px;color:var(--dim);cursor:pointer;font-weight:500}
 .nav button:hover{color:var(--fg);background:var(--panel)}
-.nav button[aria-current]{color:var(--fg);background:var(--raised);border-color:var(--line2)}
+.nav button[aria-current]{color:var(--fg);background:var(--raised);border-color:var(--line2);box-shadow:inset 3px 0 0 var(--accent)}
 .nav svg{width:16px;height:16px;flex:none}
 .grp{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:.08em;color:var(--faint);padding:14px 12px 4px;font-weight:600}
 .grp::after{content:"";flex:1;height:1px;background:var(--line2)}
@@ -38,18 +40,20 @@ aside{display:flex;flex-direction:column;gap:6px;min-width:0}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);margin-right:6px}
 .dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}
 @media (max-width:860px){.app{grid-template-columns:1fr}.nav{flex-direction:row;overflow-x:auto}.nav button{width:auto;white-space:nowrap}.grp,.conn{display:none}}
-.main{background:var(--panel);border:1px solid var(--line);border-radius:16px;min-width:0;display:flex;flex-direction:column}
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.crumbs{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--dim);flex-wrap:wrap}
-.crumbs button{background:none;border:0;color:var(--dim);cursor:pointer;padding:0;font-size:15px}
-.crumbs button:hover{color:var(--fg)}
-.crumbs b{color:var(--fg);font-weight:600}
+.main{background:var(--panel);border:1px solid var(--line);border-radius:16px;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px;background:var(--brand);border-bottom:5px solid var(--accent);flex-wrap:wrap}
+.crumbs{display:flex;align-items:center;gap:10px;font-size:15px;color:rgba(255,255,255,.7);flex-wrap:wrap}
+.crumbs button{background:none;border:0;color:rgba(255,255,255,.75);cursor:pointer;padding:0;font-size:15px}
+.crumbs button:hover{color:#fff}
+.crumbs b{color:#fff;font:700 15px var(--f-head)}
+.top .btn{background:rgba(0,0,0,.25);border-color:rgba(255,255,255,.25);color:#fff}
+.top .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .view{padding:24px;display:flex;flex-direction:column;gap:28px;min-width:0}
 .sub{color:var(--dim);font-size:13px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line2);background:var(--raised);border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:13px;white-space:nowrap}
 .btn:hover{border-color:var(--faint)}
-.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.btn.blue{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.blue{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
 .btn.sm{padding:5px 10px;font-size:12px}
 .btn.icon{padding:7px;width:34px;height:34px}
@@ -138,6 +142,29 @@ table.grid tr:last-child td{border-bottom:0}
 .pl b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pl.f{border-color:var(--fg)}
 .pl .bst{font-family:var(--f-mono);font-size:12px;color:var(--dim);width:30px;text-align:right}
+.srcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.src{border:1px solid var(--line2);background:var(--field);border-radius:10px;padding:6px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;min-width:0}
+.src:hover{border-color:var(--faint)}
+.src[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.src img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#000}
+.src span{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ocr-stage{position:relative;width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--line2);border-radius:12px;overflow:hidden;user-select:none;touch-action:none}
+.ocr-stage>img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
+.ocr-stage .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);text-align:center;padding:20px}
+#ocrBoxes{position:absolute;inset:0;cursor:crosshair}
+.rg{position:absolute;border:2px solid var(--accent);background:rgba(253,200,47,.12);cursor:move;min-width:6px;min-height:6px}
+.rg.sel{border-color:#fff;background:rgba(255,255,255,.14)}
+.rg span{position:absolute;left:-2px;top:-20px;background:var(--accent);color:var(--on-accent);font:700 11px var(--f-ui);padding:1px 6px;border-radius:4px 4px 0 0;white-space:nowrap}
+.rg.sel span{background:#fff}
+.rg .hd{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:#fff;border:2px solid var(--accent);border-radius:3px;cursor:nwse-resize}
+.read{font-family:var(--f-mono);font-size:12px}
+.read.ok{color:var(--ok)}.read.bad{color:var(--faint)}
+.testimg{max-width:100%;max-height:90px;background:#fff;border-radius:6px}
+.rp{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--field)}
+.rp input[type=range]{width:100%;accent-color:var(--accent);padding:0}
+.icgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:12px;margin-top:10px}
+.icslot{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--dim);text-align:center}
+.icslot .dz.mini img{max-height:44px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:50}
 </style>
 </head>
@@ -153,7 +180,8 @@ const get=(o,p)=>String(p).split(".").reduce((a,k)=>a==null?a:a[k],o);
 const setL=(o,p,v)=>{const ks=String(p).split(".");const last=ks.pop();ks.reduce((a,k)=>a[k],o)[last]=v};
 const fid=p=>"f-"+String(p).replace(/\./g,"-");
 const CLIENT=uid();
-const GAMES=["Rocket League","Valorant","Counter-Strike 2","League of Legends"];
+const GAMES=["Rocket League","League of Legends","Overwatch 2","Call of Duty","Deadlock","Fortnite","Valorant","Counter-Strike 2","Minecraft","Riftbound"];
+const LIVE_FEED={"Rocket League":"Rocket League Stats API","League of Legends":"League Live Client Data API"};
 const PLATFORMS=["X","Twitch","YouTube","Instagram","TikTok","Kick"];
 const COUNTRIES=[["","—"],["US","United States"],["CA","Canada"],["MX","Mexico"],["BR","Brazil"],["AR","Argentina"],["PE","Peru"],["CL","Chile"],["GB","United Kingdom"],["IE","Ireland"],["FR","France"],["DE","Germany"],["AT","Austria"],["CH","Switzerland"],["NL","Netherlands"],["BE","Belgium"],["ES","Spain"],["PT","Portugal"],["IT","Italy"],["PL","Poland"],["SE","Sweden"],["NO","Norway"],["DK","Denmark"],["FI","Finland"],["CZ","Czechia"],["TR","Turkey"],["SA","Saudi Arabia"],["AE","UAE"],["MA","Morocco"],["ZA","South Africa"],["JP","Japan"],["KR","South Korea"],["AU","Australia"],["NZ","New Zealand"],["IN","India"],["PH","Philippines"]];
 
@@ -168,7 +196,7 @@ let E=null;
 async function api(url,body){
   try{const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));if(!r.ok)toast(j.error||"The server rejected that change.");return j}
-  catch(e){toast("Can't reach the Squish server. Is it still running?");return{}}
+  catch(e){toast("Can't reach the Saints HUD server. Restart the app.");return{}}
 }
 // apply locally, then persist on the server (which tells the other screens)
 function put(path,value,eventScoped=true){
@@ -186,7 +214,7 @@ function connect(){
     const a=document.activeElement;
     if(a&&a.closest(".view")&&/INPUT|SELECT|TEXTAREA/.test(a.tagName))mirrors();else render();
   });
-  es.addEventListener("game",m=>{GAME=JSON.parse(m.data);updateStages();liveBits()});
+  es.addEventListener("game",m=>{const prev=GAME&&GAME.source;GAME=JSON.parse(m.data);if(prev&&prev!==GAME.source&&ui.view==="live"&&DB)render();else{updateStages();liveBits()}});
   es.addEventListener("notice",m=>toast(JSON.parse(m.data).text));
   es.onopen=()=>{online=true;railStatus()};
   es.onerror=()=>{online=false;railStatus()};
@@ -204,6 +232,9 @@ sched:'<rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="curre
 bracket:'<path d="M3 5h6v4H3zM3 15h6v4H3zM9 7h3v10H9M12 12h3M15 10h6v4h-6z" fill="none" stroke="currentColor" stroke-width="2"/>',
 rank:'<path d="M4 20V12h4v8M10 20V6h4v14M16 20v-5h4v5" fill="currentColor"/>',
 events:'<circle cx="12" cy="7" r="3.5" fill="currentColor"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6z" fill="currentColor"/>',
+ocr:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 12h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+mcicon:'<path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9" fill="none" stroke="currentColor" stroke-width="2"/>',
+rbicon:'<rect x="5" y="3" width="11" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 21h8a2 2 0 0 0 2-2V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 copy:'<rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 4H6a2 2 0 0 0-2 2v10" fill="none" stroke="currentColor" stroke-width="2"/>',
 up:'<path d="M12 16V5m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
 swap:'<path d="M4 8h14m0 0-3-3m3 3-3 3M20 16H6m0 0 3-3m-3 3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -214,7 +245,7 @@ reset:'<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" fill="none" stroke="currentColo
 search:'<circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2"/>'};
 const ico=k=>`<svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
 const META={overview:["Overview","overview"],hud:["HUD Editor","hud"],teams:["Players & Teams","teams"],tournament:["Tournament","trophy"],talent:["Talent Profiles","talent"],
-  live:["Live Game","live"],camera:["Camera feed","cam"],graphics:["Lower Thirds & Timer","gfx"],schedule:["Schedule","sched"],bracket:["Bracket","bracket"],standings:["Rankings","rank"]};
+  live:["Live Game","live"],ocr:["Screen OCR","ocr"],mc:["Minecraft","mcicon"],rb:["Riftbound","rbicon"],outputs:["Outputs","gfx"],camera:["Camera feed","cam"],graphics:["Lower Thirds & Timer","gfx"],schedule:["Schedule","sched"],bracket:["Bracket","bracket"],standings:["Rankings","rank"]};
 
 /* ---------- form helpers ---------- */
 const F={
@@ -234,8 +265,9 @@ function screensText(){return`${SCREENS.overlay||0} overlay${SCREENS.overlay===1
 function sourceState(){
   if(!online)return["bad","Server offline"];
   if(!GAME)return["warn","Waiting…"];
-  const src={rl:"Rocket League",lol:"League of Legends",demo:"Demo feed",push:"External feed"}[GAME.source]||GAME.source;
-  if(GAME.source==="lol")return GAME.inMatch?["ok","League · in game"]:GAME.connected?["warn","League · loading"]:["bad","League · no game running"];
+  const src={rl:"Rocket League",lol:"League of Legends",ocr:"Screen OCR",demo:"Demo (test)",push:"External feed"}[GAME.source]||GAME.source||"No source";
+  if(GAME.source==="ocr"){const o=GAME.ocr||{};return o.running?(GAME.connected?["ok","Screen OCR · reading"]:["warn","Screen OCR · "+(o.error?"capture problem":"starting")]):["warn","Screen OCR · not started"]}
+  if(GAME.source==="lol")return GAME.inMatch?["ok","League · in game"]:GAME.connected?["warn","League · loading"]:["bad","League · no game or replay"];
   if(GAME.source==="rl")return GAME.connected?(GAME.inMatch?["ok","Rocket League · in match"]:["warn","Rocket League · no match"]):["bad","Rocket League · not found"];
   return GAME.connected?["ok",src]:["warn",src+" · no data"];
 }
@@ -244,10 +276,11 @@ function rail(e){
   const b=(v,cur)=>`<button type="button" data-act="nav" data-arg="${v}"${cur?' aria-current="page"':""}>${ico(META[v][1])}${META[v][0]}</button>`;
   const nav=e?`${b("overview",ui.view==="overview")}${b("hud",ui.view==="hud")}
     <div class="grp">EVENT SETUP</div>${b("teams",ui.view==="teams")}${b("tournament",ui.view==="tournament")}${b("talent",ui.view==="talent")}
-    <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${b("camera",ui.view==="camera")}
-    <div class="grp">BROADCAST</div>${b("graphics",ui.view==="graphics")}${b("schedule",ui.view==="schedule")}${b("bracket",ui.view==="bracket")}${b("standings",ui.view==="standings")}`
+    <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${e.game==="Minecraft"?b("mc",ui.view==="mc"):""}${e.game==="Riftbound"?b("rb",ui.view==="rb"):""}${b("ocr",ui.view==="ocr")}${b("camera",ui.view==="camera")}
+    <div class="grp">BROADCAST</div>${b("graphics",ui.view==="graphics")}${b("schedule",ui.view==="schedule")}${b("bracket",ui.view==="bracket")}${b("standings",ui.view==="standings")}${b("outputs",ui.view==="outputs")}`
     :`<button type="button" aria-current="page">${ico("events")}My Events</button>`;
-  return`<aside><div class="me"><span class="logo">S</span><div><b>Squish</b><small>${e?esc(e.name):"Control room"}</small></div></div><nav class="nav" aria-label="Sections">${nav}</nav><div class="conn" id="conn"></div></aside>`;
+  const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/saints-emblem.png";
+  return`<aside><div class="me"><img class="logo" src="${esc(crest)}" alt="St. Clair Saints emblem"><div><b style="font-family:var(--f-head)">Saints HUD</b><small>${e?esc(e.name):"St. Clair Broadcast"}</small></div></div><nav class="nav" aria-label="Sections">${nav}</nav><div class="conn" id="conn"></div></aside>`;
 }
 function topbar(e){
   if(!e)return`<div class="top"><div class="crumbs"><b>My Events</b></div><button class="btn primary" type="button" data-act="newEvent">New Event</button></div>`;
@@ -256,12 +289,14 @@ function topbar(e){
   <button class="btn${on?" onair":""}" type="button" data-act="onAir" title="The overlay shows the on-air event">${on?"● On air":"Set on air"}</button></div>`;
 }
 function render(){
-  if(!DB){$("#app").innerHTML=`<div class="sub" style="padding:40px">Connecting to the Squish server…</div>`;return}
+  if(!DB){$("#app").innerHTML=`<div class="sub" style="padding:40px">Starting Saints HUD…</div>`;return}
   const e=ev();E=e;if(!e)ui.cur=null;
   if(e&&!META[ui.view])ui.view="overview";
   saveUi();
   $("#app").innerHTML=rail(e)+`<main class="main">${topbar(e)}<div class="view">${e?VIEWS[ui.view](e):home()}</div></main>`;
   railStatus();mountStages();liveBits();
+  if(ui.view==="ocr")ocrMount();
+  if(ui.view==="live")rpPoll();
 }
 
 /* ---------- home ---------- */
@@ -272,7 +307,7 @@ function home(){
 }
 
 /* ---------- views ---------- */
-const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene currently on air.":"Preview of "+esc(SCENES[scene])+"."}</span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
+const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene currently on air.":"Preview of "+esc(SCENES[scene])+"."} <span data-bgnote></span></span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
 const overlayUrl=s=>`${location.origin}/overlay?scene=${s}`;
 const VIEWS={
 overview(e){
@@ -284,25 +319,32 @@ overview(e){
       <span class="note red">*Copy into a browser source to show the HUD. Tick "Shutdown source when not visible" off so it stays live.</span></div>
       <p class="note" id="screens">${screensText()}</p>
     </div>
-    <div class="sec"><h2>Workspace</h2><div class="cols">${F.text("name","Workspace name")}${F.text("organiser","Event organiser")}${F.sel("game","Select game",GAMES,"data-rerender")}${F.sel("kit","Broadcast kit",["Squish Default","Squish Varsity","Squish Neon"])}</div></div>
+    <div class="sec"><h2>Workspace</h2><div class="cols">${F.text("name","Workspace name")}${F.text("organiser","Event organiser")}${F.sel("game","Select game",GAMES,"data-rerender")}${F.sel("kit","Broadcast kit",["Saints Default","Saints Varsity","Saints Gaming"])}</div></div>
+    <div class="sec"><div><h2>Saints branding</h2><p class="sub">The emblem shows in the app's corner. Team logos are set per team in Players &amp; Teams.</p></div>
+      <div class="row c nowrap">${(()=>{const c=DB.settings.brand&&DB.settings.brand.logo;return`<div class="dz mini" style="width:72px;min-height:72px"><img src="${esc(c||"/brand/saints-emblem.png")}" alt=""><input type="file" accept="image/*" id="brandLogo" data-upload="!settings.brand.logo" aria-label="Replace emblem"></div>${c?`<button class="btn sm" type="button" data-act="clearBrand">Use the St. Clair Saints emblem</button>`:`<span class="note">Using the St. Clair Saints 10 Years emblem. Click it to use a different image.</span>`}`})()}</div></div>
     <div class="sec"><div class="row c" style="justify-content:space-between"><p class="sub">Deleting removes this event, its teams, talent and graphics.</p><button class="btn danger" type="button" data-act="delEvent">${ico("trash")}Delete event</button></div></div>
   </div>
   <div class="sec"><h2>Game data</h2>
+    <div class="box"><b>Real games, no setup in the app</b><p class="sub">The default source is <b>Auto</b>: Rocket League and League of Legends read their own live data. Every other game (Overwatch, Call of Duty, Deadlock, Fortnite, Valorant and more) is read from the screen with Screen OCR.</p></div>
     <div class="box"><b>Rocket League (official Stats API)</b><p class="sub">On the game PC, edit <code>&lt;Install Dir&gt;\\TAGame\\Config\\TAStatsAPI.ini</code> (or <code>DefaultStatsAPI.ini</code>), set <code>PacketSendRate=30</code> under <code>[TAGame.MatchStatsExporter_TA]</code>, then restart the game and pick Rocket League in Live Game. Spectate the match so boost and the player cam data are sent.</p></div>
-    <div class="box"><b>League of Legends (Live Client Data API)</b><p class="sub">Nothing to configure. Run Squish on the PC that is playing or spectating, pick League of Legends in Live Game, and data flows once the match loads: kills, deaths, assists, CS, levels, respawn timers, towers, dragons and barons.</p></div>
-    <div class="box"><b>OCR or any other tracker</b><p class="sub">POST Stats API–shaped JSON to <code class="mono">${esc(location.origin)}/api/ingest</code>, e.g. <code>{"Event":"UpdateState","Data":{…}}</code>, with the source set to External feed.</p></div>
+    <div class="box"><b>League of Legends (Live Client Data API)</b><p class="sub">Nothing to configure. Run Saints HUD on the PC that is playing, spectating or watching a replay, and data flows once the match loads: kills, deaths, assists, CS, levels, respawn timers, towers, dragons and barons. Replay controls (play, pause, speed, seek) need the Replay API switched on: Live Game has a button for it.</p></div>
+    <div class="box"><b>Other trackers</b><p class="sub">Any program can send Stats API–shaped JSON to <code class="mono">${esc(location.origin)}/api/ingest</code>, e.g. <code>{"Event":"UpdateState","Data":{…}}</code>, with the source set to External.</p></div>
   </div></div>`;
 },
 hud(e){
   const h=e.hud;
   return`${!["Rocket League","League of Legends"].includes(e.game)?`<div class="banner">Scenes for ${esc(e.game)} use the Rocket League layout for now.</div>`:""}
+  ${e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
   <div class="row" style="gap:24px">
     <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene on air",Object.entries(SCENES))}</div>
     <div class="fld" style="flex:none"><span>Colors</span><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}">Team</button></div></div>
     <div class="fld" style="flex:none"><span>Customise</span><div class="row c" style="gap:8px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></div></div>
-    <div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["pitch","Pitch"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${h.bg===k}">${l}</button>`).join("")}</div></div>
+    ${e.game==="League of Legends"?`<div class="fld" style="flex:none"><span>Bottom board (F9)</span><div class="seg">${[["lane","Lane board"],["fight","Teamfight strip"]].map(([k,l])=>`<button type="button" data-act="lolPanel" data-arg="${k}" aria-pressed="${(e.hud.lolPanel==="fight"?"fight":"lane")===k}">${l}</button>`).join("")}</div></div>`:""}
+    <div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>
+    ${h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
-  <div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Player Lists":"Player Boost")}${F.chk("hud.show.card","Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats","Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam","Player Webcam")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
+  <div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam","Player Webcam")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
+  ${e.game==="League of Legends"?lolSettings(e):""}
   ${stage()}`;
 },
 teams(e){
@@ -344,15 +386,17 @@ talent(e){
   :`<p class="sub">Add casters, hosts and observers.</p>`}</div></div>`;
 },
 live(e){
-  const l=e.live,src=DB.settings.source;
+  const l=e.live,pick=DB.settings.source,src=(GAME&&GAME.source)||(pick==="auto"?({"Rocket League":"rl","League of Legends":"lol"}[e.game]||"ocr"):pick);
   return`<div class="split"><div class="sec" style="gap:24px">
     <div class="sec"><div class="sechead"><h2>Data source</h2><span class="pill" id="srcPill">…</span></div>
-      <div class="seg">${[["rl","Rocket League"],["lol","League of Legends"],["demo","Demo feed"],["push","External / OCR"]].map(([k,n])=>`<button type="button" data-act="source" data-arg="${k}" aria-pressed="${src===k}">${n}</button>`).join("")}</div>
-      ${src==="lol"?`<p class="note">Reads Riot's Live Client Data API (https://127.0.0.1:2999) on this PC. Start a game or spectate one in the League client; data appears once the match has loaded. Name your roster IGNs exactly like the in-game Riot ID (without the #tag) for auto team tracking.</p>`
+      <div class="seg">${[["auto","Auto"],["rl","Rocket League"],["lol","League of Legends"],["ocr","Screen OCR"],["push","External"],["demo","Test match"]].map(([k,n])=>`<button type="button" data-act="source" data-arg="${k}" aria-pressed="${pick===k}">${n}</button>`).join("")}</div>
+      ${pick==="auto"?`<p class="note">Auto reads the real game for the on-air event: ${esc(LIVE_FEED[e.game]||"screen OCR (this game has no live data feed)")}.</p>`:""}
+      ${src==="lol"?`<p class="note">Reads Riot's Live Client Data API on this PC. It works for live games, spectating and replays. Name roster IGNs exactly like the in-game Riot ID (without the #tag) for auto team tracking.</p><div id="replayPanel"></div>`
+      :src==="ocr"?`<p class="note">Reads scores, the clock and team names from a screen or window you choose. Set it up on the Screen OCR page.</p><div class="row c"><button class="btn sm blue" type="button" data-act="nav" data-arg="ocr">Open Screen OCR</button></div>`
       :src==="rl"?`<p class="note">Reads the official Stats API on port 49123 of this PC. Spectate the match for boost and the player card.</p>
         <div class="row c"><span class="note">Camera</span>${[["Ball","Ball"],["Camera_Director","Director"],["AutoCam","AutoCam"],["Fly","Fly"]].map(([v,n])=>`<button class="btn sm" type="button" data-act="pov" data-arg="${v}">${n}</button>`).join("")}
         <button class="btn sm" type="button" data-act="gamehud" data-arg="0">Hide game HUD</button><button class="btn sm" type="button" data-act="gamehud" data-arg="1">Show game HUD</button><button class="btn sm" type="button" data-act="pause">Pause / resume match</button></div>`
-      :src==="demo"?`<div class="row c"><button class="btn sm" type="button" data-act="demoReset">Restart demo match</button><button class="btn sm" type="button" data-act="demoPause">Pause / resume</button></div><p class="note">${e.game==="League of Legends"?"Simulated League match at 4× speed: kills, CS, dragons, towers and barons.":"Simulated players, boost and goals, so you can rehearse without the game."} The demo follows the on-air event's game.</p>`
+      :src==="demo"?`<div class="banner">Test match: simulated data for checking your layout. Nothing here comes from a real game. Switch back to Auto to go live.</div><div class="row c"><button class="btn sm" type="button" data-act="demoReset">Restart test match</button><button class="btn sm" type="button" data-act="demoPause">Pause / resume</button></div>`
       :`<p class="note">Waiting for JSON at <code>${esc(location.origin)}/api/ingest</code>. See Overview for the format.</p>`}
       <div class="plist" id="plist"></div></div>
     <div class="sec"><div class="sechead"><h2>Teams</h2><span class="row c">${F.sw("live.autoTeams","Auto")}<button class="btn icon" type="button" data-act="swap" aria-label="Swap sides">${ico("swap")}</button></span></div>
@@ -368,6 +412,29 @@ live(e){
       <div class="row c" style="justify-content:space-between"><div style="width:110px">${F.sel("live.bestOf","",[[1,"BO1"],[3,"BO3"],[5,"BO5"],[7,"BO7"]],"data-num")}</div><span class="row c">${F.step("live.series.0")}<span class="sub">to</span>${F.step("live.series.1")}</span><button class="btn sm" type="button" data-act="resetSeries">Reset series</button></div>
       <p class="note">With Auto on, each match the game reports as finished adds a game win.</p></div>
     <div class="sec"><div class="sechead"><h2>Final preview</h2><div style="width:240px">${F.sel("hud.scene","",Object.entries(SCENES))}</div></div>${stage()}</div>
+  </div></div>`;
+},
+ocr(e){
+  const c=ocrCfg(),on=!!(GAME&&GAME.ocr&&GAME.ocr.running);
+  if(!OCR.available)return`<div class="sec"><h2>Screen OCR</h2><div class="banner">Screen OCR only works in the Saints HUD desktop app, because it needs permission to capture your screen. Open this page in the installed app.</div></div>`;
+  return`<div class="split" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)"><div class="sec">
+    <div class="sechead"><div><h2>Screen OCR</h2><p class="sub">For games without a live data feed. Pick the screen or window showing the game, then drag boxes over the score, clock and team names.</p></div><span class="pill" id="ocrPill">…</span></div>
+    <div class="row c"><b style="font:700 13px var(--f-head)">1. Pick what to read</b><button class="btn sm" type="button" data-act="ocrSources">Refresh list</button></div>
+    <div class="srcgrid" id="ocrSources"><span class="note">Loading…</span></div>
+    <div class="note">Capture needs the game in <b>borderless windowed</b> mode. Exclusive fullscreen can't be captured.</div>
+    <b style="font:700 13px var(--f-head)">2. Draw a box around each value</b>
+    <div class="ocr-stage" id="ocrStage"><div class="empty" id="ocrEmpty">Pick a screen or window above to see it here.</div><img id="ocrFrame" alt="" hidden><div id="ocrBoxes"></div></div>
+    <div class="row c"><label class="fld" style="max-width:220px;flex:none"><span>New box reads</span><select id="ocrNewRole">${Object.entries(OCR_ROLES).map(([k,[n]])=>`<option value="${k}">${n}</option>`).join("")}</select></label>
+      <span class="note" style="align-self:flex-end;flex:1">Drag on the picture to draw. Drag a box to move it, or its corner to resize.</span></div>
+  </div><div class="sec">
+    <div class="sechead"><h2>3. Check and start</h2></div>
+    <div class="row c"><button class="btn ${on?"danger":"blue"}" type="button" data-act="${on?"ocrStop":"ocrStart"}">${on?"Stop reading":"Start reading"}</button>
+      <label class="fld" style="max-width:140px;flex:none"><span>Read every (ms)</span><input type="number" id="ocrInterval" min="250" max="5000" step="50" value="${c.interval||800}"></label>
+      <label class="fld" style="max-width:200px;flex:none"><span>Starting layout</span><select id="ocrLayout"><option value="">Choose…</option><option value="top">Top-centre scorebar</option><option value="corners">Scores in the top corners</option></select></label></div>
+    <p class="note" id="ocrError"></p>
+    <div class="tw"><table class="grid" style="min-width:0"><thead><tr><th>Reads</th><th>Text</th><th>Value</th><th></th></tr></thead><tbody id="ocrRows"></tbody></table></div>
+    <div id="ocrTest"></div>
+    <p class="note">Values are accepted once two reads in a row agree, so a single misread never reaches the broadcast. Starting layouts are only guesses: every game's HUD is different, so move the boxes onto your game and use Test on each one.</p>
   </div></div>`;
 },
 camera(e){
@@ -407,6 +474,21 @@ standings(e){
   ${e.standings.map((r,i)=>`<tr><td>${F.sel(`standings.${i}.team`,"",teamOpts(e))}</td><td>${F.num(`standings.${i}.w`,"")}</td><td>${F.num(`standings.${i}.l`,"")}</td><td>${F.num(`standings.${i}.gd`,"")}</td><td><button class="btn icon" type="button" data-act="delStanding" data-arg="${i}" aria-label="Remove row">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="5" class="sub" style="padding:16px">No rows yet.</td></tr>`}
   </tbody></table></div></div><div class="sec">${stage("rankings")}</div>`;
 }};
+/* League settings: objective icons, gold, which timers and counters show, and the objective timings */
+const IC_SLOTS=[["dragon","Dragon"],["infernal","Infernal"],["ocean","Ocean"],["mountain","Mountain"],["cloud","Cloud"],["hextech","Hextech"],["chemtech","Chemtech"],["elder","Elder"],["grubs","Void grubs"],["herald","Rift Herald"],["baron","Baron"],["tower","Tower"]];
+const TIMING_LABELS={dragonFirst:"Dragon first spawn (s)",dragonRespawn:"Dragon respawn (s)",elderRespawn:"Elder respawn (s)",grubsFirst:"Grubs first spawn (s)",grubsWaves:"Grub camps per game",grubsRespawn:"Grubs respawn (s)",grubsDespawn:"Grubs despawn (s)",heraldFirst:"Herald first spawn (s)",heraldDespawn:"Herald despawn (s)",baronFirst:"Baron first spawn (s)",baronRespawn:"Baron respawn (s)",baronBuff:"Baron buff length (s)",elderBuff:"Elder buff length (s)"};
+function lolSettings(e){
+  const ic=DB.settings.icons||{},L=e.lol||{};
+  return`<details class="sec" open><summary style="cursor:pointer;font:700 15px var(--f-head)">League settings</summary><div class="sec" style="gap:18px;margin-top:14px">
+    <div><b style="font:700 13px var(--f-head)">Objective icons</b><p class="note">The official League objective icons (dragon and each dragon type, elder, void grubs, Rift Herald, Baron, tower, inhibitor) are downloaded automatically the first time the app runs and kept on this PC. Upload an image over any slot only if you want a different one.</p>
+    <div class="icgrid">${IC_SLOTS.map(([k,l])=>`<div class="icslot"><div class="dz mini" style="width:52px;min-height:52px">${ic[k]?`<img src="${esc(ic[k])}" alt="">`:ico("up")}<input type="file" accept="image/*" id="ic-${k}" data-upload="!settings.icons.${k}" aria-label="Upload the ${l} icon"></div><span>${l}</span>${ic[k]?`<button class="btn sm" type="button" data-act="icClear" data-arg="${k}">Reset</button>`:""}</div>`).join("")}</div></div>
+    <div class="cols" style="--n:3">${F.sel("lol.goldMode","Gold",[["estimate","Estimated (recommended)"],["items","Value of items held"],["manual","Typed in"]])}${F.num("lol.goldScale","Estimate scale (1 = as modelled)",'step="0.01"')}${F.num("lol.passiveStart","Passive gold starts (s)")}</div>
+    ${L.goldMode==="manual"?`<div class="cols">${F.num("lol.manualGold.0","Blue side gold")}${F.num("lol.manualGold.1","Red side gold")}</div>`:""}
+    <div><b style="font:700 13px var(--f-head)">Timers shown (top-left)</b><div class="chks" style="margin-top:8px">${[["dragon","Dragon"],["grubs","Void grubs"],["herald","Rift Herald"],["elder","Elder"],["baron","Baron"]].map(([k,l])=>F.chk(`lol.showTimers.${k}`,l)).join("")}</div></div>
+    <div><b style="font:700 13px var(--f-head)">Claimed objectives shown (under the bar)</b><div class="chks" style="margin-top:8px">${[["dragons","Dragons"],["heralds","Heralds"],["grubs","Void grubs"]].map(([k,l])=>F.chk(`lol.counters.${k}`,l)).join("")}</div></div>
+    <details><summary class="note" style="cursor:pointer">Objective timings (Riot moves these between seasons)</summary><div class="cols" style="--n:3;margin-top:10px">${Object.keys(TIMING_LABELS).map(k=>F.num(`lol.timers.${k}`,TIMING_LABELS[k])).join("")}</div></details>
+  </div></details>`;
+}
 function teamList(e){const q=ui.teamq.toLowerCase();return e.teams.map((t,i)=>({t,i})).filter(({t})=>(t.name+t.tag).toLowerCase().includes(q)).map(({t,i})=>`<button type="button" class="item" data-act="selTeam" data-arg="${t.id}"${t.id===ui.team?' aria-current="true"':""}>${ml(t)}<span class="nm"><b data-mirror="teams.${i}.name">${esc(t.name)}</b><small data-mirror="teams.${i}.tag">${esc(t.tag)}</small></span><span class="count">${t.players.length}</span></button>`).join("")||`<p class="sub" style="padding:16px">No teams match.</p>`}
 function talentList(e){const q=ui.talentq.toLowerCase();return e.talent.map((t,i)=>({t,i})).filter(({t})=>t.name.toLowerCase().includes(q)).map(({t,i})=>`<button type="button" class="item" data-act="selTalent" data-arg="${t.id}"${t.id===ui.talent?' aria-current="true"':""}>${t.portrait?`<img class="ml" src="${esc(t.portrait)}" alt="">`:`<span class="ml">${esc(t.name.slice(0,2).toUpperCase())}</span>`}<span class="nm"><b data-mirror="talent.${i}.name">${esc(t.name)}</b><small data-mirror="talent.${i}.role">${esc(t.role)}</small></span></button>`).join("")||`<p class="sub" style="padding:16px">No talent matches.</p>`}
 
@@ -416,9 +498,27 @@ function mountStages(){$$("[data-stage]").forEach(st=>{st.innerHTML=`<canvas ari
 function updateStages(redraw){
   const e=ev();if(!e)return;
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
-    if(redraw||c.dataset.bg!==e.hud.bg){SquishHUD.drawBg(c,e.hud.bg);c.dataset.bg=e.hud.bg}
-    SquishHUD.render(h,e,GAME,st.dataset.stage);h.style.transform=`scale(${st.clientWidth/1280})`});
+    const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
+    if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SquishHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
+    SquishHUD.render(h,e,GAME,st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons)});h.style.transform=`scale(${st.clientWidth/1280})`});
 }
+/* Preview background "Game": a live picture of the game's own window, when the desktop app can find it */
+const LIVEBG={ok:false,busy:false};
+async function liveBgTick(){
+  if(LIVEBG.busy||document.hidden)return;
+  const e=ev(),kind=e&&(e.hud.bg==="pitch"?"game":e.hud.bg),cvs=$$("[data-stage] canvas");
+  if(!e||kind!=="game"||!cvs.length){LIVEBG.ok=false;return}
+  LIVEBG.busy=true;
+  try{
+    const r=await fetch("/api/preview/frame?game="+encodeURIComponent(e.game)+"&t="+Date.now());if(!r.ok)throw new Error("none");
+    const bmp=await createImageBitmap(await r.blob());
+    cvs.forEach(c=>{if(c.width!==1280||c.height!==720){c.width=1280;c.height=720}const g=c.getContext("2d"),k=Math.max(1280/bmp.width,720/bmp.height),w=bmp.width*k,h=bmp.height*k;g.drawImage(bmp,(1280-w)/2,(720-h)/2,w,h);c.dataset.bg="live"});
+    LIVEBG.ok=true;
+  }catch(err){if(LIVEBG.ok){LIVEBG.ok=false;updateStages(true)}}  // lost the window: back to the placeholder backdrop
+  LIVEBG.busy=false;
+  $$("[data-bgnote]").forEach(n=>{n.textContent=LIVEBG.ok?"Live picture from the "+e.game+" window.":"Game window not found, so a placeholder backdrop is shown. Open the game in borderless or windowed mode to see it here."});
+}
+setInterval(liveBgTick,700);
 function liveBits(){
   railStatus();
   const e=ev();if(!e)return;
@@ -428,6 +528,7 @@ function liveBits(){
   if(pl){pl.innerHTML=m.live?m.all.map(p=>`<div class="pl${m.focus===p?" f":""}" style="--c:${m.colors[p.side]}"><b>${esc(p.display)}${m.kind==="lol"?` <span class="note">${esc(p.champion||"")}</span>`:""}</b><span class="bst" style="width:auto">${m.kind==="lol"?`${p.kills}/${p.deaths}/${p.assists}`:p.boost??""}</span>${DB.settings.source==="rl"?`<button class="btn sm" type="button" data-act="spectate" data-arg="${p.shortcut}">Watch</button>`:""}</div>`).join(""):`<p class="sub">No players in a match yet.</p>`}
   const tr=$("#trackRow");if(tr)tr.innerHTML=[0,1].map(s=>`<div class="tracked${m.tracked[s]?"":" manual"}">${m.tracked[s]?"Tracked via team data: "+esc(m.sides[s].name):"Using the team picked above"}</div>`).join("");
   const tt=$("[data-timer]");if(tt){const t=e.timer;tt.textContent=SquishHUD.fmt(t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining)}
+  if(ui.view==="ocr")ocrLive();
 }
 function mirrors(){
   const e=ev();if(!e)return;
@@ -444,7 +545,12 @@ function confirmTwice(b){if(b.dataset.armed)return true;b.dataset.armed="1";cons
 async function upload(input,file){
   if(!file||!file.type.startsWith("image/")){toast("That file isn't an image. Use PNG, JPG, SVG or WebP.");return}
   try{const r=await fetch("/api/upload",{method:"POST",headers:{"content-type":file.type},body:file});const j=await r.json();
-    if(!r.ok)return toast(j.error||"Upload failed.");await put(input.dataset.upload,j.url);render()}
+    if(!r.ok)return toast(j.error||"Upload failed.");
+    const up=input.dataset.upload;
+    if(up==="!settings.brand.logo")await put("settings.brand",{logo:j.url},false);
+    else if(up.startsWith("!settings.icons."))await put("settings.icons",Object.assign({},DB.settings.icons||{},{[up.slice(16)]:j.url}),false);
+    else await put(up,j.url);
+    render()}
   catch(e){toast("Upload failed. Is the server running?")}
 }
 const blankTeam=()=>({id:uid(),name:"New Team",tag:"NEW",division:"",color:"#7c83f5",color2:"#ffffff",logos:["","",""],players:[]});
@@ -490,6 +596,21 @@ document.addEventListener("click",async ev0=>{
     case "bump":{const p=b.dataset.path;put(p,Math.max(0,(+get(e,p)||0)+(+b.dataset.d)));mirrors();return;}
     case "resetSeries":put("live.series",[0,0]);break;
     case "source":await api("/api/source",{source:arg});DB.settings.source=arg;break;
+    case "clearBrand":put("settings.brand",{logo:""},false);break;
+    case "icClear":{const ic=Object.assign({},DB.settings.icons||{});delete ic[arg];await put("settings.icons",ic,false);break}
+    case "lolPanel":e.hud.lolPanel=arg;await api("/api/lol/panel",{mode:arg});break;
+    case "ocrSources":ocrLoadSources();return;
+    case "ocrPick":{const s=OCR.shown[+arg],c=ocrCfg();c.sourceId=s.id;c.sourceName=s.name;ocrSourcesRender();ocrSave(true);return}
+    case "ocrDel":{const c=ocrCfg();c.regions=c.regions.filter(r=>r.id!==arg);ocrBoxes();ocrRows();ocrSave();return}
+    case "ocrStart":{await ocrSave(true);const j=await api("/api/ocr/start",{});if(j&&j.ok)toast("Reading the screen");break}
+    case "ocrStop":await api("/api/ocr/stop",{});break;
+    case "ocrTest":{const r=ocrCfg().regions.find(x=>x.id===arg);
+      const j=await fetch("/api/ocr/test",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({region:r})}).then(r=>r.json()).catch(()=>({error:"Test failed."}));
+      $("#ocrTest").innerHTML=j.error?`<div class="banner">${esc(j.error)}</div>`:`<div class="box"><b>Test read</b><img class="testimg" src="${j.image}" alt="The enlarged, cleaned-up box that the reader sees"><span class="read">Text: ${esc(j.raw||"(blank)")} → ${esc(j.value??"nothing usable")} · confidence ${j.conf}%</span></div>`;return}
+    case "enableReplayApi":{const j=await api("/api/lol/enable-replay-api",{});if(j&&j.ok)toast("Replay API turned on. Close and reopen the replay.");rpPoll();return}
+    case "rpPause":lolPost("playback",{paused:!(RP&&RP.playback&&RP.playback.paused)});return;
+    case "rpSeek":lolPost("playback",{time:Math.max(0,((RP&&RP.playback&&RP.playback.time)||0)+(+arg))});return;
+    case "rpSpeed":lolPost("playback",{speed:+arg});return;
     case "pov":api("/api/rl",{Command:"ChangePOV",Data:{Perspective:arg==="Ball"?undefined:arg,Focus:arg==="Ball"?"Ball":undefined}});return;
     case "spectate":api("/api/rl",{Command:"ChangePOV",Data:{Focus:String(arg)}});return;
     case "gamehud":api("/api/rl",{Command:"SetHUDVisibility",Data:{bVisible:arg==="1"}});return;
@@ -518,6 +639,7 @@ document.addEventListener("input",ev0=>{
   if(el.id==="teamq"){ui.teamq=el.value;$("#teamlist").innerHTML=teamList(e);return}
   if(el.id==="talentq"){ui.talentq=el.value;$("#talentlist").innerHTML=talentList(e);return}
   if(el.id==="ovScene"){ui.ovScene=el.value;$("#ovUrl").value=overlayUrl(el.value);return}
+  if(el.id==="ocrInterval"){ocrCfg().interval=Math.max(250,+el.value||800);ocrSave();return}
   if(el.id==="timerMin"){const s=Math.max(0,Math.round((+el.value||0)*60));put("timer",Object.assign({},e.timer,{seconds:s,remaining:e.timer.endsAt?e.timer.remaining:s}));return}
   const p=el.dataset.bind;if(!p||!e)return;
   let v=el.type==="checkbox"?el.checked:el.dataset.num!==undefined?(parseInt(el.value)||0):el.value;
@@ -527,11 +649,118 @@ document.addEventListener("input",ev0=>{
 document.addEventListener("change",ev0=>{
   const el=ev0.target;
   if(el.dataset.upload!==undefined){upload(el,el.files[0]);return}
+  if(el.id==="ocrLayout"){if(OCR_LAYOUTS[el.value]){ocrCfg().regions=OCR_LAYOUTS[el.value].map(([key,x,y,w,h])=>({id:uid(),key,label:"",type:OCR_ROLES[key][1],polarity:"auto",x,y,w,h}));OCR.sel=null;ocrBoxes();ocrRows();ocrSave()}el.value="";return}
+  if(el.dataset.rkey||el.dataset.rtype||el.dataset.rpol){const id=el.dataset.rkey||el.dataset.rtype||el.dataset.rpol,r=ocrCfg().regions.find(x=>x.id===id);if(!r)return;
+    if(el.dataset.rkey){r.key=el.value;r.type=OCR_ROLES[el.value][1]}else if(el.dataset.rtype)r.type=el.value;else r.polarity=el.value;
+    ocrBoxes();ocrRows();ocrSave();return}
+  if(el.id==="rpTime"){lolPost("playback",{time:+el.value});return}
+  if(el.dataset.rp){lolPost("render",{[el.dataset.rp]:el.type==="checkbox"?el.checked:el.value});return}
   if(el.dataset.rerender!==undefined||/(^teams\.\d+\.(color|tag|name)$)|^camera\./.test(el.dataset.bind||""))render();
 });
 document.addEventListener("dragover",ev0=>{const dz=ev0.target.closest(".dz");if(dz){ev0.preventDefault();dz.classList.add("over")}});
 document.addEventListener("dragleave",ev0=>{const dz=ev0.target.closest(".dz");if(dz)dz.classList.remove("over")});
 document.addEventListener("drop",ev0=>{const dz=ev0.target.closest(".dz");if(!dz)return;ev0.preventDefault();dz.classList.remove("over");const inp=dz.querySelector("input[type=file]");if(inp&&ev0.dataTransfer.files[0])upload(inp,ev0.dataTransfer.files[0])});
+
+/* ---------- screen OCR ---------- */
+const OCR_ROLES={score0:["Left score","number"],score1:["Right score","number"],clock:["Game clock","time"],name0:["Left team name","text"],name1:["Right team name","text"],
+  alive:["Players alive","number"],total:["Players total","number"],kills:["Kills","number"],border:["World border","number"],theme:["Build theme","text"],phase:["Round phase","text"],custom:["Custom text","text"]};
+// starting positions only (fractions of the frame; a 6th value turns on pixel-font reading): every game's HUD is different
+const OCR_LAYOUTS={
+  top:[["name0",.30,.02,.13,.05],["score0",.44,.02,.04,.05],["clock",.47,.075,.06,.045],["score1",.52,.02,.04,.05],["name1",.57,.02,.13,.05]],
+  corners:[["score0",.05,.03,.06,.07],["score1",.89,.03,.06,.07],["clock",.47,.02,.06,.05]],
+  mchg:[["alive",.93,.36,.05,.04,1],["kills",.93,.405,.05,.04,1],["clock",.92,.45,.06,.04,1],["border",.93,.495,.05,.04,1]],
+  mcbb:[["theme",.40,.03,.20,.05,1],["clock",.46,.085,.08,.045,1],["phase",.40,.14,.20,.04,1]]};
+let OCR={available:true,shown:[],sel:null},ocrTimer=null,ocrSaveT=null,ocrBusy=false;
+const ocrCfg=()=>DB.settings.ocr||(DB.settings.ocr={sourceId:"",sourceName:"",interval:800,regions:[]});
+function ocrSave(now){clearTimeout(ocrSaveT);const go=()=>api("/api/ocr/config",ocrCfg());return now?go():(ocrSaveT=setTimeout(go,300))}
+async function ocrMount(){
+  const st=await fetch("/api/ocr/state").then(r=>r.json()).catch(()=>({available:false}));
+  if(!st.available){if(OCR.available){OCR.available=false;render()}return}
+  OCR.available=true;
+  if(!$("#ocrStage"))return;
+  ocrLoadSources();ocrBoxes();ocrRows();ocrFrameLoop();ocrLive();
+}
+function ocrLoadSources(){
+  fetch("/api/ocr/sources").then(r=>r.json()).then(l=>{OCR.shown=(Array.isArray(l)?l:[]).filter(s=>!/Saints HUD/i.test(s.name));ocrSourcesRender()})
+    .catch(()=>{const el=$("#ocrSources");if(el)el.innerHTML=`<span class="note">Couldn't list screens and windows.</span>`});
+}
+function ocrSourcesRender(){
+  const el=$("#ocrSources");if(!el)return;const c=ocrCfg();
+  el.innerHTML=OCR.shown.map((s,i)=>`<button type="button" class="src" data-act="ocrPick" data-arg="${i}" aria-pressed="${c.sourceId===s.id||(!!c.sourceName&&c.sourceName===s.name)}"><img src="${s.thumb}" alt=""><span>${esc(s.name)}</span></button>`).join("")||`<span class="note">No screens or windows found.</span>`;
+}
+function ocrFrameLoop(){
+  clearInterval(ocrTimer);
+  ocrTimer=setInterval(()=>{
+    const img=$("#ocrFrame"),c=ocrCfg();
+    if(ui.view!=="ocr"||document.hidden||!img||ocrBusy||(!c.sourceId&&!c.sourceName))return;
+    ocrBusy=true;const n=new Image();
+    n.onload=()=>{img.src=n.src;img.hidden=false;const em=$("#ocrEmpty");if(em)em.hidden=true;const st=$("#ocrStage");if(st)st.style.aspectRatio=`${n.naturalWidth}/${n.naturalHeight}`;ocrBusy=false};
+    n.onerror=()=>{const em=$("#ocrEmpty");if(em){em.hidden=false;em.textContent="Can't capture that source. Pick it again from the list."}ocrBusy=false};
+    n.src=`/api/ocr/frame?source=${encodeURIComponent(c.sourceId||"")}&t=${Date.now()}`;
+  },1200);
+}
+function ocrBoxes(){
+  const box=$("#ocrBoxes");if(!box)return;
+  box.innerHTML=ocrCfg().regions.map(r=>`<div class="rg${OCR.sel===r.id?" sel":""}" data-rid="${r.id}" style="left:${r.x*100}%;top:${r.y*100}%;width:${r.w*100}%;height:${r.h*100}%"><span>${esc((OCR_ROLES[r.key]||[r.key])[0])}</span><i class="hd"></i></div>`).join("");
+}
+function ocrRows(){
+  const tb=$("#ocrRows");if(!tb)return;
+  tb.innerHTML=ocrCfg().regions.map(r=>`<tr><td><select data-rkey="${r.id}" aria-label="What this box reads">${Object.entries(OCR_ROLES).map(([k,[n]])=>`<option value="${k}"${r.key===k?" selected":""}>${n}</option>`).join("")}</select>${r.key==="custom"?`<select data-rtype="${r.id}" aria-label="Value type">${["text","number","time"].map(t=>`<option${r.type===t?" selected":""}>${t}</option>`).join("")}</select>`:""}</td>
+    <td class="read" data-rawof="${r.id}">—</td><td class="read" data-valof="${r.id}">—</td>
+    <td><div class="row c nowrap"><button class="btn sm" type="button" data-act="ocrTest" data-arg="${r.id}">Test</button>
+    <select data-rpol="${r.id}" aria-label="Text colour">${[["auto","Auto"],["light","Light text"],["dark","Dark text"]].map(([v,n])=>`<option value="${v}"${(r.polarity||"auto")===v?" selected":""}>${n}</option>`).join("")}</select>
+    <button class="btn icon" type="button" data-act="ocrDel" data-arg="${r.id}" aria-label="Delete box">${ico("x")}</button></div></td></tr>`).join("")||`<tr><td colspan="4" class="sub" style="padding:14px">No boxes yet. Drag on the picture to draw one.</td></tr>`;
+}
+function ocrLive(){
+  const o=GAME&&GAME.ocr||{},pill=$("#ocrPill");
+  if(pill){pill.className="pill "+(o.running&&!o.error?"ok":o.error?"bad":"");pill.textContent=o.running?(o.error?"Problem":`Reading · ${o.cycleMs||0} ms per pass`):"Stopped"}
+  const er=$("#ocrError");if(er)er.textContent=o.error||"";
+  $$("[data-rawof]").forEach(td=>{const r=(o.readings||{})[td.dataset.rawof];td.textContent=r?(r.error?"error":(r.raw||"(blank)")):"—"});
+  $$("[data-valof]").forEach(td=>{const r=(o.readings||{})[td.dataset.valof];td.textContent=r&&r.value!=null?(r.key==="clock"?SquishHUD.fmt(r.value):r.value):"—";td.className="read "+(r&&r.ok?"ok":"bad")});
+}
+document.addEventListener("pointerdown",ev0=>{
+  const box=ev0.target.closest("#ocrBoxes");if(!box)return;
+  const rect=box.getBoundingClientRect(),c=ocrCfg(),cl=v=>Math.max(0,Math.min(1,v)),rel=(x,y)=>[(x-rect.left)/rect.width,(y-rect.top)/rect.height];
+  const rg=ev0.target.closest(".rg"),start=rel(ev0.clientX,ev0.clientY);let mode,reg,orig;
+  if(rg){reg=c.regions.find(r=>r.id===rg.dataset.rid);mode=ev0.target.classList.contains("hd")?"resize":"move";OCR.sel=reg.id}
+  else{const key=$("#ocrNewRole").value;reg={id:uid(),key,label:"",type:OCR_ROLES[key][1],polarity:"auto",x:cl(start[0]),y:cl(start[1]),w:0,h:0};c.regions.push(reg);OCR.sel=reg.id;mode="draw"}
+  orig=Object.assign({},reg);box.setPointerCapture(ev0.pointerId);ev0.preventDefault();
+  const move=m=>{const[x,y]=rel(m.clientX,m.clientY),dx=x-start[0],dy=y-start[1];
+    if(mode==="move"){reg.x=cl(Math.min(orig.x+dx,1-reg.w));reg.y=cl(Math.min(orig.y+dy,1-reg.h))}
+    else if(mode==="resize"){reg.w=Math.max(.01,Math.min(orig.w+dx,1-reg.x));reg.h=Math.max(.01,Math.min(orig.h+dy,1-reg.y))}
+    else{reg.x=cl(Math.min(x,start[0]));reg.y=cl(Math.min(y,start[1]));reg.w=Math.abs(cl(x)-cl(start[0]));reg.h=Math.abs(cl(y)-cl(start[1]))}
+    ocrBoxes()};
+  const up=()=>{box.removeEventListener("pointermove",move);box.removeEventListener("pointerup",up);
+    if(mode==="draw"&&(reg.w<.01||reg.h<.01)){c.regions=c.regions.filter(r=>r!==reg);OCR.sel=null}
+    ocrBoxes();ocrRows();ocrSave()};
+  box.addEventListener("pointermove",move);box.addEventListener("pointerup",up);
+});
+
+/* ---------- League replay controls ---------- */
+let RP=null,rpBusy=false;
+const lolPost=async(what,body)=>{const j=await api("/api/lol/"+what,body);rpPoll();return j};
+async function rpPoll(){
+  if(ui.view!=="live"||rpBusy||!$("#replayPanel"))return;
+  rpBusy=true;try{RP=await fetch("/api/lol/replay").then(r=>r.json())}catch(e){RP=null}rpBusy=false;rpRender();
+}
+function rpRender(){
+  const el=$("#replayPanel");if(!el||!RP)return;
+  if(el.contains(document.activeElement)&&/range|select/.test(document.activeElement.type||""))return; // don't fight the user's hand
+  if(!RP.available){const c=RP.config||{};
+    el.innerHTML=`<div class="rp"><b>Replay controls</b><p class="note">${esc(RP.reason||"")}</p>${c.found?(c.enabled?`<p class="note">The Replay API is switched on in game.cfg. Close the replay and open it again for it to take effect.</p>`:`<div class="row c"><button class="btn sm blue" type="button" data-act="enableReplayApi">Turn on Replay API</button><span class="note">Adds EnableReplayApi=1 to ${esc(c.file)}. Reopen the replay afterwards.</span></div>`):`<p class="note">League's game.cfg wasn't found in C:\\Riot Games\\League of Legends. Set the LOL_DIR variable to your install folder.</p>`}</div>`;return}
+  const pb=RP.playback||{},rn=RP.render||{},fm=s=>SquishHUD.fmt(Math.floor(s||0));
+  const names=(GAME&&GAME.players||[]).map(p=>p.name);
+  const modes=["fps","tps","top"].concat(rn.cameraMode&&!["fps","tps","top"].includes(rn.cameraMode)?[rn.cameraMode]:[]);
+  const bools=Object.keys(rn).filter(k=>typeof rn[k]==="boolean"&&/^interface/.test(k));
+  el.innerHTML=`<div class="rp"><div class="row c" style="justify-content:space-between"><b>Replay controls</b><span class="read">${fm(pb.time)} / ${fm(pb.length)}</span></div>
+    <input type="range" id="rpTime" min="0" max="${Math.floor(pb.length||0)}" step="1" value="${Math.floor(pb.time||0)}" aria-label="Replay time">
+    <div class="row c"><button class="btn sm blue" type="button" data-act="rpPause">${pb.paused?"Play":"Pause"}</button>${[-30,-10,10,30].map(d=>`<button class="btn sm" type="button" data-act="rpSeek" data-arg="${d}">${d>0?"+":""}${d}s</button>`).join("")}</div>
+    <div class="row c"><span class="note">Speed</span>${[0.5,1,2,4,8].map(s=>`<button class="btn sm${pb.speed===s?" blue":""}" type="button" data-act="rpSpeed" data-arg="${s}">${s}×</button>`).join("")}</div>
+    <div class="row">${"cameraMode" in rn?`<label class="fld" style="max-width:150px"><span>Camera</span><select data-rp="cameraMode">${modes.map(v=>`<option${rn.cameraMode===v?" selected":""}>${v}</option>`).join("")}</select></label>`:""}
+    ${"selectionName" in rn&&names.length?`<label class="fld"><span>Follow player</span><select data-rp="selectionName"><option value="">None</option>${names.map(n=>`<option${rn.selectionName===n?" selected":""}>${esc(n)}</option>`).join("")}</select></label>`:""}</div>
+    ${bools.length?`<div class="chks">${bools.map(k=>`<label class="chk"><input type="checkbox" data-rp="${k}"${rn[k]?" checked":""}>${esc(k.replace(/^interface/,"").replace(/([A-Z])/g," $1").trim())}</label>`).join("")}</div>`:""}</div>`;
+}
+setInterval(rpPoll,1500);
 
 render();connect();
 })();
