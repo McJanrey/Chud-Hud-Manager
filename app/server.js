@@ -331,7 +331,7 @@ function handleLoL(d) {
 
   const events = (d.events && d.events.Events) || [];
   const initial = lolLastEvent < 0 || (events.length && events[events.length - 1].EventID < lolLastEvent);
-  if (initial) { lolLastEvent = -1; game.feed = []; }
+  if (initial) { lolLastEvent = -1; game.feed = []; game.hasWinner = false; game.winner = -1; } // a new game: the series can count its result
   for (const e of events) {
     const fresh = !initial && e.EventID > lolLastEvent;
     const kt = teamOf(e.KillerName);
@@ -355,6 +355,7 @@ function handleLoL(d) {
           const ap = d.activePlayer ? game.players.find(p => p.name === lolName(d.activePlayer)) : null;
           game.hasWinner = true;
           if (ap) { game.winner = e.Result === "Win" ? ap.team : 1 - ap.team; onMatchEnded(game.winner); }
+          else notice("League game ended. A spectated game doesn't report who won, so set the series score by hand.");
         }
         break;
     }
@@ -508,6 +509,10 @@ setInterval(demoTick, 250);
 const GAME_WINDOWS = { "League of Legends": ["League of Legends (TM) Client"], "Rocket League": ["Rocket League"], "Minecraft": ["Minecraft"], "Overwatch 2": ["Overwatch"],
   "Call of Duty": ["Call of Duty", "Warzone", "Black Ops", "Modern Warfare"], "Deadlock": ["Deadlock"], "Fortnite": ["Fortnite"], "Valorant": ["VALORANT"], "Counter-Strike 2": ["Counter-Strike 2"], "Riftbound": ["Riftbound"] };
 
+/* ------------------------------------------------ Data Dragon image cache */
+const DD_DIR = path.join(DATA, "ddragon-img");
+const DD_OK = /^cdn\/(?:[\w.-]+\/img\/(?:champion|item|spell)\/[\w.-]+|img\/[\w\/.-]+)\.png$/; // the only paths the cache will fetch
+
 /* ------------------------------------------------ official League objective icons */
 // Riot's own in-game minimap icons, published by Community Dragon. They are downloaded on the user's click and kept in the
 // app's data folder, never bundled with the app or the source code.
@@ -648,8 +653,9 @@ function enableReplayApi() {
 
 /* ------------------------------------------------------------- broadcast */
 const clients = new Set();
-function sse(res, type, data) { res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`); }
-function broadcastDb(by) { const payload = { db: DB, by, screens: screens() }; clients.forEach(c => sse(c.res, "db", payload)); }
+const frame = (type, data) => `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`; // built once, then written to every client
+function sse(res, type, data) { res.write(frame(type, data)); }
+function broadcastDb(by) { const msg = frame("db", { db: DB, by, screens: screens() }); clients.forEach(c => c.res.write(msg)); }
 function notice(text) { clients.forEach(c => sse(c.res, "notice", { text })); }
 function screens() { const s = { dashboard: 0, overlay: 0 }; clients.forEach(c => { s[c.kind] = (s[c.kind] || 0) + 1; }); return s; }
 setInterval(() => {
@@ -667,7 +673,8 @@ setInterval(() => {
   if (!gameDirty) return;
   gameDirty = false;
   game.source = activeSource;
-  clients.forEach(c => sse(c.res, "game", game));
+  const msg = frame("game", game);
+  clients.forEach(c => c.res.write(msg));
 }, 100);
 setInterval(() => clients.forEach(c => c.res.write(": ping\n\n")), 15000);
 
@@ -702,7 +709,22 @@ function setPath(obj, p, v) {
   parent[last] = v;
 }
 
+// Browsers let any web page send a request to this machine's localhost. Without these two checks a page open in the operator's
+// browser could change events, switch the data source, start screen reading or edit League's game.cfg.
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+function hostOk(req) { // DNS rebinding: when listening on loopback only, only loopback names are served
+  if (HOST === "0.0.0.0" || HOST === "::") return true;
+  const h = String(req.headers.host || "").replace(/:\d+$/, "").toLowerCase();
+  return LOOPBACK.has(h) || h === HOST.toLowerCase();
+}
+function originOk(req) { // our own pages send an Origin that matches the Host; curl, OBS and trackers send none
+  const o = req.headers.origin;
+  if (!o) return true;
+  try { return new URL(o).host === req.headers.host; } catch { return false; }
+}
+
 const server = http.createServer((req, res) => {
+  if (!hostOk(req)) { res.writeHead(421, { "content-type": "text/plain" }); return res.end("Unexpected host name"); }
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
 
@@ -759,6 +781,16 @@ const server = http.createServer((req, res) => {
         .then(buf => { res.writeHead(200, { "content-type": "image/jpeg", "cache-control": "no-store" }); res.end(buf); })
         .catch(e => json(res, 404, { error: e.message }));
     }
+    if (p.startsWith("/ddragon/")) { // champion, item, spell and rune icons: fetched once, then served from the data folder (works offline afterwards)
+      let rel = ""; try { rel = decodeURIComponent(p.slice(9)); } catch { /* bad escape */ }
+      if (!DD_OK.test(rel) || rel.includes("..")) return json(res, 400, { error: "bad path" });
+      const f = path.join(DD_DIR, rel.replace(/\//g, "_"));
+      if (fs.existsSync(f)) return sendFile(res, f);
+      return fetchPng("https://ddragon.leagueoflegends.com/" + rel).then(buf => {
+        fs.mkdirSync(DD_DIR, { recursive: true }); fs.writeFile(f, buf, () => {});
+        res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" }); res.end(buf);
+      }).catch(e => json(res, 502, { error: e.message }));
+    }
     if (p.startsWith("/objective-icons/")) { const f = safeJoin(ICON_DIR, p.slice(17)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
     if (p.startsWith("/uploads/")) { const f = safeJoin(UPLOADS, p.slice(9)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
     const f = safeJoin(PUB, p.slice(1));
@@ -766,6 +798,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "POST") {
+    if (!originOk(req)) return json(res, 403, { error: "Cross-site request refused" });
     if (p === "/api/upload") {
       const ext = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif", "image/svg+xml": ".svg" }[req.headers["content-type"]];
       if (!ext) return json(res, 415, { error: "Use a PNG, JPG, WebP, GIF or SVG image." });

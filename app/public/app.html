@@ -275,7 +275,7 @@ function rail(e){
   const b=(v,cur)=>`<button type="button" data-act="nav" data-arg="${v}"${cur?' aria-current="page"':""}>${ico(META[v][1])}${META[v][0]}</button>`;
   const nav=e?`${b("overview",ui.view==="overview")}${b("hud",ui.view==="hud")}
     <div class="grp">EVENT SETUP</div>${b("teams",ui.view==="teams")}${b("tournament",ui.view==="tournament")}${b("talent",ui.view==="talent")}
-    <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${e.game==="Minecraft"?b("mc",ui.view==="mc"):""}${e.game==="Riftbound"?b("rb",ui.view==="rb"):""}${b("ocr",ui.view==="ocr")}${b("camera",ui.view==="camera")}
+    <div class="grp">LIVE GAME</div>${b("live",ui.view==="live")}${b("ocr",ui.view==="ocr")}${b("camera",ui.view==="camera")}
     <div class="grp">BROADCAST</div>${b("graphics",ui.view==="graphics")}${b("schedule",ui.view==="schedule")}${b("bracket",ui.view==="bracket")}${b("standings",ui.view==="standings")}${b("outputs",ui.view==="outputs")}`
     :`<button type="button" aria-current="page">${ico("events")}My Events</button>`;
   const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/saints-emblem.png";
@@ -290,7 +290,7 @@ function topbar(e){
 function render(){
   if(!DB){$("#app").innerHTML=`<div class="sub" style="padding:40px">Starting Saints HUD…</div>`;return}
   const e=ev();E=e;if(!e)ui.cur=null;
-  if(e&&!META[ui.view])ui.view="overview";
+  if(e&&!VIEWS[ui.view])ui.view="overview"; // a saved view that no longer exists (e.g. the Minecraft and Riftbound pages, which aren't built yet)
   saveUi();
   $("#app").innerHTML=rail(e)+`<main class="main">${topbar(e)}<div class="view">${e?VIEWS[ui.view](e):home()}</div></main>`;
   railStatus();mountStages();liveBits();

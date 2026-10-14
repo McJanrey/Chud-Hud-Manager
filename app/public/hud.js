@@ -159,7 +159,7 @@
   S.lolingame = (m) => {
     const ev = m.ev, l = ev.live, sh = ev.hud.show, [L, R] = m.sides;
     const o = m.lol || { ddVersion: "", counters: { dragons: true, heralds: true, grubs: true }, timers: {}, buffs: {} };
-    const icon = p => o.ddVersion && p.champKey ? `<img src="https://ddragon.leagueoflegends.com/cdn/${esc(o.ddVersion)}/img/champion/${encodeURIComponent(p.champKey)}.png" alt="">`
+    const icon = p => o.ddVersion && p.champKey ? `<img src="/ddragon/cdn/${esc(o.ddVersion)}/img/champion/${encodeURIComponent(p.champKey)}.png" alt="">`
       : `<span>${esc(String(p.champion || p.display || "?").slice(0, 2))}</span>`;
     // objective counts are stored per game side (0 = blue); the HUD's left/right may be swapped
     const gs = s => (l.swap ? 1 - s : s);
@@ -202,10 +202,10 @@
     const row = p => `<div class="l-p${p.dead ? " dead" : ""}"><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div>
       <div class="nm"><b>${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0} · ${p.cs || 0} CS · ${K(p.gold || 0)}</small></div></div>`;
     // lower panel: each lane side by side with items, K/D/A, CS, gold and the lane's gold lead in the middle
-    const item = id => (o.ddVersion && id ? `<img src="https://ddragon.leagueoflegends.com/cdn/${esc(o.ddVersion)}/img/item/${id}.png" alt="">` : `<i></i>`);
+    const item = id => (o.ddVersion && id ? `<img src="/ddragon/cdn/${esc(o.ddVersion)}/img/item/${id}.png" alt="">` : `<i></i>`);
     const slots = p => Array.from({ length: 6 }, (_, i) => item((p.items || [])[i])).join("");
     const slots7 = p => Array.from({ length: 7 }, (_, i) => item((p.items || [])[i])).join(""); // six items and the trinket
-    const spell = k => (o.ddVersion && k ? `<img src="https://ddragon.leagueoflegends.com/cdn/${esc(o.ddVersion)}/img/spell/${esc(k)}.png" alt="">` : `<i></i>`);
+    const spell = k => (o.ddVersion && k ? `<img src="/ddragon/cdn/${esc(o.ddVersion)}/img/spell/${esc(k)}.png" alt="">` : `<i></i>`);
     const EYE = `<svg viewBox="0 0 24 24"><path d="M2 12c3-5 7-7 10-7s7 2 10 7c-3 5-7 7-10 7S5 17 2 12z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`;
     // One row of the board, laid out like the in-game scoreboard: vision, items, spells, portrait with level, name and keystone, CS over K/D/A.
     // (Health and mana aren't in Riot's live data, so there are no bars.) The right side is the same row mirrored.
@@ -213,7 +213,7 @@
       <div class="vs"><b class="num">${p.ward || 0}</b>${EYE}</div><div class="it">${slots7(p)}</div>
       <div class="sp">${spell((p.spells || [])[0])}${spell((p.spells || [])[1])}</div>
       <div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div>
-      <div class="nm"><b>${esc(p.display)}</b>${p.keystone ? `<img class="rk" src="https://ddragon.leagueoflegends.com/cdn/img/${esc(p.keystone)}" alt="">` : ""}</div>
+      <div class="nm"><b>${esc(p.display)}</b>${p.keystone ? `<img class="rk" src="/ddragon/cdn/img/${esc(p.keystone)}" alt="">` : ""}</div>
       <div class="st"><b class="num">${p.cs || 0}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div></div>`;
     const lanes = Math.max(m.players[0].length, m.players[1].length);
     const panel = Array.from({ length: lanes }, (_, i) => { const a = m.players[0][i], b = m.players[1][i], d = ((a && a.gold) || 0) - ((b && b.gold) || 0);
