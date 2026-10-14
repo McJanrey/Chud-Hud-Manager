@@ -8,7 +8,8 @@ contextBridge.exposeInMainWorld("saints", {
   signOut: call("launcher:signout"),
   setPref: call("launcher:pref"),                // (key, value)
   checkUpdates: call("launcher:check"),
-  installUpdate: call("launcher:install"),
+  downloadUpdate: call("launcher:download"),     // user starts the download of an announced update
+  installUpdate: call("launcher:install"),       // backs up the data folder, then installs; { ok, error }
   openControlRoom: call("launcher:control-room"),
   copyOverlay: call("launcher:copy-overlay"),
   openData: call("launcher:open-data"),

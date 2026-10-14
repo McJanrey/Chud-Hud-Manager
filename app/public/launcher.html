@@ -135,9 +135,12 @@ main{flex:1;position:relative;min-height:0}
     switch (u.state) {
       case "checking": t.textContent = "Checking for updates…"; st.classList.add("warn"); break;
       case "none": t.textContent = `You're up to date (v${v})`; st.classList.add("ok"); link("Check again"); break;
+      case "available": t.textContent = `Update available (v${u.version})`; st.classList.add("warn"); ur.textContent = "Download update"; ur.classList.remove("hidden"); break;
+      case "installing": t.textContent = "Backing up and installing… Saints HUD will restart."; st.classList.add("warn"); break;
       case "downloading": t.textContent = `Downloading ${u.version ? "v" + u.version : "update"}… ${u.percent || 0}%`; st.classList.add("warn");
         pr.classList.remove("hidden"); pr.firstElementChild.style.width = (u.percent || 0) + "%"; break;
-      case "ready": t.textContent = `Update downloaded${u.version ? " (v" + u.version + ")" : ""}! Restart to apply.`; st.classList.add("ok"); ur.classList.remove("hidden"); break;
+      case "ready": t.textContent = `Update downloaded${u.version ? " (v" + u.version + ")" : ""}. Your data is backed up before it installs.`; st.classList.add("ok"); ur.textContent = "Update & Restart Saints HUD"; ur.classList.remove("hidden");
+        if (u.error) { t.textContent = u.error; st.className = "stat bad"; } break;
       case "error": t.textContent = "Couldn't check for updates" + (u.error ? `: ${u.error}` : ""); st.classList.add("bad"); link("Try again"); break;
       case "source": t.textContent = `Running from source (v${v}). Updates apply to the installed app.`; break;
       default: t.textContent = `Version ${v}`; link("Check for updates");
@@ -170,7 +173,10 @@ main{flex:1;position:relative;min-height:0}
   $("mcheck").onclick = () => api.checkUpdates(); $("mdata").onclick = () => api.openData();
   $("mout").onclick = async () => { await api.signOut(); S.profile = null; $("menu").classList.add("hidden"); $("ln").value = $("le").value = ""; show("login"); };
   $("cr").onclick = () => api.openControlRoom();
-  $("ur").onclick = () => api.installUpdate();
+  $("ur").onclick = async () => {
+    const r = await (S && S.update.state === "available" ? api.downloadUpdate() : api.installUpdate());
+    if (r && r.ok === false && r.error) { $("ut").textContent = r.error; $("us").className = "stat bad"; }
+  };
   $("src").onchange = e => fetch("/api/source", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: e.target.value }) });
   const copy = async b => { await api.copyOverlay(); const o = b.textContent; b.textContent = "Copied"; setTimeout(() => (b.textContent = o), 1200); };
   $("copy").onclick = e => copy(e.target); $("cu").onclick = e => copy(e.target);

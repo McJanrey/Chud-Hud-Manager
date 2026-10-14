@@ -18,7 +18,7 @@ const LAUNCHER_FILE = () => path.join(process.env.SAINTS_DATA, "launcher.json");
 let LS = { profile: null, prefs: { autoOpen: true } };
 function loadLauncher() { try { const j = JSON.parse(fs.readFileSync(LAUNCHER_FILE(), "utf8")); LS = { profile: j.profile || null, prefs: Object.assign({ autoOpen: true }, j.prefs) }; } catch { /* first run */ } }
 function saveLauncher() { try { fs.mkdirSync(path.dirname(LAUNCHER_FILE()), { recursive: true }); fs.writeFileSync(LAUNCHER_FILE(), JSON.stringify(LS, null, 2)); } catch { /* read-only folder: keep going */ } }
-// state: source (running from source) | idle | checking | none | downloading | ready | error
+// state: source (running from source) | idle | checking | none | available | downloading | ready | installing | error
 let upd = { state: "idle", version: "", percent: 0, error: "" };
 function setUpdate(patch) { upd = Object.assign({}, upd, patch); if (launcher) launcher.webContents.send("launcher:update", upd); }
 
@@ -49,7 +49,8 @@ function setupLauncherIpc() {
   on("launcher:signout", () => { LS.profile = null; saveLauncher(); return { ok: true }; });
   on("launcher:pref", (k, v) => { if (k === "autoOpen") { LS.prefs.autoOpen = !!v; saveLauncher(); } return LS.prefs; });
   on("launcher:check", () => checkNow());
-  on("launcher:install", () => { if (updater && upd.state === "ready") updater.quitAndInstall(); });
+  on("launcher:download", () => downloadUpdate());
+  on("launcher:install", () => installUpdate());
   on("launcher:control-room", () => openControlRoom());
   on("launcher:copy-overlay", () => { clipboard.writeText(base + "/overlay?scene=auto"); return base + "/overlay?scene=auto"; });
   on("launcher:open-data", () => shell.openPath(process.env.SAINTS_DATA));
@@ -80,22 +81,32 @@ function overlayPreview() {
 }
 
 /* ---- auto-update from GitHub Releases (installed copies only) ---- */
+// Same two-step flow as Albion Economics: an update is only detected and announced, the user starts the download, and installing
+// takes a backup of the data folder first (no backup, no install). electron-updater checks the download against the sha512 in
+// latest.yml and rejects a file that does not match.
 // Progress and results show in the launcher; a dialog is only used when the launcher has been closed.
 let updater = null, manualCheck = false;
+const BUSY = ["downloading", "ready", "installing"];
 function setupUpdates() {
   if (!app.isPackaged) { setUpdate({ state: "source" }); return; }
   ({ autoUpdater: updater } = require("electron-updater"));
-  updater.autoDownload = true;
-  updater.autoInstallOnAppQuit = true;
+  updater.autoDownload = false;
+  updater.autoInstallOnAppQuit = false; // never install behind the user's back, a restart takes the OBS overlay offline
   updater.on("checking-for-update", () => setUpdate({ state: "checking", error: "" }));
-  updater.on("update-available", info => setUpdate({ state: "downloading", version: info.version, percent: 0 }));
+  updater.on("update-available", info => {
+    if (BUSY.includes(upd.state)) return;
+    setUpdate({ state: "available", version: info.version, percent: 0, error: "" });
+    if (!launcher && win) dialog.showMessageBox(win, { type: "info", buttons: ["Download", "Later"], defaultId: 0, cancelId: 1,
+      title: "Update available", message: `Saints HUD ${info.version} is available.`, detail: "Downloading does not restart anything. You choose when to install it." })
+      .then(r => { if (r.response === 0) downloadUpdate(); });
+  });
   updater.on("download-progress", p => setUpdate({ state: "downloading", percent: Math.round(p.percent || 0) }));
   updater.on("update-downloaded", info => {
     setUpdate({ state: "ready", version: info.version });
-    if (!launcher) dialog.showMessageBox(win, { type: "info", buttons: ["Restart now", "Later"], defaultId: 0, cancelId: 1,
+    if (!launcher && win) dialog.showMessageBox(win, { type: "info", buttons: ["Restart now", "Later"], defaultId: 0, cancelId: 1,
       title: "Update ready", message: `Saints HUD ${info.version} is ready to install.`,
-      detail: "Restart now to update, or it will install the next time you close the app. Restarting briefly takes the overlay offline in OBS." })
-      .then(r => { if (r.response === 0) updater.quitAndInstall(); });
+      detail: "Your events and settings are backed up first. Restarting briefly takes the overlay offline in OBS." })
+      .then(r => { if (r.response === 0) installUpdate(); });
   });
   updater.on("update-not-available", () => { setUpdate({ state: "none" }); manualCheck = false; });
   updater.on("error", err => {
@@ -104,11 +115,45 @@ function setupUpdates() {
     manualCheck = false;
   });
   updater.checkForUpdates().catch(() => {});
-  setInterval(() => { if (!["downloading", "ready"].includes(upd.state)) updater.checkForUpdates().catch(() => {}); }, 60 * 60 * 1000);
+  setInterval(() => { if (![...BUSY, "available"].includes(upd.state)) updater.checkForUpdates().catch(() => {}); }, 60 * 60 * 1000);
+}
+function downloadUpdate() {
+  if (!updater || upd.state !== "available") return { ok: false, error: "No update to download." };
+  setUpdate({ state: "downloading", percent: 0, error: "" });
+  updater.downloadUpdate().catch(() => {}); // failures arrive through the "error" event
+  return { ok: true };
+}
+// Copies db.json, launcher.json and uploads/ into <data>/backups/pre-update-<version>-<time>/ and keeps the newest 5.
+// Throws if anything cannot be copied, which stops the install with the data untouched.
+function backupBeforeUpdate() {
+  const data = process.env.SAINTS_DATA, root = path.join(data, "backups");
+  const dir = path.join(root, `pre-update-v${app.getVersion()}-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of ["db.json", "launcher.json"]) {
+    const src = path.join(data, f);
+    if (!fs.existsSync(src)) continue;
+    const dst = path.join(dir, f);
+    fs.copyFileSync(src, dst);
+    if (fs.statSync(dst).size !== fs.statSync(src).size) throw new Error(`backup of ${f} is incomplete`);
+  }
+  if (fs.existsSync(path.join(data, "uploads"))) fs.cpSync(path.join(data, "uploads"), path.join(dir, "uploads"), { recursive: true });
+  for (const n of fs.readdirSync(root).filter(n => n.startsWith("pre-update-")).sort().slice(0, -5)) fs.rmSync(path.join(root, n), { recursive: true, force: true });
+  return dir;
+}
+function installUpdate() {
+  if (!updater || upd.state !== "ready") return { ok: false, error: "No downloaded update." };
+  try { backupBeforeUpdate(); }
+  catch (e) {
+    const error = `Update not installed: backup failed (${e.message}). Your data is untouched. Free some disk space and try again.`;
+    setUpdate({ error }); return { ok: false, error };
+  }
+  setUpdate({ state: "installing" });
+  setImmediate(() => updater.quitAndInstall(true, true)); // silent installer, relaunches the app afterwards
+  return { ok: true };
 }
 function checkNow() {
   if (!updater) { if (!launcher) dialog.showMessageBox(win, { type: "info", message: "Updates only work in the installed app.", detail: "You're running from source. Use git pull to update." }); return; }
-  if (["downloading", "ready"].includes(upd.state)) return;
+  if ([...BUSY, "available"].includes(upd.state)) return;
   manualCheck = true; updater.checkForUpdates().catch(() => {});
 }
 
