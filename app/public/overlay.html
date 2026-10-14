@@ -29,7 +29,7 @@ addEventListener("resize", fit); fit();
 function draw() {
   if (!DB) return;
   const ev = DB.events.find(e => e.id === (qs.get("event") || DB.onAir)) || DB.events[0];
-  if (ev) SaintsHUD.render(hud, ev, GAME, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons) });
+  if (ev) SaintsHUD.render(hud, ev, GAME, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons), kits: DB.settings && DB.settings.kits });
 }
 function connect() {
   const es = new EventSource("/events?kind=overlay");

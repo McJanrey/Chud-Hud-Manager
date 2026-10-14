@@ -94,12 +94,16 @@ The overlay is built for a 1280×720 stage and scales to the source size. Its fo
 | **Talent Profiles** | Casters, hosts and observers with portraits and socials |
 | **Live Game** | Data source, team tracking, score and series, Rocket League camera control, League replay controls |
 | **Screen OCR** | Pick a screen or window, draw boxes, start reading |
-| **Camera feed** | Caster seats (solo, duo or trio) with VDO.Ninja or any web camera link |
+| **Camera feed** | Caster seats, 1 to 5, with VDO.Ninja or any web camera link. The seat count belongs to the broadcast kit, so every event using that kit shares it; who sits where and the camera links are set per event |
 | **Lower Thirds & Timer** | Headline and subline, countdown timer |
 | **Schedule, Bracket, Rankings** | Content for the matching scenes |
 | **Outputs** | The data fields and where to read them |
 
 Changes show on every connected screen at once, and the app saves automatically.
+
+### Player webcams
+
+Tick **Player webcams** in the HUD Editor to put a camera slot for every player down both edges of the Ingame HUD: **3 per team in Rocket League, 5 per team in League**, the left team on the left. A slot appears for each player who has a camera link (VDO.Ninja or any web camera page) in **Players & Teams**, labelled with the player's name and the team colour.
 
 ### Team tracking
 
@@ -232,7 +236,7 @@ On top of that the server refuses requests that a web page on another site could
 ## Known gaps
 
 - Lower Thirds draw a headline and subline only: there is no clock, score or ticker bar yet.
-- Caster camera seats are solo, duo or trio. There are no five-player camera slots.
+- Player webcams show every player who has a camera link, but nothing switches to the player in the action automatically.
 - The Baron and Elder buff timers keep running if the killer dies.
 - League's live data doesn't say who won a spectated game, so the series is usually set by hand there.
 - Minecraft and Riftbound have in-game scenes and data fields, but no control-room page yet. Their settings are changed through the HTTP API (see [Minecraft](#minecraft)).

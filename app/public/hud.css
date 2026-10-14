@@ -208,6 +208,8 @@
 .h-plate b{font-size:34px}
 .h-plate small{font-size:17px;color:#5a5b63}
 .h-plate .soc{margin-left:auto;font-size:20px;color:#5a5b63;align-self:center;padding:4px 16px 0 0}
+.h-plate>div{min-width:0}.h-plate b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-cams.many .h-plate{height:56px}.h-cams.many .h-plate b{font-size:26px}.h-cams.many .h-plate small{font-size:14px}.h-cams.many .h-plate>div{padding:6px 10px 0}.h-cams.many .h-plate .soc{display:none}
 
 /* lower third */
 .h-l3{position:absolute;left:60px;bottom:60px;display:flex;flex-direction:column;animation:hfade .4s}
@@ -459,3 +461,10 @@
 .l2-buff .cd{font-size:24px;font-weight:600;padding-top:3px;color:var(--c)}
 .l2-buff .dr{position:absolute;left:0;bottom:0;height:3px;background:var(--c);transition:width 1s linear}
 .l2-buff.r .dr{left:auto;right:0}
+
+/* player webcams: a slot per player down both edges (the cam itself is an iframe above this plate) */
+.pc{position:absolute;width:150px;height:105px;background:rgba(5,24,17,.92);border-bottom:3px solid var(--c)}
+.pc span{position:absolute;left:0;right:0;bottom:3px;height:18px;padding:3px 8px 0;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc.r span{text-align:right}
+.l2-buffs.pc{left:166px}.l2-buffs.pc.r{left:auto;right:166px}
+.h-cams.many .h-cam .h-plate .bar{background:var(--gold)}

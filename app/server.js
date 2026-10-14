@@ -39,7 +39,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     talent: [],
     live: { left: "", right: "", swap: false, autoTeams: true, autoScore: true, autoSeries: true, score: [0, 0], bestOf: 5,
       series: [0, 0], seriesTitle: "", eventTitle: "", roundTitle: "", gameSeries: "BEST OF 5" },
-    camera: { layout: "duo", seats: [{ talent: "", url: "" }, { talent: "", url: "" }, { talent: "", url: "" }] },
+    camera: { layout: "duo", seats: Array.from({ length: 5 }, () => ({ talent: "", url: "" })) }, // how many seats show is decided by the kit (settings.kits)
     schedule: [],
     bracket: { rounds: [
       { name: "Quarterfinals", matches: Array.from({ length: 4 }, () => ({ a: "", b: "", sa: "", sb: "" })) },
@@ -61,6 +61,7 @@ function upgrade(ev) {
   const d = newEvent(ev.name);
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
+  while (ev.camera.seats.length < 5) ev.camera.seats.push({ talent: "", url: "" }); // older events kept three seats
   if (typeof ev.kit === "string" && ev.kit.startsWith("Squish ")) ev.kit = "Saints " + ev.kit.slice(7); // events saved before the rename
   if (!ev.hud.lolPanel || ev.hud.lolPanel === "auto") ev.hud.lolPanel = "lane"; // the teamfight strip is a manual switch
   if (ev.game === "League of Legends") ev.lol = require("./league.js").merge(require("./league.js").DEFAULTS, ev.lol || {}); // every League setting has a visible value
@@ -125,6 +126,11 @@ if (!DB || !Array.isArray(DB.events)) DB = seed();
 DB.settings = Object.assign({ source: "auto" }, DB.settings);
 if (!DB.settings.v) { DB.settings.v = 2; if (DB.settings.source === "demo") DB.settings.source = "auto"; } // the demo is no longer the default
 DB.events.forEach(upgrade);
+// Each broadcast kit owns its caster-seat count (1 to 5), shared by every event that uses the kit. Camera links stay on the event.
+// A kit that has no setting yet starts from the layout its first event already had.
+DB.settings.kits = DB.settings.kits || {};
+DB.events.forEach(ev => { if (!DB.settings.kits[ev.kit]) DB.settings.kits[ev.kit] = { seats: { solo: 1, duo: 2, trio: 3 }[ev.camera && ev.camera.layout] || 2 }; });
+for (const k of ["Saints Default", "Saints Varsity", "Saints Gaming"]) if (!DB.settings.kits[k]) DB.settings.kits[k] = { seats: 2 };
 // official objective icons are kept apart from icons the user uploads (an earlier build stored both together)
 if (DB.settings.icons) {
   const mine = {}, official = DB.settings.iconsOfficial || {};

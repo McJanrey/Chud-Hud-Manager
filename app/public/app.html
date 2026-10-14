@@ -307,6 +307,7 @@ function home(){
 
 /* ---------- views ---------- */
 const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene currently on air.":"Preview of "+esc(SCENES[scene])+"."} <span data-bgnote></span></span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
+const kitSeats=e=>Math.max(1,Math.min(5,Math.round(+((DB.settings.kits||{})[e.kit]||{}).seats||{solo:1,duo:2,trio:3}[e.camera.layout]||2)));
 const overlayUrl=s=>`${location.origin}/overlay?scene=${s}`;
 const VIEWS={
 overview(e){
@@ -342,7 +343,7 @@ hud(e){
     ${inGame?`<div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>`:""}
     ${inGame&&h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
-  ${inGame?`<div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam","Player Webcam")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
+  ${inGame?`<div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
   ${e.game==="League of Legends"?lolSettings(e):""}`:""}
   ${stage()}`;
 },
@@ -437,10 +438,11 @@ ocr(e){
   </div></div>`;
 },
 camera(e){
-  const n={solo:1,duo:2,trio:3}[e.camera.layout];
+  const n=kitSeats(e);
   const opts=[["","Empty seat"],...e.talent.map(t=>[t.id,`${t.name} · ${t.role}`])];
   return`<div class="split"><div class="sec"><div><h2>Caster nameplates</h2><p class="sub">Pick who sits on the desk. Add a camera link (VDO.Ninja, OBS.Ninja or any web camera page) to show live video; otherwise the portrait is used.</p></div>
-    <div class="fld"><span>Layout</span><div class="seg">${[["solo","Solo"],["duo","Duo"],["trio","Trio"]].map(([k,l])=>`<button type="button" data-act="camLayout" data-arg="${k}" aria-pressed="${e.camera.layout===k}">${l}</button>`).join("")}</div></div>
+    <div class="fld"><span>Seats in the ${esc(e.kit)} kit</span><div class="seg">${[[1,"Solo"],[2,"Duo"],[3,"Trio"],[4,"Quad"],[5,"Five"]].map(([k,l])=>`<button type="button" data-act="kitSeats" data-arg="${k}" aria-pressed="${n===k}">${l}</button>`).join("")}</div>
+      <span class="note">The seat count belongs to the kit, so every event using ${esc(e.kit)} shares it. Who sits in each seat, and their camera link, are set per event below.</span></div>
     ${Array.from({length:n},(_,i)=>`<div class="box"><b>Seat ${i+1}</b>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.url`,"Camera link","https://vdo.ninja/?view=…")}</div>`).join("")}
   </div><div class="sec">${stage("casters")}</div></div>`;
 },
@@ -496,7 +498,7 @@ function updateStages(redraw){
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
     const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
     if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SaintsHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
-    SaintsHUD.render(h,e,GAME,st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons)});h.style.transform=`scale(${st.clientWidth/1280})`});
+    SaintsHUD.render(h,e,GAME,st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons),kits:DB.settings&&DB.settings.kits});h.style.transform=`scale(${st.clientWidth/1280})`});
 }
 /* Preview background "Game": a live picture of the game's own window, when the desktop app can find it */
 const LIVEBG={ok:false,busy:false};
@@ -608,7 +610,7 @@ document.addEventListener("click",async ev0=>{
     case "pause":api("/api/rl",{Command:"SetMatchPaused",Data:{bPaused:!(GAME&&GAME.paused)}});return;
     case "demoReset":api("/api/demo/reset",{});return;
     case "demoPause":api("/api/demo/pause",{});return;
-    case "camLayout":put("camera.layout",arg);break;
+    case "kitSeats":{DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:+arg};put(`settings.kits.${e.kit}`,{seats:+arg},false);break;}
     case "timer":{const t=Object.assign({},e.timer);
       if(arg==="start"){if(t.endsAt){t.remaining=Math.max(0,Math.round((t.endsAt-Date.now())/1000));t.endsAt=0}else t.endsAt=Date.now()+t.remaining*1000}
       else{t.remaining=t.seconds;t.endsAt=0}

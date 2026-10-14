@@ -80,6 +80,19 @@
   const sideTeam = (ev, id) => ev.teams.find(t => t.id === id);
 
   /* ---------------- scenes: each returns { html, cams } ---------------- */
+  /* Player webcams: one slot per player (3 a side in Rocket League, 5 in League) down both edges of the screen. A slot shows when
+     that player has a camera link on the roster; the left team's players are on the left. */
+  function playerCams(m, top) {
+    const w = 150, camH = 84, pitch = 111, cams = []; let html = "";
+    [0, 1].forEach(s => m.players[s].forEach((p, i) => {
+      if (!p.cam) return;
+      const x = s ? 1280 - 8 - w : 8, y = top + i * pitch;
+      html += `<div class="pc ${s ? "r" : "l"}" style="left:${x}px;top:${y}px;--c:${esc(m.colors[s])}"><span>${esc(p.display)}</span></div>`;
+      cams.push({ key: "pc-" + s + "-" + i + p.cam, url: p.cam, x, y, w, h: camH });
+    }));
+    return { html, cams };
+  }
+
   const S = {};
   S.ingame = (m) => {
     const ev = m.ev, l = ev.live, sh = ev.hud.show, [L, R] = m.sides;
@@ -97,12 +110,12 @@
       <div class="h-series"><div class="ss l num">${m.series[0]}</div><div class="clk${m.ot ? " ot" : ""}"><b class="num">${m.ot ? "+" : ""}${fmt(m.clock)}</b><small>${esc(l.gameSeries || "BEST OF " + l.bestOf)}</small></div><div class="ss r num">${m.series[1]}</div></div>`;
     if (sh.boost) h += `<div class="h-boost l">${m.players[0].map(row).join("")}</div><div class="h-boost r">${m.players[1].map(row).join("")}</div>`;
     if (sh.stats) h += `<div class="h-stats">${[["shots", "SHOTS"], ["saves", "SAVES"], ["demos", "DEMOS"]].map(([k, n]) => `<div><b class="num">${sum(k, 0)}</b><span>${n}</span><b class="num">${sum(k, 1)}</b></div>`).join("")}</div>`;
-    if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 160 : 20}px">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
+    if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 160 : 20}px${sh.playerCam ? ";right:170px" : ""}">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
     if (sh.card && f) {
       h += `<div class="h-card" style="--c:${fc}">${lg(f.team)}<div class="who"><b>${esc(f.display)}</b><small>${esc(f.team ? f.team.tag : "")}${f.supersonic ? " · SUPERSONIC" : ""}</small></div><div class="st">${[["score", "SCORE"], ["goals", "GOALS"], ["assists", "ASSISTS"], ["saves", "SAVES"], ["shots", "SHOTS"]].map(([k, n]) => `<div><b class="num">${f[k] || 0}</b><small>${n}</small></div>`).join("")}</div>${f.avatar ? `<img class="cut" src="${esc(f.avatar)}" alt="">` : ""}</div>
       <div class="h-gauge"><svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="9" stroke-dasharray="${arc} 999"/><circle cx="70" cy="70" r="58" fill="none" stroke="${fc}" stroke-width="9" stroke-dasharray="${arc * (f.boost || 0) / 100} 999"/></svg><b class="num">${f.boost ?? 0}</b><small>BOOST</small></div>`;
-      if (sh.playerCam && f.cam) cams.push({ key: "pc-" + f.cam, url: f.cam, x: 16, y: 440, w: 256, h: 144 });
     }
+    if (sh.playerCam) { const pc = playerCams(m, 150); h += pc.html; cams.push(...pc.cams); }
     if (m.ev.hud.show.goal && m.goal && !m.replay) {
       const g = m.goal;
       h += `<div class="h-goal" style="--c:${m.colors[g.side]}"><b>GOAL</b><div><span>SCORED BY</span>${esc(g.scorer ? g.scorer.display || g.scorer.name : "")}${g.assister ? `<span>ASSIST</span>${esc(g.assister.display || g.assister.name)}` : ""}<span>${g.kmh} KM/H</span></div></div>`;
@@ -129,14 +142,14 @@
     <div class="h-eyebrow">${esc([ev.tournament.region, ev.tournament.format, ev.organiser].filter(Boolean).join("  ·  "))}</div></div>`, cams: [] };
   };
   S.casters = (m) => {
-    const ev = m.ev, n = { solo: 1, duo: 2, trio: 3 }[ev.camera.layout] || 2;
+    const ev = m.ev, kit = (CTX.kits || {})[ev.kit], n = Math.max(1, Math.min(5, Math.round(+(kit && kit.seats) || { solo: 1, duo: 2, trio: 3 }[ev.camera.layout] || 2))); // the kit decides how many seats
     const seats = ev.camera.seats.slice(0, n).map(s => ({ s, t: ev.talent.find(x => x.id === s.talent) }));
     const cams = [];
     // camera iframes sit above the feed boxes; positions mirror the flex layout below
     const gap = 24, area = 1280 - 120, w = Math.min(560, (area - gap * (n - 1)) / n), total = w * n + gap * (n - 1), x0 = 60 + (area - total) / 2;
     seats.forEach(({ s }, i) => { if (s.url) cams.push({ key: "seat" + i + s.url, url: s.url, x: x0 + i * (w + gap) + 3, y: 103, w: w - 6, h: 720 - 70 - 64 - 103 }); });
     return { html: `<div class="h-full" style="justify-content:flex-start"><div class="h-desk"><div class="top">${esc([ev.live.seriesTitle, ev.live.eventTitle].filter(Boolean).join("  ·  ") || ev.name)}</div></div>
-    <div class="h-cams">${seats.map(({ t }) => `<div class="h-cam"><div class="feed">${t && t.portrait ? `<img src="${esc(t.portrait)}" alt="">` : `<div class="h-sil"></div>`}</div>
+    <div class="h-cams${n > 3 ? " many" : ""}">${seats.map(({ t }) => `<div class="h-cam"><div class="feed">${t && t.portrait ? `<img src="${esc(t.portrait)}" alt="">` : `<div class="h-sil"></div>`}</div>
       <div class="h-plate"><span class="bar"></span><div><b>${esc(t ? t.name : "Open seat")}</b><small>${esc(t ? t.role : "")}</small></div><span class="soc">${t && t.socials[0] ? esc(t.socials[0].h) : ""}</span></div></div>`).join("")}</div></div>`, cams };
   };
   S.lowerthird = (m) => {
@@ -196,7 +209,7 @@
       const who = f.player != null ? m.players[s].find(p => p.shortcut === f.player + 1) : null, [label, key, col] = BUFF[b];
       return `<div class="l2-buff ${key}${right ? " r" : ""}" style="--c:${col}" data-k="bf-${key}"><div class="pt">${who ? icon(who) : ic(key, ICON[key])}${OI(key) && who ? "" : ""}</div>
         <div class="tx"><small>${label}</small><b>${esc(who ? who.display : f.killer || "")}</b></div><b class="num cd">${fmt(f.secs)}</b><i class="dr" style="width:${Math.max(0, Math.min(100, (f.secs / (f.total || 1)) * 100))}%"></i></div>`; }).join("");
-    const buffSide = (s, right) => { const c = buffCards(s, right); return c ? `<div class="l2-buffs${right ? " r" : ""}">${c}</div>` : ""; };
+    const buffSide = (s, right) => { const c = buffCards(s, right); return c ? `<div class="l2-buffs${right ? " r" : ""}${sh.playerCam ? " pc" : ""}">${c}</div>` : ""; };
     const NOTE = { dragon: 1, baron: 1, herald: 1, tower: 1, inhib: 1, ace: 1, fb: 1, multi: 1 };
     const note = m.feed.slice().reverse().find(x => NOTE[x.type]);
     const row = p => `<div class="l-p${p.dead ? " dead" : ""}"><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div>
@@ -245,8 +258,9 @@
     const tile = p => !p ? "" : `<div class="tf-p${p.dead ? " dead" : ""}"><div class="it">${slots(p)}</div><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div><b class="nm">${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div>`;
     if (sh.card && showFight) h += `<div class="tf"><div class="tf-s">${m.players[0].map(tile).join("")}</div><div class="tf-m"><small>TEAMFIGHT</small><b class="num"><span style="color:var(--L)">${fight.kills[gs(0)]}</span> – <span style="color:var(--R)">${fight.kills[gs(1)]}</span></b></div><div class="tf-s">${m.players[1].map(tile).join("")}</div></div>`;
     else if (sh.card) h += `<div class="lp">${panel}</div>`;
-    if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 420 : 110}px">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
-    return { html: h, cams: [] };
+    if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 420 : 110}px${sh.playerCam ? ";right:170px" : ""}">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
+    const pc = sh.playerCam ? playerCams(m, 100) : { html: "", cams: [] };
+    return { html: h + pc.html, cams: pc.cams };
   };
   S.statsplayer = (m) => {
     const p = m.focus || m.mvp; if (!p) return { html: "", cams: [] };

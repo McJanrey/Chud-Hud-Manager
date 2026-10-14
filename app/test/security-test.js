@@ -25,6 +25,10 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     check("a rebinding host name is refused", (await withHost("evil.example:" + port)) === 421);
     check("localhost still works", (await withHost("localhost:" + port)) === 200);
 
+    const sb = (await (await fetch(base + "/api/state")).json()).db;
+    check("each kit starts with a caster-seat count", ["Saints Default", "Saints Varsity", "Saints Gaming"].every(k => sb.settings.kits[k] && sb.settings.kits[k].seats >= 1 && sb.settings.kits[k].seats <= 5), JSON.stringify(sb.settings.kits));
+    check("every event has five seats to choose from", sb.events.every(e => e.camera.seats.length >= 5));
+
     const hit = await fetch(base + "/ddragon/cdn/1.0/img/champion/Ahri.png");
     check("a cached icon is served without internet", hit.status === 200 && (await hit.arrayBuffer()).byteLength === PNG.length, String(hit.status));
     for (const bad of ["/ddragon/evil.png", "/ddragon/cdn/1.0/img/champion/..%2F..%2Fdb.json", "/ddragon/cdn/1.0/data/en_US/item.json", "/ddragon/https%3A%2F%2Fevil.example%2Fx.png"])
