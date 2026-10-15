@@ -6,7 +6,6 @@ contextBridge.exposeInMainWorld("saints", {
   state: call("launcher:state"),                 // { version, packaged, profile, prefs, update }
   signIn: call("launcher:signin"),               // { name, email }
   signOut: call("launcher:signout"),
-  setPref: call("launcher:pref"),                // (key, value)
   checkUpdates: call("launcher:check"),
   downloadUpdate: call("launcher:download"),     // user starts the download of an announced update
   installUpdate: call("launcher:install"),       // backs up the data folder, then installs; { ok, error }

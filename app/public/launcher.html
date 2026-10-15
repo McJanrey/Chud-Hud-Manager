@@ -74,6 +74,7 @@ main{flex:1;position:relative;min-height:0}
 .stat a{color:#5fa0ff;cursor:pointer;margin-left:auto;font-size:12px}
 .prog{height:6px;border-radius:3px;background:var(--field);overflow:hidden}.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 .corner{position:absolute;left:16px;bottom:16px}
+.btn.wide{width:100%;padding:13px 16px;font-size:15px}
 </style>
 </head>
 <body>
@@ -101,17 +102,16 @@ main{flex:1;position:relative;min-height:0}
     <button class="gear" id="gear" aria-label="Settings" aria-expanded="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
     <div class="menu hidden" id="menu">
       <div class="who"><b id="mname"></b><small id="mmail"></small></div><hr>
-      <label class="it"><input type="checkbox" id="auto"> Open Control Room when I sign in</label>
       <button class="it link" id="mcheck">Check for updates</button>
       <button class="it" id="mdata">Open data folder</button><hr>
       <button class="it out" id="mout">Sign out</button>
     </div>
-    <div class="top"><button class="btn blue" id="cr">Open Control Room</button>
+    <div class="top">
       <select id="src" aria-label="Data source"></select></div>
     <div class="card">
       <h2><img src="/brand/saints-emblem.png" alt="">Saints HUD</h2>
       <div class="stat" id="srv"><i class="d"></i><span>Overlay server</span></div>
-      <div class="url"><code id="ourl"></code><button class="btn ghost" id="copy">Copy</button></div>
+      <button class="btn blue wide" id="cr">Open Control Room</button>
       <div class="prog hidden" id="prog"><i></i></div>
       <div class="stat" id="us"><i class="d"></i><span id="ut"></span><a id="ua" class="hidden"></a></div>
       <button class="btn blue hidden" id="ur">Update &amp; Restart Saints HUD</button>
@@ -147,8 +147,8 @@ main{flex:1;position:relative;min-height:0}
     }
   }
   async function renderHome() {
-    $("mname").textContent = S.profile.name; $("mmail").textContent = S.profile.email; $("auto").checked = !!S.prefs.autoOpen;
-    $("ourl").textContent = location.origin + "/overlay?scene=auto"; renderUpdate(S.update);
+    $("mname").textContent = S.profile.name; $("mmail").textContent = S.profile.email;
+    renderUpdate(S.update);
     try { const d = await (await fetch("/api/state")).json(); $("src").value = d.db.settings.source || "auto";
       $("srv").className = "stat ok"; $("srv").lastElementChild.textContent = "Overlay server running"; }
     catch { $("srv").className = "stat bad"; $("srv").lastElementChild.textContent = "Overlay server not responding"; }
@@ -169,7 +169,6 @@ main{flex:1;position:relative;min-height:0}
   };
   $("gear").onclick = () => { const m = $("menu"), open = m.classList.toggle("hidden") === false; $("gear").setAttribute("aria-expanded", open); };
   document.addEventListener("click", e => { if (!e.target.closest("#menu,#gear")) { $("menu").classList.add("hidden"); $("gear").setAttribute("aria-expanded", "false"); } });
-  $("auto").onchange = async e => { S.prefs = await api.setPref("autoOpen", e.target.checked); };
   $("mcheck").onclick = () => api.checkUpdates(); $("mdata").onclick = () => api.openData();
   $("mout").onclick = async () => { await api.signOut(); S.profile = null; $("menu").classList.add("hidden"); $("ln").value = $("le").value = ""; show("login"); };
   $("cr").onclick = () => api.openControlRoom();
@@ -179,7 +178,7 @@ main{flex:1;position:relative;min-height:0}
   };
   $("src").onchange = e => fetch("/api/source", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: e.target.value }) });
   const copy = async b => { await api.copyOverlay(); const o = b.textContent; b.textContent = "Copied"; setTimeout(() => (b.textContent = o), 1200); };
-  $("copy").onclick = e => copy(e.target); $("cu").onclick = e => copy(e.target);
+  $("cu").onclick = e => copy(e.target);
   boot();
 })();
 </script>

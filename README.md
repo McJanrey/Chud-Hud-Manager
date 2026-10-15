@@ -27,7 +27,7 @@ The default data source is **Auto**: it follows the game of the event that is on
 
 Download **`SaintsHUD-Setup-x.y.z.exe`** from the [latest release](https://github.com/McJanrey/saints-hud/releases/latest) and run it. Windows may show "Windows protected your PC" because the app isn't code-signed: choose **More info → Run anyway**. No administrator rights, Node.js or Python needed.
 
-On first launch the app opens a small launcher. Signing in saves a **local profile** (name and email) on this PC; there is no account server. Signed-in users go straight to the control room next time.
+The app always starts on a small launcher, the only window at first: update status, the data source, **Copy overlay URL for OBS** and **Open Control Room**. Opening the control room replaces the launcher, so only one window is open at a time; **Help → Launcher** goes back. Signing in saves a **local profile** (name and email) on this PC; there is no account server.
 
 ### Updates
 

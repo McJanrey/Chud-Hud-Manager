@@ -15,8 +15,8 @@ let win = null, launcher = null, base = "";
 /* ---- launcher: sign-in, update status and the way into the control room ---- */
 // There is no account server: signing in saves a local profile (name and email) on this PC. Preferences live next to it.
 const LAUNCHER_FILE = () => path.join(process.env.SAINTS_DATA, "launcher.json");
-let LS = { profile: null, prefs: { autoOpen: true } };
-function loadLauncher() { try { const j = JSON.parse(fs.readFileSync(LAUNCHER_FILE(), "utf8")); LS = { profile: j.profile || null, prefs: Object.assign({ autoOpen: true }, j.prefs) }; } catch { /* first run */ } }
+let LS = { profile: null, prefs: {} };
+function loadLauncher() { try { const j = JSON.parse(fs.readFileSync(LAUNCHER_FILE(), "utf8")); LS = { profile: j.profile || null, prefs: j.prefs || {} }; } catch { /* first run */ } }
 function saveLauncher() { try { fs.mkdirSync(path.dirname(LAUNCHER_FILE()), { recursive: true }); fs.writeFileSync(LAUNCHER_FILE(), JSON.stringify(LS, null, 2)); } catch { /* read-only folder: keep going */ } }
 // state: source (running from source) | idle | checking | none | available | downloading | ready | installing | error
 let upd = { state: "idle", version: "", percent: 0, error: "" };
@@ -34,7 +34,9 @@ function createLauncher() {
   launcher.webContents.on("will-navigate", (e, url) => { if (!url.startsWith(base)) { e.preventDefault(); shell.openExternal(url); } });
   launcher.on("closed", () => (launcher = null));
 }
-function openControlRoom() { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } else createWindow(); }
+// One window at a time: the launcher hands over to the control room, and Help > Launcher hands back.
+function openControlRoom() { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } else createWindow(); if (launcher) launcher.close(); }
+function openLauncher() { if (launcher) { if (launcher.isMinimized()) launcher.restore(); launcher.focus(); } else createLauncher(); if (win) win.close(); }
 const fromLauncher = fn => (e, ...a) => (launcher && e.sender === launcher.webContents ? fn(...a) : undefined); // only our own launcher page may call these
 function setupLauncherIpc() {
   const on = (ch, fn) => ipcMain.handle(ch, fromLauncher(fn));
@@ -43,11 +45,9 @@ function setupLauncherIpc() {
     const name = String((p && p.name) || "").trim().slice(0, 60), email = String((p && p.email) || "").trim().slice(0, 120);
     if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Enter your name and a valid email." };
     LS.profile = { name, email }; saveLauncher();
-    if (LS.prefs.autoOpen) openControlRoom();
     return { ok: true, profile: LS.profile };
   });
   on("launcher:signout", () => { LS.profile = null; saveLauncher(); return { ok: true }; });
-  on("launcher:pref", (k, v) => { if (k === "autoOpen") { LS.prefs.autoOpen = !!v; saveLauncher(); } return LS.prefs; });
   on("launcher:check", () => checkNow());
   on("launcher:download", () => downloadUpdate());
   on("launcher:install", () => installUpdate());
@@ -166,7 +166,7 @@ function buildMenu() {
       { type: "separator" }, { role: "quit" }] },
     { label: "View", submenu: [{ role: "reload" }, { role: "togglefullscreen" }, { role: "zoomIn" }, { role: "zoomOut" }, { role: "resetZoom" }, { type: "separator" }, { role: "toggleDevTools" }] },
     { label: "Help", submenu: [
-      { label: "Launcher", click: () => (launcher ? launcher.focus() : createLauncher()) },
+      { label: "Launcher", click: openLauncher },
       { label: "Check for updates", click: checkNow },
       { label: `Version ${app.getVersion()}`, enabled: false }] },
   ]));
@@ -183,7 +183,7 @@ app.whenReady().then(() => {
   // F9 flips the League bottom board between the lane board and the teamfight strip, even while OBS has focus
   if (!globalShortcut.register("F9", () => { fetch(base + "/api/lol/panel", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => {}); }))
     console.log("F9 is already taken by another program, so the teamfight hotkey is unavailable. Use the dashboard button.");
-  const start = () => { createLauncher(); if (LS.profile && LS.prefs.autoOpen) createWindow(); }; // signed-in users go straight to the control room
+  const start = () => createLauncher(); // the launcher is the only window at start; Open Control Room replaces it
   if (server.listening) start(); else server.once("listening", start);
   server.once("error", err => {
     dialog.showErrorBox("Saints HUD can't start",
