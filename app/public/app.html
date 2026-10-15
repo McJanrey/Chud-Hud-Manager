@@ -208,7 +208,7 @@ function connect(){
   const es=new EventSource("/events?kind=dashboard");
   es.addEventListener("db",m=>{const p=JSON.parse(m.data);SCREENS=p.screens||SCREENS;
     const first=!DB;DB=p.db;
-    if(first){render();return}
+    if(first){const q=new URLSearchParams(location.search).get("event");if(q&&DB.events.some(x=>x.id===q)){ui.cur=q;ui.view="overview"}render();return}
     if(p.by===CLIENT){railStatus();return}
     if(p.by==="screens"){railStatus();const s=$("#screens");if(s)s.textContent=screensText();return}
     const a=document.activeElement;

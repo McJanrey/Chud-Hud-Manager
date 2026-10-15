@@ -42,7 +42,8 @@ function createLauncher() {
   launcher.on("closed", () => (launcher = null));
 }
 // One window at a time: the launcher hands over to the control room, and Help > Launcher hands back.
-function openControlRoom() { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } else createWindow(); if (launcher) launcher.close(); }
+const controlUrl = id => base + "/" + (id ? "?event=" + encodeURIComponent(id) : ""); // Quick Join opens straight into one event
+function openControlRoom(id) { if (win) { win.loadURL(controlUrl(id)); if (win.isMinimized()) win.restore(); win.focus(); } else createWindow(id); if (launcher) launcher.close(); }
 function openLauncher() { if (launcher) { if (launcher.isMinimized()) launcher.restore(); launcher.focus(); } else createLauncher(); if (win) win.close(); }
 const fromLauncher = fn => (e, ...a) => (launcher && e.sender === launcher.webContents ? fn(...a) : undefined); // only our own launcher page may call these
 function setupLauncherIpc() {
@@ -58,7 +59,8 @@ function setupLauncherIpc() {
   on("launcher:check", () => checkNow());
   on("launcher:download", () => downloadUpdate());
   on("launcher:install", () => installUpdate());
-  on("launcher:control-room", () => openControlRoom());
+  on("launcher:control-room", id => openControlRoom(id));
+  on("launcher:quickjoin", ids => { LS.prefs.quickJoin = Array.isArray(ids) ? ids.map(String).slice(0, 12) : []; saveLauncher(); return LS.prefs.quickJoin; });
   on("launcher:copy-overlay", id => { const u = overlayUrl(id); clipboard.writeText(u); return u; });
   on("launcher:open-data", () => shell.openPath(process.env.SAINTS_DATA));
   on("win:min", () => launcher && launcher.minimize());
@@ -66,14 +68,14 @@ function setupLauncherIpc() {
   on("win:close", () => launcher && launcher.close());
 }
 
-function createWindow() {
+function createWindow(id) {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 980, minHeight: 640,
     title: "Saints HUD Control Room", backgroundColor: "#08110d", show: false, autoHideMenuBar: true,
     icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: { contextIsolation: true, sandbox: true },
   });
-  win.loadURL(base + "/");
+  win.loadURL(controlUrl(id));
   win.once("ready-to-show", () => win.show());
   win.on("page-title-updated", e => e.preventDefault()); // keep the app name in the title bar
   // links to other sites open in the normal browser

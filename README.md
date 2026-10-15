@@ -27,7 +27,7 @@ Every event is live at the same time and reads the feed of its own game, so a Ro
 
 Download **`SaintsHUD-Setup-x.y.z.exe`** from the [latest release](https://github.com/McJanrey/saints-hud/releases/latest) and run it. Windows may show "Windows protected your PC" because the app isn't code-signed: choose **More info → Run anyway**. No administrator rights, Node.js or Python needed.
 
-The app always starts on a small launcher, the only window at first: update status, **Open Control Room**, and the overlay link of every event with a **Copy link** button. Opening the control room replaces the launcher, so only one window is open at a time; **Help → Launcher** goes back. Signing in saves a **local profile** (name and email) on this PC; there is no account server.
+The app always starts on a small launcher, the only window at first: update status, **Quick Join** (pin events with **+ Add**, then one click opens the control room straight inside that event), **Open Control Room**, and the overlay link of every event with a **Copy link** button. Opening the control room replaces the launcher, so only one window is open at a time; **Help → Launcher** goes back. Signing in saves a **local profile** (name and email) on this PC; there is no account server.
 
 ### Updates
 

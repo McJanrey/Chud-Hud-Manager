@@ -81,6 +81,31 @@ main{flex:1;position:relative;min-height:0}
 .evl .r span{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .evl .r em{display:block;font-style:normal;font-size:11px;color:var(--dim)}
 .evl .r .btn{padding:6px 10px;font-size:12px}
+.qj{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.qj>span{color:var(--dim);font-size:13px}
+.qchips{display:flex;gap:6px;flex-wrap:wrap}
+.qc{display:flex;align-items:center;gap:7px;background:var(--field);border:1px solid var(--line2);color:var(--fg);border-radius:9px;padding:5px 10px 5px 5px;font:600 12px var(--f-ui);cursor:pointer;max-width:150px}
+.qc:hover{border-color:var(--accent)}
+.qc b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qt{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;color:#fff;font:700 10px var(--f-head);flex:none;font-style:normal}
+.qadd{background:none;border:1.5px dashed var(--line2);color:var(--fg);border-radius:9px;padding:6px 12px;font:700 12px var(--f-ui);cursor:pointer}
+.qadd:hover{border-color:var(--accent);color:var(--accent)}
+.modal{position:fixed;inset:0;background:rgba(3,8,6,.78);z-index:20;display:grid;place-items:center;padding:20px}
+.mbox{width:min(720px,100%);max-height:100%;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden}
+.mhead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line2)}
+.mhead h3{margin:0;flex:1;font:700 16px var(--f-head);letter-spacing:.04em;text-transform:uppercase}
+.mhead input{width:200px;background:var(--field);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;color:var(--fg);font:13px var(--f-ui)}
+.ib{background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer;padding:6px 8px;border-radius:8px}
+.ib:hover{color:var(--fg);background:var(--field)}
+.mgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:16px;overflow:auto}
+.mc{display:flex;align-items:center;gap:10px;background:var(--field);border:1px solid var(--line2);border-radius:10px;padding:8px;cursor:pointer;color:var(--fg);text-align:left;font-family:var(--f-ui)}
+.mc:hover{border-color:var(--dim)}
+.mc .qt{width:38px;height:38px;border-radius:9px;font-size:13px}
+.mc span{flex:1;min-width:0}
+.mc b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc small{color:var(--dim);font-size:11px}
+.mc i.r{width:18px;height:18px;border-radius:50%;border:2px solid var(--line2);flex:none}
+.mc.on{border-color:var(--accent)}.mc.on i.r{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 45%,transparent 50%)}
 .tb .nm .tbi{width:20px;height:20px;margin-right:8px;vertical-align:-5px}
 </style>
 </head>
@@ -116,6 +141,7 @@ main{flex:1;position:relative;min-height:0}
     <div class="card">
       <h2><img src="/brand/saints-emblem.png" alt="">Saints HUD</h2>
       <div class="stat" id="srv"><i class="d"></i><span>Overlay server</span></div>
+      <div class="qj"><span>Quick Join</span><div class="qchips" id="qchips"></div><button class="qadd" id="qadd" type="button">+ Add</button></div>
       <button class="btn blue wide" id="cr">Open Control Room</button>
       <div class="lk"><small>Overlay links: one per event, all live</small><div class="evl" id="evl"></div></div>
       <div class="prog hidden" id="prog"><i></i></div>
@@ -123,6 +149,12 @@ main{flex:1;position:relative;min-height:0}
       <button class="btn blue hidden" id="ur">Update &amp; Restart Saints HUD</button>
     </div>
   </section>
+<div class="modal hidden" id="qm" role="dialog" aria-modal="true" aria-label="Add to Quick Join">
+  <div class="mbox">
+    <div class="mhead"><h3>Add to Quick Join</h3><button class="ib" id="qref" type="button" aria-label="Refresh">&#8635;</button><input id="qsearch" placeholder="Search events" aria-label="Search events"><button class="ib" id="qx" type="button" aria-label="Close">&#10005;</button></div>
+    <div class="mgrid" id="qgrid"></div>
+  </div>
+</div>
 </main>
 <script>
 (() => {
@@ -153,7 +185,7 @@ main{flex:1;position:relative;min-height:0}
   async function renderHome() {
     $("mname").textContent = S.profile.name; $("mmail").textContent = S.profile.email;
     renderUpdate(S.update);
-    try { const d = await (await fetch("/api/state")).json(); renderLinks(d.db.events);
+    try { const d = await (await fetch("/api/state")).json(); EVS = d.db.events; renderLinks(EVS); renderQuick();
       $("srv").className = "stat ok"; $("srv").lastElementChild.textContent = "Overlay server running"; }
     catch { $("srv").className = "stat bad"; $("srv").lastElementChild.textContent = "Overlay server not responding"; }
   }
@@ -180,6 +212,32 @@ main{flex:1;position:relative;min-height:0}
     if (r && r.ok === false && r.error) { $("ut").textContent = r.error; $("us").className = "stat bad"; }
   };
   const escH = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  /* Quick Join: pin events here and one click opens the control room straight in that event. */
+  let EVS = [];
+  const GAMETILE = { "Rocket League": ["RL", "#1f5bff"], "League of Legends": ["LoL", "#0397ab"], "Minecraft": ["MC", "#4aa02c"], "Riftbound": ["RB", "#b08a3c"] };
+  const tile = g => { const t = GAMETILE[g] || [String(g || "?").slice(0, 2).toUpperCase(), "#4a4c55"]; return `<i class="qt" style="background:${t[1]}">${escH(t[0])}</i>`; };
+  const pinned = () => (S && S.prefs && Array.isArray(S.prefs.quickJoin) ? S.prefs.quickJoin : []);
+  function renderQuick() {
+    const ids = pinned(), list = ids.map(id => EVS.find(e => e.id === id)).filter(Boolean);
+    $("qchips").innerHTML = list.map(e => `<button class="qc" type="button" data-q="${escH(e.id)}" title="${escH(e.name)}">${tile(e.game)}<b>${escH(e.name)}</b></button>`).join("");
+  }
+  function renderPicker() {
+    const q = $("qsearch").value.trim().toLowerCase(), on = new Set(pinned());
+    $("qgrid").innerHTML = EVS.filter(e => !q || (e.name + " " + e.game).toLowerCase().includes(q)).map(e =>
+      `<button class="mc${on.has(e.id) ? " on" : ""}" type="button" data-p="${escH(e.id)}">${tile(e.game)}<span><b>${escH(e.name)}</b><small>ID: ${escH(e.id.slice(0, 8))}</small></span><i class="r"></i></button>`).join("") || "<small>No events match.</small>";
+  }
+  async function loadEvents() { try { EVS = (await (await fetch("/api/state")).json()).db.events; } catch { /* server not ready */ } renderLinks(EVS); renderQuick(); }
+  function closePicker() { $("qm").classList.add("hidden"); }
+  $("qadd").onclick = () => { $("qsearch").value = ""; $("qm").classList.remove("hidden"); renderPicker(); $("qsearch").focus(); };
+  $("qx").onclick = closePicker; $("qm").onclick = e => { if (e.target === $("qm")) closePicker(); };
+  $("qsearch").oninput = renderPicker; $("qref").onclick = async () => { await loadEvents(); renderPicker(); };
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closePicker(); });
+  $("qgrid").onclick = async e => {
+    const b = e.target.closest("[data-p]"); if (!b) return;
+    const id = b.dataset.p, ids = pinned().filter(x => x !== id); if (ids.length === pinned().length) ids.push(id);
+    S.prefs.quickJoin = await api.setQuickJoin(ids); renderQuick(); renderPicker();
+  };
+  $("qchips").onclick = e => { const b = e.target.closest("[data-q]"); if (b) api.openControlRoom(b.dataset.q); };
   function renderLinks(evs) {
     $("evl").innerHTML = evs.map(e => `<div class="r"><span>${escH(e.name)}<em>${escH(e.game)}</em></span><button class="btn ghost" data-ev="${escH(e.id)}">Copy link</button></div>`).join("") || "<small>No events yet.</small>";
   }
