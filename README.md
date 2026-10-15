@@ -150,7 +150,7 @@ The scenes read a Java server through two built-in channels, so no plugin or mod
 
 Enter the host, port, password and log path, use **Test connection**, then **Save and connect**. It connects as soon as an event for Minecraft exists. Add the player names under **Roster** (exactly as in Minecraft); they label the HUD and match kills from the log.
 
-**Hunger Games:** title, players at the start, a spotlight player (or automatic: most kills), a match clock, and a reset for kills and the feed. The HUD shows the title, players alive out of the total, the clock and world border, a kills leaderboard, an elimination feed, the spotlight player's hearts and food, and a head for every player with a health bar. Spectators count as out.
+**Hunger Games:** the Minecraft page holds the title, players at the start, the match clock and a kills reset; the **HUD Editor** holds the look. Choose a **HUD state** (Main, Final with a FINAL N banner, or Winner with the winning player large), switch each element on or off, and click an element in the preview (or pick it) to change its settings. The elements are the title bar (alive, clock, border), kill leaderboard, elimination feed, an **elimination banner** ("ALICE ELIMINATED BOB, 5 REMAIN"), spotlight player, player grid with health bars, sponsors (a Main sponsor shows large as "Presented by"; set the type on Tournament) and the spotlight player's webcam (their camera link on Players & Teams). Spectators count as out.
 
 **Build Battle:** theme, phase (starting soon, building, judging, results), a build timer, the player being judged, and a score out of 10 for each player. The results phase shows a ranked table.
 

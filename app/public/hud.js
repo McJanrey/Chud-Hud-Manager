@@ -332,18 +332,43 @@
     const d = mcData(m);
     return d.cfg.mode === "buildbattle" ? mcBuild(m, d) : mcHunger(m, d);
   };
+  /* Hunger Games. Every piece is an element that can be switched on or off in the HUD Editor (hud.show.mc*), has its own settings
+     (hud.mcSet) and carries data-el so a click on it in the preview selects it. hud.mcState is the HUD state: main, final or winner. */
   function mcHunger(m, d) {
-    const cfg = d.cfg, byKills = d.list.filter(p => p.kills > 0).sort((a, b) => b.kills - a.kills).slice(0, 5);
+    const cfg = d.cfg, ev = m.ev, sh = ev.hud.show, state = ev.hud.mcState || "main";
+    const set = Object.assign({ killRows: 5, feedRows: 4, bars: true, elimSecs: 6, showBorder: true }, ev.hud.mcSet);
+    const on = k => sh[k] !== false, sel = k => (CTX.sel === k ? " sel" : "");
+    const byKills = d.list.filter(p => p.kills > 0).sort((a, b) => b.kills - a.kills).slice(0, set.killRows);
     const spot = d.list.find(p => p.name === cfg.spotlight) || d.list.slice().sort((a, b) => b.kills - a.kills || (b.alive ? 1 : 0) - (a.alive ? 1 : 0))[0];
+    const alive = d.list.filter(p => p.alive), left = d.alive != null ? d.alive : alive.length;
     const n = d.list.length, tw = Math.max(26, Math.min(56, Math.floor(1210 / Math.max(1, n))));
-    let h = `<div class="mc-top"><div class="t">${esc(cfg.title || "HUNGER GAMES")}</div><div class="a"><b class="num">${d.alive ?? "–"}</b><small>/ ${d.total || "–"} ALIVE</small></div>
-      <div class="c"><b class="num">${fmt(d.elapsed)}</b>${d.border != null ? `<small>BORDER ${Math.round(d.border)}</small>` : ""}</div></div>`;
-    if (byKills.length) h += `<div class="mc-kills"><h4>KILLS</h4>${byKills.map((p, i) => `<div data-k="k${esc(p.name)}">${head(p.name)}<span class="nm">${esc(p.name)}</span><b class="num">${p.kills}</b></div>`).join("")}</div>`;
-    if (d.feed.length) h += `<div class="mc-feed">${d.feed.map(f => `<div data-k="f${f.id}">${f.killer ? `<b>${esc(f.killer)}</b><i>${esc(f.weapon || "ELIMINATED")}</i>` : ""}<span>${esc(f.victim)}</span>${f.killer ? "" : "<i>OUT</i>"}</div>`).join("")}</div>`;
-    if (spot) h += `<div class="mc-spot">${head(spot.name, "big")}<div class="nm"><b>${esc(spot.name)}</b><small>${spot.team ? esc(spot.team.tag) : ""}${spot.alive ? "" : " · OUT"}</small></div>
+    const cams = []; let h = "";
+    if (on("mcTop")) h += `<div class="mc-top${sel("top")}" data-el="top"><div class="t">${esc(cfg.title || "HUNGER GAMES")}</div><div class="a"><b class="num">${d.alive ?? "–"}</b><small>/ ${d.total || "–"} ALIVE</small></div>
+      <div class="c"><b class="num">${fmt(d.elapsed)}</b>${set.showBorder && d.border != null ? `<small>BORDER ${Math.round(d.border)}</small>` : ""}</div></div>`;
+    if (state === "final" && on("mcTop")) h += `<div class="mc-final" data-k="final">FINAL ${left}</div>`;
+    if (on("mcKills") && byKills.length) h += `<div class="mc-kills${sel("kills")}" data-el="kills"><h4>KILLS</h4>${byKills.map(p => `<div data-k="k${esc(p.name)}">${head(p.name)}<span class="nm">${esc(p.name)}</span><b class="num">${p.kills}</b></div>`).join("")}</div>`;
+    if (on("mcFeed") && d.feed.length) h += `<div class="mc-feed${sel("feed")}" data-el="feed">${d.feed.slice(-set.feedRows).map(f => `<div data-k="f${f.id}">${f.killer ? `<b>${esc(f.killer)}</b><i>${esc(f.weapon || "ELIMINATED")}</i>` : ""}<span>${esc(f.victim)}</span>${f.killer ? "" : "<i>OUT</i>"}</div>`).join("")}</div>`;
+    const last = d.feed[d.feed.length - 1];
+    if (on("mcElim") && last && Date.now() - last.t < set.elimSecs * 1000 && state !== "winner")
+      h += `<div class="mc-elim${sel("elim")}" data-el="elim" data-k="e${last.id}"><b>${esc(last.killer ? last.killer + " ELIMINATED " + last.victim : last.victim + " IS OUT")}</b><small>${left} REMAIN</small></div>`;
+    if (on("mcSpot") && spot) h += `<div class="mc-spot${sel("spot")}" data-el="spot">${head(spot.name, "big")}<div class="nm"><b>${esc(spot.name)}</b><small>${spot.team ? esc(spot.team.tag) : ""}${spot.alive ? "" : " · OUT"}</small></div>
       <div class="hearts">${hearts(spot.health)}</div><div class="r2"><span class="fd"><i style="width:${Math.max(0, Math.min(100, ((spot.food || 0) / 20) * 100))}%"></i></span><span class="kl num">${spot.kills} KILLS</span></div></div>`;
-    if (n) h += `<div class="mc-grid" style="--w:${tw}px">${d.list.map(p => `<div class="tile${p.alive ? "" : " out"}" data-k="p${esc(p.name)}">${head(p.name)}<span class="hpb"><i style="width:${Math.max(0, Math.min(100, ((p.health || 0) / 20) * 100))}%"></i></span>${p.kills ? `<b class="kb num">${p.kills}</b>` : ""}</div>`).join("")}</div>`;
-    return { html: h, cams: [] };
+    if (on("mcCam") && spot) { // the spotlight player's camera, from their roster entry
+      const r = ev.teams.flatMap(t => t.players).find(p => low(p.ign) === low(spot.name));
+      if (r && r.cam) cams.push({ key: "mccam-" + r.cam, url: r.cam, x: 324, y: 480, w: 256, h: 144 });
+    }
+    const sp = (ev.tournament.sponsors || []).filter(x => x.name || x.logo);
+    if (on("mcSponsors") && sp.length) {
+      const main = sp.find(x => x.type === "main"), rest = sp.filter(x => x !== main);
+      const one = (x, big) => (x.logo ? `<img class="spl${big ? " big" : ""}" src="${esc(x.logo)}" alt="${esc(x.name)}">` : `<span class="spn${big ? " big" : ""}">${esc(x.name)}</span>`);
+      h += `<div class="mc-sp${sel("sponsors")}" data-el="sponsors">${main ? `<small>PRESENTED BY</small>${one(main, true)}` : ""}${rest.slice(0, 5).map(x => one(x, false)).join("")}</div>`;
+    }
+    if (on("mcGrid") && n) h += `<div class="mc-grid${state === "final" ? " fin" : ""}${sel("grid")}" data-el="grid" style="--w:${tw}px">${d.list.map(p => `<div class="tile${p.alive ? "" : " out"}" data-k="p${esc(p.name)}">${head(p.name)}${set.bars ? `<span class="hpb"><i style="width:${Math.max(0, Math.min(100, ((p.health || 0) / 20) * 100))}%"></i></span>` : ""}${p.kills ? `<b class="kb num">${p.kills}</b>` : ""}</div>`).join("")}</div>`;
+    if (state === "winner") {
+      const w = d.list.find(p => p.name === cfg.winner) || (alive.length === 1 ? alive[0] : null) || d.list.slice().sort((a, b) => b.kills - a.kills)[0];
+      if (w) h += `<div class="mc-win" data-k="win">${head(w.name, "huge")}<div><small>WINNER</small><b>${esc(w.name)}</b><em class="num">${w.kills} KILLS</em></div></div>`;
+    }
+    return { html: h, cams };
   }
   function mcBuild(m, d) {
     const bb = d.cfg.bb || {}, oc = d.oc, phase = (oc && oc.phase && phaseOf(String(oc.phase))) || bb.phase || "waiting";

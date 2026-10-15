@@ -483,3 +483,21 @@
 .mc-roster div{display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(8,36,25,.92);padding:12px 6px 8px;font-size:20px;min-width:0}
 .mc-roster span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .h-lineup .tl{font-size:44px;padding-bottom:6px;border-bottom:5px solid var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Hunger Games elements */
+[data-stage] [data-el]{cursor:pointer}
+[data-stage] .sel{outline:2px dashed #FDC82F;outline-offset:3px}
+.mc-final{position:absolute;top:58px;left:50%;transform:translateX(-50%);background:var(--gold,#FDC82F);color:#07120e;font-size:26px;letter-spacing:.16em;padding:5px 24px 2px;animation:hfade .35s}
+.mc-elim{position:absolute;top:96px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(5,24,17,.94);border-left:6px solid #ff5d5d;border-right:6px solid #ff5d5d;padding:6px 30px 4px;animation:hpop .4s cubic-bezier(.3,1.5,.5,1);white-space:nowrap}
+.mc-elim b{font-size:32px;font-weight:600;letter-spacing:.04em}
+.mc-elim small{font-size:15px;letter-spacing:.18em;color:var(--gold,#FDC82F)}
+.mc-sp{position:absolute;right:12px;bottom:96px;display:flex;align-items:center;gap:12px;background:rgba(5,24,17,.9);border-top:3px solid var(--gold,#FDC82F);padding:8px 14px}
+.mc-sp small{font-size:12px;letter-spacing:.16em;color:#9db3a8}
+.mc-sp .spl{height:26px;max-width:110px;object-fit:contain}.mc-sp .spl.big{height:44px;max-width:170px}
+.mc-sp .spn{font-size:18px;letter-spacing:.08em}.mc-sp .spn.big{font-size:28px;color:var(--gold,#FDC82F)}
+.mc-grid.fin .tile{opacity:1}.mc-grid.fin .tile.out{opacity:.25}
+.mc-win{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:26px;background:rgba(5,24,17,.96);border-top:6px solid var(--gold,#FDC82F);border-bottom:6px solid var(--gold,#FDC82F);padding:22px 48px;animation:hpop .5s cubic-bezier(.3,1.5,.5,1)}
+.mc-win .hd.huge{--hs:150px}
+.mc-win small{display:block;font-size:22px;letter-spacing:.3em;color:var(--gold,#FDC82F)}
+.mc-win b{display:block;font-size:84px;line-height:.9;font-weight:600}
+.mc-win em{display:block;font-style:normal;font-size:30px;color:#cbd6cf;margin-top:6px}

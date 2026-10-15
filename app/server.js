@@ -33,7 +33,9 @@ function newEvent(name, game = "Rocket League", organiser = "") {
   return {
     id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(), source: "auto", // source: which live feed the event reads (auto = its game's own)
     hud: { scene: "ingame", colorMode: "team", custom: ["#2f7dff", "#ff9b1a"], bg: "pitch", autoBoard: true,
-      show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false } },
+      show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false,
+        mcTop: true, mcKills: true, mcFeed: true, mcElim: true, mcSpot: true, mcGrid: true, mcSponsors: true, mcCam: false }, // Hunger Games elements
+      mcSet: { killRows: 5, feedRows: 4, bars: true, elimSecs: 6, showBorder: true }, mcState: "main" }, // their settings, and the HUD state: main, final or winner
     teams: [],
     tournament: { name: "", region: "", lang: "", size: "32 Teams", format: "Double Elimination", logos: ["", "", "", ""], sponsors: [] },
     talent: [],
@@ -49,7 +51,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     lowerThird: { title: "", subtitle: "" },
     timer: { label: "BACK SOON", seconds: 300, endsAt: 0, remaining: 300 },
     // Minecraft: Hunger Games and Build Battle
-    mc: { mode: "hungergames", title: "HUNGER GAMES", total: 24, spotlight: "", clock: { running: false, base: 0, startedAt: 0 },
+    mc: { mode: "hungergames", title: "HUNGER GAMES", total: 24, spotlight: "", winner: "", clock: { running: false, base: 0, startedAt: 0 },
       bb: { theme: "", phase: "waiting", buildSeconds: 900, endsAt: 0, remaining: 900, judging: "", scores: {} } },
     // Riftbound (trading card game): operator-driven scoring
     rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
@@ -61,6 +63,8 @@ function upgrade(ev) {
   const d = newEvent(ev.name);
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
+  ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
+  if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
   ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
   if (!ev.source) ev.source = "auto";

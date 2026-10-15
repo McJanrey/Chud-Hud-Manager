@@ -192,7 +192,9 @@ const ui={cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null}; /
 const saveUi=()=>{}; // nothing is remembered between launches
 const ev=()=>DB&&DB.events.find(e=>e.id===ui.cur);
 const tm=(e,id)=>e.teams.find(t=>t.id===id);
-let E=null,DRAG=false; // DRAG: a nameplate is being dragged, so the preview must not redraw under the pointer
+let E=null,DRAG=false;
+const HG_EL=[["top","Title bar","mcTop"],["kills","Kill leaderboard","mcKills"],["feed","Elimination feed","mcFeed"],["elim","Elimination banner","mcElim"],["spot","Spotlight player","mcSpot"],["grid","Player grid","mcGrid"],["sponsors","Sponsors","mcSponsors"],["cam","Spotlight webcam","mcCam"]];
+let HGEL=null; // the Hunger Games element being edited // DRAG: a nameplate is being dragged, so the preview must not redraw under the pointer
 function G(){const e=ev();return e?FEEDS[SaintsHUD.feedKey(e)]||null:null} // the live feed this event reads
 let OUTS=null;fetch("/api/outputs").then(r=>r.json()).then(j=>{OUTS=j;if(ui.view==="outputs")render()}).catch(()=>{});
 
@@ -348,6 +350,7 @@ hud(e){
   </div>
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
   ${e.game==="League of Legends"?lolSettings(e):""}`:""}
+  ${e.game==="Minecraft"&&h.scene==="ingame"&&e.mc.mode!=="buildbattle"?hgEditor(e):""}
   ${h.scene==="casters"?castersPanel(e):""}
   ${stage()}`;
 },
@@ -377,7 +380,7 @@ tournament(e){
   <div class="sec"><div><h2>Tournament logos</h2><p class="sub">The primary logo shows in the scorebug and title screen.</p></div>
     <div class="cols" style="--n:4">${["Primary","Secondary","Tertiary","Outline"].map((l,i)=>F.dz(`tournament.logos.${i}`,l)).join("")}</div></div>
   <div class="sec"><div class="sechead"><div><h2>Tournament sponsors</h2><p class="sub">Sponsor names rotate through the HUD ticker.</p></div><button class="btn" type="button" data-act="addSponsor">+ Add sponsor</button></div>
-    ${e.tournament.sponsors.map((s,i)=>`<div class="row c nowrap">${F.dz(`tournament.sponsors.${i}.logo`,"Logo","mini")}${F.text(`tournament.sponsors.${i}.name`,"","Sponsor name")}<button class="btn icon" type="button" data-act="delSponsor" data-arg="${i}" aria-label="Remove sponsor">${ico("x")}</button></div>`).join("")||`<p class="sub">No sponsors yet.</p>`}</div>`;
+    ${e.tournament.sponsors.map((s,i)=>`<div class="row c nowrap">${F.dz(`tournament.sponsors.${i}.logo`,"Logo","mini")}${F.text(`tournament.sponsors.${i}.name`,"","Sponsor name")}${F.sel(`tournament.sponsors.${i}.type`,"",[["secondary","Secondary sponsor"],["main","Main sponsor"]])}<button class="btn icon" type="button" data-act="delSponsor" data-arg="${i}" aria-label="Remove sponsor">${ico("x")}</button></div>`).join("")||`<p class="sub">No sponsors yet.</p>`}</div>`;
 },
 talent(e){
   if(!ui.talent||!e.talent.find(t=>t.id===ui.talent))ui.talent=e.talent[0]?.id||null;
@@ -492,6 +495,26 @@ function gameData(e){
   if(g==="Riftbound")return box("Riftbound","There is no live data feed. You score the match by hand on the Riftbound page: points, games, turns, the clock and the cards in play.");
   return box(esc(g)+" (screen reading)","${esc(g)} has no live data feed, so scores, the clock and team names are read from the screen with Screen OCR. Pick the game's window on the Screen OCR page and draw a box around each value.".replace("${esc(g)}",esc(g)))+other;
 }
+/* Hunger Games HUD editor: HUD state, the elements, and the settings of the one you click */
+function hgEditor(e){
+  const h=e.hud,names=roster(e),st=h.mcState||"main",cur=HGEL&&HG_EL.find(x=>x[0]===HGEL);
+  const settings={
+    top:()=>`${F.text("mc.title","Title on screen","HUNGER GAMES")}${F.num("mc.total","Players at the start")}${F.chk("hud.mcSet.showBorder","Show the world border")}`,
+    kills:()=>F.num("hud.mcSet.killRows","Rows shown (3 to 8)",'min="3" max="8"'),
+    feed:()=>F.num("hud.mcSet.feedRows","Rows shown (2 to 6)",'min="2" max="6"'),
+    elim:()=>F.num("hud.mcSet.elimSecs","Seconds on screen (3 to 12)",'min="3" max="12"'),
+    spot:()=>F.sel("mc.spotlight","Player",[["","Auto (most kills)"],...names]),
+    grid:()=>F.chk("hud.mcSet.bars","Health bars under each head"),
+    sponsors:()=>`<p class="sub">Sponsors come from Tournament. Mark one as Main sponsor to show it large with "Presented by".</p><button class="btn sm" type="button" data-act="nav" data-arg="tournament">Open Tournament</button>`,
+    cam:()=>`<p class="sub">Shows the spotlight player's camera link from Players &amp; Teams. Add the link on that player's row.</p><button class="btn sm" type="button" data-act="nav" data-arg="teams">Open Players &amp; Teams</button>`,
+  };
+  return`<div class="sec"><div class="sechead"><div><h2>Hunger Games HUD</h2><p class="sub">Click an element in the preview, or pick one below, to change its settings.</p></div>
+    <div class="fld" style="flex:none"><span>HUD state</span><div class="seg">${[["main","Main"],["final","Final"],["winner","Winner"]].map(([k,l])=>`<button type="button" data-act="mcState" data-arg="${k}" aria-pressed="${st===k}">${l}</button>`).join("")}</div></div></div>
+    ${st==="winner"?F.sel("mc.winner","Winner (blank: the last player alive, or the most kills)",[["","Automatic"],...names]):""}
+    <div class="chks">${HG_EL.map(([k,l,f])=>F.chk(`hud.show.${f}`,l)).join("")}</div>
+    <div class="seg">${HG_EL.map(([k,l])=>`<button type="button" data-act="hgEl" data-arg="${k}" aria-pressed="${HGEL===k}">${l}</button>`).join("")}</div>
+    ${cur?`<div class="box"><b>${cur[1]}</b>${settings[cur[0]]()}</div>`:""}</div>`;
+}
 /* ---------- caster nameplates ---------- */
 function castersPanel(e){
   const n=kitSeats(e),opts=[["","Open seat"],...e.talent.map(t=>[t.id,`${t.name} · ${t.role}`])];
@@ -584,7 +607,7 @@ function updateStages(redraw){
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
     const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
     if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SaintsHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
-    SaintsHUD.render(h,e,G(),st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons),kits:DB.settings&&DB.settings.kits});h.style.transform=`scale(${st.clientWidth/1280})`});
+    SaintsHUD.render(h,e,G(),st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons),kits:DB.settings&&DB.settings.kits,sel:ui.view==="hud"?HGEL:null});h.style.transform=`scale(${st.clientWidth/1280})`});
 }
 /* Preview background "Game": a live picture of the game's own window, when the desktop app can find it */
 const LIVEBG={ok:false,busy:false};
@@ -669,7 +692,7 @@ document.addEventListener("click",async ev0=>{
     case "delTeam":{if(!confirmTwice(b))return;const t=tm(e,ui.team);put("teams",e.teams.filter(x=>x!==t));if(e.live.left===t.id)put("live.left","");if(e.live.right===t.id)put("live.right","");ui.team=null;toast(`${t.name} deleted`);break;}
     case "addPlayer":{const t=tm(e,ui.team);t.players.push(blankPlayer());put(`teams.${e.teams.indexOf(t)}.players`,t.players);break;}
     case "delPlayer":{const t=tm(e,ui.team);t.players.splice(+arg,1);put(`teams.${e.teams.indexOf(t)}.players`,t.players);break;}
-    case "addSponsor":e.tournament.sponsors.push({name:"",logo:""});put("tournament.sponsors",e.tournament.sponsors);break;
+    case "addSponsor":e.tournament.sponsors.push({name:"",logo:"",type:"secondary"});put("tournament.sponsors",e.tournament.sponsors);break;
     case "delSponsor":e.tournament.sponsors.splice(+arg,1);put("tournament.sponsors",e.tournament.sponsors);break;
     case "clearImg":ev0.preventDefault();ev0.stopPropagation();put(b.dataset.path,"");break;
     case "addTalent":{const t={id:uid(),name:"New talent",role:"Caster",portrait:"",socials:[]};e.talent.push(t);ui.talent=t.id;put("talent",e.talent);break;}
@@ -701,6 +724,8 @@ document.addEventListener("click",async ev0=>{
     case "pause":api("/api/rl",{Command:"SetMatchPaused",Data:{bPaused:!(G()&&G().paused)}});return;
     case "demoReset":api("/api/demo/reset",{event:e.id});return;
     case "demoPause":api("/api/demo/pause",{event:e.id});return;
+    case "mcState":put("hud.mcState",arg);break;
+    case "hgEl":HGEL=HGEL===arg?null:arg;break;
     case "addCaster":{const n=Math.min(8,kitSeats(e)+1);DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:n};put(`settings.kits.${e.kit}`,{seats:n},false);break}
     case "rmCaster":{const n=Math.max(1,kitSeats(e)-1),seats=e.camera.seats.slice();seats.splice(+arg,1);seats.push({talent:"",url:"",role:""});
       DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:n};put("camera.seats",seats);put(`settings.kits.${e.kit}`,{seats:n},false);break}
@@ -839,6 +864,11 @@ function ocrLive(){
   $$("[data-rawof]").forEach(td=>{const r=(o.readings||{})[td.dataset.rawof];td.textContent=r?(r.error?"error":(r.raw||"(blank)")):"—"});
   $$("[data-valof]").forEach(td=>{const r=(o.readings||{})[td.dataset.valof];td.textContent=r&&r.value!=null?(r.key==="clock"?SaintsHUD.fmt(r.value):r.value):"—";td.className="read "+(r&&r.ok?"ok":"bad")});
 }
+/* click an element in the Hunger Games preview to edit it */
+document.addEventListener("click",ev0=>{
+  const el=ev0.target.closest("[data-stage] [data-el]"),e=ev();if(!el||!e||ui.view!=="hud"||e.game!=="Minecraft")return;
+  HGEL=el.dataset.el;render();
+});
 /* drag a caster nameplate anywhere on the preview */
 document.addEventListener("pointerdown",ev0=>{
   const np=ev0.target.closest(".np"),st=np&&np.closest("[data-stage]"),e=ev();if(!np||!st||!e)return;
