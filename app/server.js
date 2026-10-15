@@ -626,6 +626,12 @@ function applySource(force) {
   touch(); broadcastDb("server");
   log("Data source:", want + (DB.settings.source === "auto" ? " (auto)" : ""));
 }
+// A game-specific source left over from an earlier event (League chosen, then a Minecraft event goes on air) would read the wrong
+// game, so go back to Auto. Choosing a source by hand on Live Game is still respected: this only runs when the on-air event or its game changes.
+function dropMismatchedSource() {
+  const ev = onAirEvent(), s = DB.settings.source, own = { "Rocket League": "rl", "League of Legends": "lol" }[ev && ev.game];
+  if ((s === "rl" || s === "lol") && own !== s) { DB.settings.source = "auto"; save(); log(`Data source back to Auto: the on-air event is ${ev ? ev.game : "empty"}, not what ${s} reads.`); }
+}
 function setSource(src) {
   if (!["auto", "rl", "lol", "ocr", "push", "demo"].includes(src)) return;
   DB.settings.source = src; save();
@@ -843,6 +849,7 @@ const server = http.createServer((req, res) => {
             const target = body.event ? DB.events.find(e => e.id === body.event) : DB;
             if (!target) return json(res, 404, { error: "event not found" });
             setPath(target, body.path, body.value);
+            if (body.path === "onAir" || /(^|\.)game$/.test(body.path)) dropMismatchedSource();
             if (body.event && body.path === "game") { upgrade(target); if (SQUAD[target.game] && target.teams.every(t => !t.players.length)) seatPlayers(target, SQUAD[target.game]); } // switching game gives that game's own settings
             save(); broadcastDb(body.by || "api");
             if (body.path === "onAir" || /(^|\.)game$/.test(body.path)) applySource(false); // auto source follows the on-air game
@@ -910,6 +917,7 @@ server.on("error", err => {
 module.exports = { server, PORT, DATA, setOcrProvider, getDb: () => DB };
 
 server.listen(PORT, HOST, () => {
+  dropMismatchedSource();
   const shown = HOST === "0.0.0.0" ? "localhost" : HOST;
   log(`Saints HUD running`);
   log(`  Dashboard:  http://${shown}:${PORT}/`);
