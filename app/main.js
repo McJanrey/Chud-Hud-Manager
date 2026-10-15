@@ -8,6 +8,7 @@ const fs = require("fs");
 // `Saints HUD.exe --ocr-selftest` checks that screen capture and text reading work on this PC.
 if (process.argv.includes("--ocr-selftest")) { require("./test/ocr-selftest.js"); return; }
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
+if (process.platform === "win32") app.setAppUserModelId("ca.stclair.saintshud"); // same id as the installer's shortcuts, so the taskbar and Start keep the Saints icon
 
 process.env.SAINTS_DATA = process.env.SAINTS_DATA || path.join(app.getPath("userData"), "data");
 let win = null, launcher = null, base = "";
