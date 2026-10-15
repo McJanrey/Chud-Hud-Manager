@@ -50,6 +50,11 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     check("each event has its own data fields", fr.GAME === "Rocket League" && fl.GAME === "League of Legends" && fr["SCORE LEFT"] !== undefined, JSON.stringify([fr.GAME, fl.GAME]));
     check("the push feed reaches only the event that reads it", fr.STATUS === "LIVE" && fl.STATUS === "LIVE", JSON.stringify([fr.STATUS, fl.STATUS]));
 
+    // cover art comes from the cache in the data folder when it is there, and an unknown game has none
+    fs.mkdirSync(path.join(dataDir, "covers"), { recursive: true }); fs.writeFileSync(path.join(dataDir, "covers", "rocket-league.img"), PNG); fs.writeFileSync(path.join(dataDir, "covers", "rocket-league.type"), "image/png");
+    const cv = await fetch(base + "/covers/rocket-league");
+    check("a cached cover is served with its type", cv.status === 200 && cv.headers.get("content-type") === "image/png" && (await cv.arrayBuffer()).byteLength === PNG.length, String(cv.status));
+    check("a game with no cover source gets a 404 (the card keeps its gradient)", (await fetch(base + "/covers/riftbound")).status === 404 && (await fetch(base + "/covers/..%2F..%2Fdb.json")).status === 404);
     const hit = await fetch(base + "/ddragon/cdn/1.0/img/champion/Ahri.png");
     check("a cached icon is served without internet", hit.status === 200 && (await hit.arrayBuffer()).byteLength === PNG.length, String(hit.status));
     for (const bad of ["/ddragon/evil.png", "/ddragon/cdn/1.0/img/champion/..%2F..%2Fdb.json", "/ddragon/cdn/1.0/data/en_US/item.json", "/ddragon/https%3A%2F%2Fevil.example%2Fx.png"])

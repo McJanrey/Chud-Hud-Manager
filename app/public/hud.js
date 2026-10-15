@@ -75,7 +75,7 @@
 
   const lg = (t, cls = "lgbox") => `<div class="${cls}">${!t ? `<div class="lg" style="background:#2a2b31">?</div>`
     : t.logos && t.logos[0] ? `<img class="lg" src="${esc(t.logos[0])}" alt="">`
-    : `<div class="lg" style="background:${esc(t.color)}">${esc((t.tag || "?").slice(0, 4))}</div>`}</div>`;
+    : `<div class="lg" style="background:${esc(t.color)};font-size:${[0, 60, 54, 46, 36, 30][Math.min(5, Math.max(1, (t.tag || "?").slice(0, 5).length))]}cqw">${esc((t.tag || "?").slice(0, 5))}</div>`}</div>`;
   const tourLogo = ev => (ev.tournament.logos || []).find(Boolean);
   const sideTeam = (ev, id) => ev.teams.find(t => t.id === id);
 
@@ -104,9 +104,9 @@
     const arc = 245 * 58 / 52, tl = tourLogo(ev);
     let h = "", cams = [];
     if (sh.score) h += `<div class="h-tick"><span>${esc(tick)}  |  ${esc(tick)}  |  </span></div>
-      <div class="h-bug"><div class="h-team l">${lg(L)}<span class="tn">${esc(L ? L.name : "Blue")}</span><span class="gs num">${m.score[0]}</span></div>
+      <div class="h-bug"><div class="h-team l">${lg(L)}<span class="tn${L && L.name.length > 13 ? " long" : ""}">${esc(L ? L.name : "Blue")}</span><span class="gs num">${m.score[0]}</span></div>
       <div class="h-mid">${tl ? `<div class="lgbox"><img class="lg" src="${esc(tl)}" alt=""></div>` : `<span style="font-size:22px;color:#9a9ba3">${esc(ev.tournament.name || "VS")}</span>`}</div>
-      <div class="h-team r">${lg(R)}<span class="tn">${esc(R ? R.name : "Orange")}</span><span class="gs num">${m.score[1]}</span></div></div>
+      <div class="h-team r">${lg(R)}<span class="tn${R && R.name.length > 13 ? " long" : ""}">${esc(R ? R.name : "Orange")}</span><span class="gs num">${m.score[1]}</span></div></div>
       <div class="h-series"><div class="ss l num">${m.series[0]}</div><div class="clk${m.ot ? " ot" : ""}"><b class="num">${m.ot ? "+" : ""}${fmt(m.clock)}</b><small>${esc(l.gameSeries || "BEST OF " + l.bestOf)}</small></div><div class="ss r num">${m.series[1]}</div></div>`;
     if (sh.boost) h += `<div class="h-boost l">${m.players[0].map(row).join("")}</div><div class="h-boost r">${m.players[1].map(row).join("")}</div>`;
     if (sh.stats) h += `<div class="h-stats">${[["shots", "SHOTS"], ["saves", "SAVES"], ["demos", "DEMOS"]].map(([k, n]) => `<div><b class="num">${sum(k, 0)}</b><span>${n}</span><b class="num">${sum(k, 1)}</b></div>`).join("")}</div>`;
@@ -417,9 +417,9 @@
     const sponsors = ev.tournament.sponsors.map(x => x.name).filter(Boolean);
     const tick = [l.seriesTitle, l.eventTitle, l.roundTitle, ...sponsors].filter(Boolean).join("  |  ") || ev.name;
     return { html: `<div class="h-tick"><span>${esc(tick)}  |  ${esc(tick)}  |  </span></div>
-      <div class="h-bug"><div class="h-team l">${lg(L)}<span class="tn">${esc(L ? L.name : "Team A")}</span><span class="gs num">${m.score[0]}</span></div>
+      <div class="h-bug"><div class="h-team l">${lg(L)}<span class="tn${L && L.name.length > 13 ? " long" : ""}">${esc(L ? L.name : "Team A")}</span><span class="gs num">${m.score[0]}</span></div>
       <div class="h-mid">${tl ? `<div class="lgbox"><img class="lg" src="${esc(tl)}" alt=""></div>` : `<span style="font-size:22px;color:#9a9ba3">${esc(ev.tournament.name || "VS")}</span>`}</div>
-      <div class="h-team r">${lg(R)}<span class="tn">${esc(R ? R.name : "Team B")}</span><span class="gs num">${m.score[1]}</span></div></div>
+      <div class="h-team r">${lg(R)}<span class="tn${R && R.name.length > 13 ? " long" : ""}">${esc(R ? R.name : "Team B")}</span><span class="gs num">${m.score[1]}</span></div></div>
       <div class="h-series"><div class="ss l num">${m.series[0]}</div><div class="clk"><b class="num">${m.clockLive ? fmt(m.clock) : "VS"}</b><small>${esc(l.gameSeries || "BEST OF " + l.bestOf)}</small></div><div class="ss r num">${m.series[1]}</div></div>`, cams: [] };
   };
 

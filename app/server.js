@@ -31,7 +31,7 @@ const talent = (name, role, socials = []) => ({ id: uid(), name, role, portrait:
 
 function newEvent(name, game = "Rocket League", organiser = "") {
   return {
-    id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(), source: "auto", // source: which live feed the event reads (auto = its game's own)
+    id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(), source: "auto", cover: "", // cover: an uploaded image for the event card // source: which live feed the event reads (auto = its game's own)
     hud: { scene: "ingame", colorMode: "team", custom: ["#2f7dff", "#ff9b1a"], bg: "pitch", autoBoard: true,
       show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false,
         mcTop: true, mcKills: true, mcFeed: true, mcElim: true, mcSpot: true, mcGrid: true, mcSponsors: true, mcCam: false }, // Hunger Games elements
@@ -68,6 +68,7 @@ function upgrade(ev) {
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
   ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
   if (!ev.source) ev.source = "auto";
+  if (ev.cover === undefined) ev.cover = "";
   if (typeof ev.kit === "string" && ev.kit.startsWith("Squish ")) ev.kit = "Saints " + ev.kit.slice(7); // events saved before the rename
   if (!ev.hud.lolPanel || ev.hud.lolPanel === "auto") ev.hud.lolPanel = "lane"; // the teamfight strip is a manual switch
   if (ev.game === "League of Legends") ev.lol = require("./league.js").merge(require("./league.js").DEFAULTS, ev.lol || {}); // every League setting has a visible value
@@ -563,6 +564,45 @@ const GAME_WINDOWS = { "League of Legends": ["League of Legends (TM) Client"], "
 
 /* ------------------------------------------------ Data Dragon image cache */
 const DD_DIR = path.join(DATA, "ddragon-img");
+/* ------------------------------------------------ cover art for the event cards */
+// Official key art from the publishers' own public image servers (Steam's store assets, Riot's Data Dragon and valorant-api, Mojang's launcher
+// content, Epic's news). It is downloaded on the user's PC the first time a card needs it and kept in <data>/covers, never bundled with the app
+// or this repository. A game with no source here (or no internet) gets the gradient, and any event can use its own uploaded cover.
+const COVER_DIR = path.join(DATA, "covers");
+const steamHero = id => () => `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${id}/library_hero.jpg`;
+const getJson = url => new Promise((resolve, reject) => https.get(url, { timeout: 10000, headers: { "user-agent": "SaintsHUD" } }, r => {
+  let s = ""; r.setEncoding("utf8"); r.on("data", c => (s += c)); r.on("end", () => { try { resolve(JSON.parse(s)); } catch (e) { reject(e); } });
+}).on("error", reject));
+const COVER_SRC = {
+  "Rocket League": steamHero(252950), "Overwatch 2": steamHero(2357570), "Call of Duty": steamHero(1938090), "Deadlock": steamHero(1422450), "Counter-Strike 2": steamHero(730),
+  "League of Legends": () => "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Jinx_0.jpg",
+  "Valorant": () => "https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/fullportrait.png",
+  "Minecraft": async () => { const j = await getJson("https://launchercontent.mojang.com/v2/javaPatchNotes.json"), e = j.entries.find(x => x.type === "release" && x.image) || j.entries.find(x => x.image); return "https://launchercontent.mojang.com" + e.image.url; },
+  "Fortnite": async () => { const j = await getJson("https://fortnite-api.com/v2/news/br"), m = (j.data.motds || []).find(x => x.image); return m.image; },
+};
+const coverSlug = g => String(g).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const IMG_MAGIC = [[[0xff, 0xd8, 0xff], "image/jpeg"], [[0x89, 0x50, 0x4e, 0x47], "image/png"], [[0x52, 0x49, 0x46, 0x46], "image/webp"]];
+function fetchImage(url, hops = 3) {
+  return new Promise((resolve, reject) => {
+    const get = url.startsWith("https") ? https : http;
+    get.get(url, { timeout: 15000, headers: { "user-agent": "SaintsHUD" } }, r => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && hops > 0) { r.resume(); return resolve(fetchImage(new URL(r.headers.location, url).href, hops - 1)); }
+      if (r.statusCode !== 200) { r.resume(); return reject(new Error("HTTP " + r.statusCode)); }
+      const chunks = []; let size = 0;
+      r.on("data", c => { size += c.length; if (size > 4e6) { r.destroy(); reject(new Error("file too large")); } else chunks.push(c); });
+      r.on("end", () => { const b = Buffer.concat(chunks), m = IMG_MAGIC.find(([sig]) => sig.every((x, i) => b[i] === x)); m ? resolve({ buf: b, type: m[1] }) : reject(new Error("not an image")); });
+    }).on("error", reject).on("timeout", function () { this.destroy(new Error("timed out")); });
+  });
+}
+async function coverFor(slug) {
+  const game = Object.keys(COVER_SRC).find(g => coverSlug(g) === slug); if (!game) return null;
+  const img = path.join(COVER_DIR, slug + ".img"), typ = path.join(COVER_DIR, slug + ".type");
+  if (fs.existsSync(img) && fs.existsSync(typ)) return { buf: fs.readFileSync(img), type: fs.readFileSync(typ, "utf8") };
+  const got = await fetchImage(await COVER_SRC[game]());
+  fs.mkdirSync(COVER_DIR, { recursive: true }); fs.writeFileSync(img, got.buf); fs.writeFileSync(typ, got.type);
+  return got;
+}
+
 const DD_OK = /^cdn\/(?:[\w.-]+\/img\/(?:champion|item|spell)\/[\w.-]+|img\/[\w\/.-]+)\.png$/; // the only paths the cache will fetch
 
 /* ------------------------------------------------ official League objective icons */
@@ -859,6 +899,12 @@ const server = http.createServer((req, res) => {
         fs.mkdirSync(DD_DIR, { recursive: true }); fs.writeFile(f, buf, () => {});
         res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" }); res.end(buf);
       }).catch(e => json(res, 502, { error: e.message }));
+    }
+    if (p.startsWith("/covers/")) { // official key art for the event cards; 404 means "use the gradient"
+      return coverFor(coverSlug(p.slice(8))).then(c => {
+        if (!c) return json(res, 404, { error: "no cover" });
+        res.writeHead(200, { "content-type": c.type, "cache-control": "max-age=86400" }); res.end(c.buf);
+      }).catch(e => json(res, 404, { error: e.message }));
     }
     if (p.startsWith("/objective-icons/")) { const f = safeJoin(ICON_DIR, p.slice(17)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
     if (p.startsWith("/uploads/")) { const f = safeJoin(UPLOADS, p.slice(9)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }

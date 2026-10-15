@@ -309,6 +309,8 @@ docs/              README images
 
 League of Legends data comes from Riot's Live Client Data API on the player's own PC. Item prices and champion, item, spell and rune images come from Riot's Data Dragon, and objective icons from Community Dragon; all are downloaded on the user's machine when needed and are not bundled with the app or this repository.
 
+The cover images on the My Events cards are each game's official key art, downloaded on the user's PC the first time a card needs it (Steam's store assets for Rocket League, Overwatch 2, Call of Duty, Deadlock and Counter-Strike 2; Riot's Data Dragon for League; valorant-api for Valorant; Mojang's launcher content for Minecraft; Epic's news feed for Fortnite) and kept in the data folder. They are not bundled with the app or this repository, they belong to their publishers, and any event can use its own uploaded cover instead (Overview). Riftbound has no source yet and keeps a plain gradient.
+
 Saints HUD isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
 
 Rocket League is a trademark of Psyonix LLC. Teko and JetBrains Mono are used under the SIL Open Font License.
