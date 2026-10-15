@@ -184,8 +184,8 @@ const PLATFORMS=["X","Twitch","YouTube","Instagram","TikTok","Kick"];
 const COUNTRIES=[["","—"],["US","United States"],["CA","Canada"],["MX","Mexico"],["BR","Brazil"],["AR","Argentina"],["PE","Peru"],["CL","Chile"],["GB","United Kingdom"],["IE","Ireland"],["FR","France"],["DE","Germany"],["AT","Austria"],["CH","Switzerland"],["NL","Netherlands"],["BE","Belgium"],["ES","Spain"],["PT","Portugal"],["IT","Italy"],["PL","Poland"],["SE","Sweden"],["NO","Norway"],["DK","Denmark"],["FI","Finland"],["CZ","Czechia"],["TR","Turkey"],["SA","Saudi Arabia"],["AE","UAE"],["MA","Morocco"],["ZA","South Africa"],["JP","Japan"],["KR","South Korea"],["AU","Australia"],["NZ","New Zealand"],["IN","India"],["PH","Philippines"]];
 
 let DB=null,FEEDS={},SCREENS={dashboard:0,overlay:0},online=false;
-const ui=(()=>{let s={};try{s=JSON.parse(localStorage.getItem("saints-ui")||"{}")}catch(e){}return Object.assign({cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null},s)})();
-const saveUi=()=>{try{localStorage.setItem("saints-ui",JSON.stringify({cur:ui.cur,view:ui.view}))}catch(e){}};
+const ui={cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null}; // the control room always opens on My Events
+const saveUi=()=>{}; // nothing is remembered between launches
 const ev=()=>DB&&DB.events.find(e=>e.id===ui.cur);
 const tm=(e,id)=>e.teams.find(t=>t.id===id);
 let E=null;
