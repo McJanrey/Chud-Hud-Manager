@@ -34,7 +34,7 @@
         if (best) { sides[s] = best; tracked[s] = true; }
       });
     }
-    const kind = live && game.kind ? game.kind : ev.game === "League of Legends" ? "lol" : ev.game === "Minecraft" ? "mc" : ev.game === "Riftbound" ? "rb" : "rl";
+    const kind = live && game.kind ? game.kind : ev.game === "League of Legends" ? "lol" : ev.game === "Minecraft" ? "mc" : ev.game === "Riftbound" ? "rb" : ev.game === "Rocket League" ? "rl" : "gen";
     const size = kind === "lol" ? 5 : 3;
     const roster = (t, name) => t && t.players.find(p => low(p.ign) === low(name));
     const blank = { score: 0, goals: 0, shots: 0, assists: 0, saves: 0, demos: 0, touches: 0, boost: 0, kills: 0, deaths: 0, cs: 0, level: 1, ward: 0 };
@@ -68,7 +68,7 @@
     return {
       ev, live, kind, lol: game && game.lol, mc: game && game.mc, mcOcr: game && game.mcOcr, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
       series: l.series, focus: live ? find(game.target) : null,
-      clock: live || hasClock ? game.time : 300, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
+      clock: live || hasClock ? game.time : 300, clockLive: live || hasClock, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
       connected: !!(game && game.connected), source: game ? game.source : "",
     };
   }
@@ -141,16 +141,20 @@
     <div class="h-title">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}</div>
     <div class="h-eyebrow">${esc([ev.tournament.region, ev.tournament.format, ev.organiser].filter(Boolean).join("  ·  "))}</div></div>`, cams: [] };
   };
+  /* Caster nameplates: small slanted plates that sit over the broadcast. Each one has a position that is dragged in the HUD Editor
+     preview (seat.x and seat.y on the 1280x720 stage). How many show is the kit's seat count. A seat with a camera link also gets the
+     camera above its plate. */
   S.casters = (m) => {
-    const ev = m.ev, kit = (CTX.kits || {})[ev.kit], n = Math.max(1, Math.min(5, Math.round(+(kit && kit.seats) || { solo: 1, duo: 2, trio: 3 }[ev.camera.layout] || 2))); // the kit decides how many seats
-    const seats = ev.camera.seats.slice(0, n).map(s => ({ s, t: ev.talent.find(x => x.id === s.talent) }));
-    const cams = [];
-    // camera iframes sit above the feed boxes; positions mirror the flex layout below
-    const gap = 24, area = 1280 - 120, w = Math.min(560, (area - gap * (n - 1)) / n), total = w * n + gap * (n - 1), x0 = 60 + (area - total) / 2;
-    seats.forEach(({ s }, i) => { if (s.url) cams.push({ key: "seat" + i + s.url, url: s.url, x: x0 + i * (w + gap) + 3, y: 103, w: w - 6, h: 720 - 70 - 64 - 103 }); });
-    return { html: `<div class="h-full" style="justify-content:flex-start"><div class="h-desk"><div class="top">${esc([ev.live.seriesTitle, ev.live.eventTitle].filter(Boolean).join("  ·  ") || ev.name)}</div></div>
-    <div class="h-cams${n > 3 ? " many" : ""}">${seats.map(({ t }) => `<div class="h-cam"><div class="feed">${t && t.portrait ? `<img src="${esc(t.portrait)}" alt="">` : `<div class="h-sil"></div>`}</div>
-      <div class="h-plate"><span class="bar"></span><div><b>${esc(t ? t.name : "Open seat")}</b><small>${esc(t ? t.role : "")}</small></div><span class="soc">${t && t.socials[0] ? esc(t.socials[0].h) : ""}</span></div></div>`).join("")}</div></div>`, cams };
+    const ev = m.ev, kit = (CTX.kits || {})[ev.kit], n = Math.max(1, Math.min(8, Math.round(+(kit && kit.seats) || { solo: 1, duo: 2, trio: 3 }[ev.camera.layout] || 2)));
+    const cams = []; let html = "";
+    ev.camera.seats.slice(0, n).forEach((s, i) => {
+      const t = ev.talent.find(x => x.id === s.talent), social = t && t.socials && t.socials[0] && t.socials[0].h ? t.socials[0].p + "/" + t.socials[0].h : "";
+      const x = s.x != null ? s.x : 150 + (i % 4) * 250, y = s.y != null ? s.y : 560 + Math.floor(i / 4) * 80;
+      const sub = [s.role || (t && t.role) || "", social].filter(Boolean).join(" | ");
+      html += `<div class="np" data-i="${i}" style="left:${x}px;top:${y}px"><i class="sh"></i><div class="bd"><b>${esc(t ? t.name : "Caster " + (i + 1))}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div></div>`;
+      if (s.url) cams.push({ key: "seat" + i + s.url, url: s.url, x, y: Math.max(0, y - 150), w: 256, h: 144 });
+    });
+    return { html, cams };
   };
   S.lowerthird = (m) => {
     const x = m.ev.lowerThird;
@@ -291,7 +295,7 @@
   S.rankings = (m) => {
     const ev = m.ev, rows = ev.standings.slice().sort((a, b) => b.w - a.w || a.l - b.l || b.gd - a.gd).slice(0, 10);
     return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.tournament.name || "")}</div><div class="h-title" style="font-size:90px">STANDINGS</div>
-    <table class="h-table" style="width:820px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>W</th><th>L</th><th>GOAL DIFF</th></tr></thead><tbody>
+    <table class="h-table" style="width:820px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>W</th><th>L</th><th>${gdLabel(ev.game)}</th></tr></thead><tbody>
     ${rows.map((r, i) => { const t = sideTeam(ev, r.team); return `<tr class="${i === 0 ? "top" : ""}"><td class="num">${i + 1}</td><td class="tm" style="text-align:left">${lg(t)}${esc(t ? t.name : "TBD")}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.gd > 0 ? "+" : ""}${r.gd}</td></tr>`; }).join("")}</tbody></table></div>`, cams: [] };
   };
   S.timer = (m) => {
@@ -375,11 +379,106 @@
     return { html: h, cams: [] };
   };
 
+  /* ---------------- scenes for the games that are not Rocket League ----------------
+     Every scene has to speak the game it is showing. The Rocket League versions (goals, saves, demos, boost) stay as they were; Minecraft,
+     Riftbound and the screen-read games (kind "gen") get their own stats, lineup and starting-soon scenes, and a plain scorebug in game. */
+  const GD_LABEL = { "Rocket League": "GOAL DIFF", "League of Legends": "GAME DIFF", "Riftbound": "POINT DIFF", "Minecraft": "POINTS" };
+  const gdLabel = g => GD_LABEL[g] || "DIFF";
+  const lgBig = t => lg(t).replace('class="lgbox"', 'class="lgbox" style="width:76px;height:76px"');
+  const noLive = g => String(g || "").toUpperCase();
+
+  S.geningame = (m) => {
+    const ev = m.ev, l = ev.live, [L, R] = m.sides, tl = tourLogo(ev);
+    const sponsors = ev.tournament.sponsors.map(x => x.name).filter(Boolean);
+    const tick = [l.seriesTitle, l.eventTitle, l.roundTitle, ...sponsors].filter(Boolean).join("  |  ") || ev.name;
+    return { html: `<div class="h-tick"><span>${esc(tick)}  |  ${esc(tick)}  |  </span></div>
+      <div class="h-bug"><div class="h-team l">${lg(L)}<span class="tn">${esc(L ? L.name : "Team A")}</span><span class="gs num">${m.score[0]}</span></div>
+      <div class="h-mid">${tl ? `<div class="lgbox"><img class="lg" src="${esc(tl)}" alt=""></div>` : `<span style="font-size:22px;color:#9a9ba3">${esc(ev.tournament.name || "VS")}</span>`}</div>
+      <div class="h-team r">${lg(R)}<span class="tn">${esc(R ? R.name : "Team B")}</span><span class="gs num">${m.score[1]}</span></div></div>
+      <div class="h-series"><div class="ss l num">${m.series[0]}</div><div class="clk"><b class="num">${m.clockLive ? fmt(m.clock) : "VS"}</b><small>${esc(l.gameSeries || "BEST OF " + l.bestOf)}</small></div><div class="ss r num">${m.series[1]}</div></div>`, cams: [] };
+  };
+
+  /* ---- Minecraft ---- */
+  function mcStatsTeam(m) {
+    const d = mcData(m), cfg = d.cfg, bb = cfg.mode === "buildbattle", sc = (cfg.bb && cfg.bb.scores) || {};
+    const rows = d.list.slice().sort(bb ? (a, b) => (sc[b.name] ?? -1) - (sc[a.name] ?? -1) || a.name.localeCompare(b.name)
+      : (a, b) => b.kills - a.kills || (b.alive ? 1 : 0) - (a.alive ? 1 : 0) || a.name.localeCompare(b.name)).slice(0, 12);
+    const title = bb ? (cfg.bb && cfg.bb.theme) || cfg.title || "BUILD BATTLE" : cfg.title || "HUNGER GAMES";
+    const cols = bb ? `<th>#</th><th style="text-align:left">PLAYER</th><th>SCORE</th>` : `<th>#</th><th style="text-align:left">PLAYER</th><th>KILLS</th><th>DEATHS</th><th>STATUS</th>`;
+    const who = p => `<td class="tm" style="text-align:left">${head(p.name, "sm")}${esc(p.name)}</td>`;
+    const body = rows.map((p, i) => bb
+      ? `<tr class="${i === 0 && sc[p.name] != null ? "top" : ""}"><td class="num">${i + 1}</td>${who(p)}<td class="num">${sc[p.name] ?? "–"}</td></tr>`
+      : `<tr class="${i === 0 && p.kills ? "top" : ""}"><td class="num">${i + 1}</td>${who(p)}<td class="num">${p.kills}</td><td class="num">${p.deaths}</td><td>${p.alive ? "ALIVE" : "OUT"}</td></tr>`).join("");
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(title)}</div><div class="h-title" style="font-size:80px">${bb ? "SCORES" : "LEADERBOARD"}</div>
+      <table class="h-table" style="width:${bb ? 760 : 900}px"><thead><tr>${cols}</tr></thead><tbody>${body || `<tr><td colspan="5" style="text-align:center">NO PLAYERS YET</td></tr>`}</tbody></table></div>`, cams: [] };
+  }
+  function mcStatsPlayer(m) {
+    const d = mcData(m), cfg = d.cfg, bb = cfg.mode === "buildbattle", sc = (cfg.bb && cfg.bb.scores) || {};
+    const ranked = d.list.slice().sort((a, b) => (sc[b.name] ?? -1) - (sc[a.name] ?? -1));
+    const p = bb ? d.list.find(x => x.name === (cfg.bb && cfg.bb.judging)) || ranked[0] : d.list.find(x => x.name === cfg.spotlight) || d.list.slice().sort((a, b) => b.kills - a.kills)[0];
+    if (!p) return { html: `<div class="h-full"><div class="h-eyebrow">${esc(cfg.title || "MINECRAFT")}</div><div class="h-title" style="font-size:80px">NO PLAYERS YET</div></div>`, cams: [] };
+    const tiles = bb ? [[sc[p.name] ?? "–", "SCORE"], [ranked.findIndex(x => x.name === p.name) + 1, "RANK"]]
+      : [[p.kills, "KILLS"], [p.deaths, "DEATHS"], [p.health == null ? "–" : Math.round(p.health) / 2, "HEARTS"], [p.food == null ? "–" : p.food, "FOOD"], [p.alive ? "ALIVE" : "OUT", "STATUS"]];
+    return { html: `<div class="h-full"><div class="h-eyebrow">${bb ? "NOW JUDGING" : "PLAYER SPOTLIGHT"}</div><div class="h-ind" style="--c:var(--gold)">
+      <div class="pic" style="display:grid;place-items:center">${head(p.name, "huge")}</div>
+      <div class="info"><b>${esc(p.name)}</b><div class="grid">${tiles.map(([v, n]) => `<div><b class="num">${esc(v)}</b><small>${n}</small></div>`).join("")}</div></div></div></div>`, cams: [] };
+  }
+  function mcLineup(m) {
+    const d = mcData(m), title = d.cfg.mode === "buildbattle" ? "BUILD BATTLE" : d.cfg.title || "HUNGER GAMES";
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(title)}</div><div class="h-title" style="font-size:80px">PLAYERS</div>
+      <div class="mc-roster">${d.list.slice(0, 24).map(p => `<div>${head(p.name, "big")}<span>${esc(p.name)}</span></div>`).join("") || `<small style="color:#9a9ba3">NO PLAYERS YET</small>`}</div></div>`, cams: [] };
+  }
+  function mcStarting(m) {
+    const ev = m.ev, d = mcData(m), l = ev.live, bb = d.cfg.mode === "buildbattle", theme = bb && d.cfg.bb && d.cfg.bb.theme;
+    const strip = [d.cfg.title || (bb ? "BUILD BATTLE" : "HUNGER GAMES"), theme, d.list.length ? d.list.length + " PLAYERS" : ""].filter(Boolean).join("  ·  ");
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(l.seriesTitle || ev.tournament.name || ev.name)}</div><div class="h-title">STARTING SOON</div><div class="h-strip">${esc(strip)}</div></div>`, cams: [] };
+  }
+
+  /* ---- Riftbound ---- */
+  function rbSide(m, s) {
+    const rb = m.ev.rb || {};
+    return { name: (rb.names && rb.names[s]) || (m.sides[s] && m.sides[s].name) || "PLAYER " + (s + 1), legend: (rb.legends && rb.legends[s]) || "", col: (rb.colors && rb.colors[s]) || m.colors[s],
+      pts: (rb.points && rb.points[s]) || 0, games: (rb.games && rb.games[s]) || 0, played: (rb.log || []).filter(x => x.player === s).length, target: rb.target || 8 };
+  }
+  function rbPanel(x, full) {
+    const row = (n, v) => `<div class="p"><small>${n}</small><b class="num">${esc(v)}</b></div>`;
+    return `<div class="side" style="--c:${esc(x.col)}"><div class="tl"><span>${esc(x.name)}</span></div>${row("LEGEND", x.legend || "–")}${full ? row("POINTS", x.pts + " / " + x.target) + row("GAMES WON", x.games) + row("CARDS PLAYED", x.played) : ""}</div>`;
+  }
+  function rbStatsTeam(m) { const rb = m.ev.rb || {}; return { html: `<div class="h-full"><div class="h-eyebrow">${esc(rb.roundTitle || m.ev.live.seriesTitle || m.ev.name)}</div><div class="h-title" style="font-size:80px">MATCH STATS</div><div class="h-lineup">${rbPanel(rbSide(m, 0), true)}${rbPanel(rbSide(m, 1), true)}</div></div>`, cams: [] }; }
+  function rbStatsPlayer(m) { const rb = m.ev.rb || {}; return { html: `<div class="h-full"><div class="h-eyebrow">PLAYER SPOTLIGHT</div><div class="h-lineup">${rbPanel(rbSide(m, rb.active || 0), true)}</div></div>`, cams: [] }; }
+  function rbLineup(m) { return { html: `<div class="h-full"><div class="h-eyebrow">THE MATCH-UP</div><div class="h-lineup">${rbPanel(rbSide(m, 0), false)}${rbPanel(rbSide(m, 1), false)}</div></div>`, cams: [] }; }
+  function rbStarting(m) {
+    const ev = m.ev, rb = ev.rb || {}, a = rbSide(m, 0), b = rbSide(m, 1);
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}</div><div class="h-title">STARTING SOON</div>
+      <div class="h-vs"><div class="t"><b style="color:${esc(a.col)}">${esc(a.name)}</b><small>${esc(a.legend)}</small></div><div class="v">VS</div><div class="t"><b style="color:${esc(b.col)}">${esc(b.name)}</b><small>${esc(b.legend)}</small></div></div>
+      <div class="h-strip">${esc([rb.roundTitle, ev.live.gameSeries].filter(Boolean).join("  ·  ") || "RIFTBOUND")}</div></div>`, cams: [] };
+  }
+
+  /* ---- games read from the screen (Overwatch, Call of Duty, Valorant and the rest): team names, scores and the clock only ---- */
+  function genStatsTeam(m) {
+    const [L, R] = m.sides, ev = m.ev;
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}</div>
+      <div style="display:flex;align-items:center;gap:30px;font-size:52px">${lgBig(L)}<span class="num">${esc(L ? L.tag : "TEAM A")} ${m.score[0]} – ${m.score[1]} ${esc(R ? R.tag : "TEAM B")}</span>${lgBig(R)}</div>
+      <div class="h-eyebrow" style="font-size:22px">${esc(ev.live.gameSeries || "BEST OF " + ev.live.bestOf)}  ·  SERIES ${m.series[0]} – ${m.series[1]}</div></div>`, cams: [] };
+  }
+  function genStatsPlayer(m) {
+    return { html: `<div class="h-full"><div class="h-eyebrow">${noLive(m.ev.game)}</div><div class="h-title" style="font-size:80px">NO PLAYER STATS</div><div class="h-strip">SCORES AND THE CLOCK ARE READ FROM THE SCREEN</div></div>`, cams: [] };
+  }
+
+  /* each of these scenes keeps its Rocket League / League version and swaps in the game's own for the others */
+  const BASE = { statsteam: S.statsteam, statsplayer: S.statsplayer, lineup: S.lineup, starting: S.starting };
+  const SWAP = {
+    statsteam: { mc: mcStatsTeam, rb: rbStatsTeam, gen: genStatsTeam }, statsplayer: { mc: mcStatsPlayer, rb: rbStatsPlayer, gen: genStatsPlayer },
+    lineup: { mc: mcLineup, rb: rbLineup }, starting: { mc: mcStarting, rb: rbStarting },
+  };
+  for (const name of Object.keys(SWAP)) S[name] = m => (SWAP[name][m.kind] || BASE[name])(m);
+
   /* pick the scene: "auto" follows the dashboard, and the in-game HUD
      switches itself to Replay during goal replays and Team Stats on the podium */
   function resolveScene(ev, m, scene) {
     let s = scene === "auto" || !scene ? ev.hud.scene : scene;
     if (s === "ingame" && m.kind === "lol") return "lolingame";
+    if (s === "ingame" && m.kind === "gen") return "geningame";
     if (s === "ingame" && m.kind === "mc") return "mcingame";
     if (s === "ingame" && m.kind === "rb") return "rbingame";
     if (s === "ingame" && m.replay) s = "replay";
@@ -479,7 +578,10 @@
     return s === "auto" ? AUTO_FEED[ev && ev.game] || "ocr" : s === "demo" ? "demo:" + ev.id : s;
   }
 
-  const api = { SCENES, model, render, drawBg, esc, fmt, feedKey };
+  // the html a scene draws for an event and a live feed, without a page (used by the tests)
+  function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m).html; }
+
+  const api = { SCENES, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

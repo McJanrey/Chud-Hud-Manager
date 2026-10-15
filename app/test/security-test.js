@@ -27,7 +27,7 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
 
     const sb = (await (await fetch(base + "/api/state")).json()).db;
     check("each kit starts with a caster-seat count", ["Saints Default", "Saints Varsity", "Saints Gaming"].every(k => sb.settings.kits[k] && sb.settings.kits[k].seats >= 1 && sb.settings.kits[k].seats <= 5), JSON.stringify(sb.settings.kits));
-    check("every event has five seats to choose from", sb.events.every(e => e.camera.seats.length >= 5));
+    check("every event has eight caster seats to choose from", sb.events.every(e => e.camera.seats.length >= 8));
 
     // every event reads its own live feed and has its own links: nothing is "on air"
     const rlEv = sb.events.find(e => e.game === "Rocket League"), lolEv = sb.events.find(e => e.game === "League of Legends");

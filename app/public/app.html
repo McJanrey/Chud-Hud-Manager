@@ -125,6 +125,7 @@ code{font-family:var(--f-mono);font-size:12px;background:var(--field);border:1px
 .dz b{color:var(--fg);font-size:15px;font-weight:600}
 .dz input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .dz img{max-width:100%;max-height:140px;object-fit:contain}
+.dz svg{width:22px;height:22px;flex:none}.dz.mini svg{width:18px;height:18px}
 .dz .x{position:absolute;top:8px;right:8px;z-index:2}
 .dz.mini{min-height:48px;width:48px;padding:3px;border-radius:10px}
 .dz.mini img{max-height:40px}
@@ -179,7 +180,10 @@ const setL=(o,p,v)=>{const ks=String(p).split(".");const last=ks.pop();ks.reduce
 const fid=p=>"f-"+String(p).replace(/\./g,"-");
 const CLIENT=uid();
 const GAMES=["Rocket League","League of Legends","Overwatch 2","Call of Duty","Deadlock","Fortnite","Valorant","Counter-Strike 2","Minecraft","Riftbound"];
-const LIVE_FEED={"Rocket League":"Rocket League Stats API","League of Legends":"League Live Client Data API"};
+const LIVE_FEED={"Rocket League":"Rocket League Stats API","League of Legends":"League Live Client Data API","Minecraft":"your Minecraft server (RCON and the server log), with Screen OCR as a back-up","Riftbound":"nothing: you score it by hand on the Riftbound page"};
+const SRC_OPTS=g=>({"Rocket League":[["auto","Auto"],["ocr","Screen OCR"],["push","External"],["demo","Test match"]],"League of Legends":[["auto","Auto"],["ocr","Screen OCR"],["push","External"],["demo","Test match"]],
+  "Minecraft":[["auto","Auto"],["ocr","Screen OCR"],["push","External"]],"Riftbound":[]}[g]||[["auto","Auto"],["push","External"]]);
+const IGN_LABEL=g=>({"Rocket League":"Epic ID / IGN","League of Legends":"Riot ID (no #tag)","Minecraft":"Minecraft name"}[g]||"In-game name");
 const PLATFORMS=["X","Twitch","YouTube","Instagram","TikTok","Kick"];
 const COUNTRIES=[["","—"],["US","United States"],["CA","Canada"],["MX","Mexico"],["BR","Brazil"],["AR","Argentina"],["PE","Peru"],["CL","Chile"],["GB","United Kingdom"],["IE","Ireland"],["FR","France"],["DE","Germany"],["AT","Austria"],["CH","Switzerland"],["NL","Netherlands"],["BE","Belgium"],["ES","Spain"],["PT","Portugal"],["IT","Italy"],["PL","Poland"],["SE","Sweden"],["NO","Norway"],["DK","Denmark"],["FI","Finland"],["CZ","Czechia"],["TR","Turkey"],["SA","Saudi Arabia"],["AE","UAE"],["MA","Morocco"],["ZA","South Africa"],["JP","Japan"],["KR","South Korea"],["AU","Australia"],["NZ","New Zealand"],["IN","India"],["PH","Philippines"]];
 
@@ -188,7 +192,7 @@ const ui={cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null}; /
 const saveUi=()=>{}; // nothing is remembered between launches
 const ev=()=>DB&&DB.events.find(e=>e.id===ui.cur);
 const tm=(e,id)=>e.teams.find(t=>t.id===id);
-let E=null;
+let E=null,DRAG=false; // DRAG: a nameplate is being dragged, so the preview must not redraw under the pointer
 function G(){const e=ev();return e?FEEDS[SaintsHUD.feedKey(e)]||null:null} // the live feed this event reads
 let OUTS=null;fetch("/api/outputs").then(r=>r.json()).then(j=>{OUTS=j;if(ui.view==="outputs")render()}).catch(()=>{});
 
@@ -311,7 +315,7 @@ function home(){
 
 /* ---------- views ---------- */
 const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene picked in the HUD Editor.":"Preview of "+esc(SCENES[scene])+"."} <span data-bgnote></span></span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
-const kitSeats=e=>Math.max(1,Math.min(5,Math.round(+((DB.settings.kits||{})[e.kit]||{}).seats||{solo:1,duo:2,trio:3}[e.camera.layout]||2)));
+const kitSeats=e=>Math.max(1,Math.min(8,Math.round(+((DB.settings.kits||{})[e.kit]||{}).seats||{solo:1,duo:2,trio:3}[e.camera.layout]||2)));
 const overlayUrl=(s,e)=>`${location.origin}/overlay?scene=${s}&event=${(e||ev()).id}`; // every event has its own link
 const VIEWS={
 overview(e){
@@ -328,16 +332,11 @@ overview(e){
       <div class="row c nowrap">${(()=>{const c=DB.settings.brand&&DB.settings.brand.logo;return`<div class="dz mini" style="width:72px;min-height:72px"><img src="${esc(c||"/brand/saints-emblem.png")}" alt=""><input type="file" accept="image/*" id="brandLogo" data-upload="!settings.brand.logo" aria-label="Replace emblem"></div>${c?`<button class="btn sm" type="button" data-act="clearBrand">Use the St. Clair Saints emblem</button>`:`<span class="note">Using the St. Clair Saints 10 Years emblem. Click it to use a different image.</span>`}`})()}</div></div>
     <div class="sec"><div class="row c" style="justify-content:space-between"><p class="sub">Deleting removes this event, its teams, talent and graphics.</p><button class="btn danger" type="button" data-act="delEvent">${ico("trash")}Delete event</button></div></div>
   </div>
-  <div class="sec"><h2>Game data</h2>
-    <div class="box"><b>Real games, no setup in the app</b><p class="sub">The default source is <b>Auto</b>: Rocket League and League of Legends read their own live data. Every other game (Overwatch, Call of Duty, Deadlock, Fortnite, Valorant and more) is read from the screen with Screen OCR.</p></div>
-    <div class="box"><b>Rocket League (official Stats API)</b><p class="sub">On the game PC, edit <code>&lt;Install Dir&gt;\\TAGame\\Config\\TAStatsAPI.ini</code> (or <code>DefaultStatsAPI.ini</code>), set <code>PacketSendRate=30</code> under <code>[TAGame.MatchStatsExporter_TA]</code>, then restart the game and pick Rocket League in Live Game. Spectate the match so boost and the player cam data are sent.</p></div>
-    <div class="box"><b>League of Legends (Live Client Data API)</b><p class="sub">Nothing to configure. Run Saints HUD on the PC that is playing, spectating or watching a replay, and data flows once the match loads: kills, deaths, assists, CS, levels, respawn timers, towers, dragons and barons. Replay controls (play, pause, speed, seek) need the Replay API switched on: Live Game has a button for it.</p></div>
-    <div class="box"><b>Other trackers</b><p class="sub">Any program can send Stats API–shaped JSON to <code class="mono">${esc(location.origin)}/api/ingest</code>, e.g. <code>{"Event":"UpdateState","Data":{…}}</code>, with the source set to External.</p></div>
-  </div></div>`;
+  <div class="sec"><h2>Game data</h2>${gameData(e)}</div></div>`;
 },
 hud(e){
   const h=e.hud,inGame=h.scene==="ingame"; // boost lists, lane panel, League timers and icons only matter for the in-game scene
-  return`${!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?`<div class="banner">Scenes for ${esc(e.game)} use the Rocket League layout for now.</div>`:""}
+  return`${!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?`<div class="banner">${esc(e.game)} has no live player data. Scenes show team names, scores and the clock read from the screen with Screen OCR.</div>`:""}
   ${inGame&&e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
   <div class="row" style="gap:24px">
     <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene shown",Object.entries(SCENES),"data-rerender")}</div>
@@ -347,8 +346,9 @@ hud(e){
     ${inGame?`<div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>`:""}
     ${inGame&&h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
-  ${inGame&&!["Minecraft","Riftbound"].includes(e.game)?`<div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
+  ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div>
   ${e.game==="League of Legends"?lolSettings(e):""}`:""}
+  ${h.scene==="casters"?castersPanel(e):""}
   ${stage()}`;
 },
 teams(e){
@@ -366,7 +366,7 @@ teams(e){
     <div class="sec"><div><h2>Team logo</h2><p class="sub">Upload your team's primary, secondary and tertiary logos. The HUD uses the primary.</p></div>
       <div class="cols" style="--n:3">${["Primary","Secondary","Tertiary"].map((l,j)=>F.dz(`${P}.logos.${j}`,l)).join("")}</div></div>
     <div class="sec"><div class="sechead"><div><h2>Team members</h2><p class="sub">The in-game name must match the IGN exactly for auto team tracking.</p></div><button class="btn" type="button" data-act="addPlayer">+ Add player</button></div>
-      <div class="tw"><table class="grid"><thead><tr><th style="width:60px">Avatar</th><th>Epic ID / IGN *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source URL</th><th style="width:44px"></th></tr></thead><tbody>
+      <div class="tw"><table class="grid"><thead><tr><th style="width:60px">Avatar</th><th>${IGN_LABEL(e.game)} *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source URL</th><th style="width:44px"></th></tr></thead><tbody>
       ${t.players.map((p,j)=>`<tr><td>${F.dz(`${P}.players.${j}.avatar`,"Avatar","mini")}</td><td>${F.text(`${P}.players.${j}.ign`,"","In-game name")}</td><td>${F.text(`${P}.players.${j}.alias`,"","Alias")}</td><td>${F.sel(`${P}.players.${j}.country`,"",COUNTRIES)}</td><td>${F.text(`${P}.players.${j}.cam`,"","https://vdo.ninja/?view=…")}</td><td><button class="btn icon" type="button" data-act="delPlayer" data-arg="${j}" aria-label="Remove player">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="6" class="sub" style="padding:16px">No players yet.</td></tr>`}
       </tbody></table></div></div>`:`<p class="sub">Add your first team to start building the roster.</p>`}</div></div>`;
 },
@@ -390,10 +390,11 @@ talent(e){
   :`<p class="sub">Add casters, hosts and observers.</p>`}</div></div>`;
 },
 live(e){
+  const teamed=!["Minecraft","Riftbound"].includes(e.game); // Minecraft and Riftbound are scored on their own pages: no teams, scoreline or series here
   const l=e.live,pick=e.source||"auto",src=(G()&&G().source)||(pick==="auto"?({"Rocket League":"rl","League of Legends":"lol","Minecraft":"mc","Riftbound":"manual"}[e.game]||"ocr"):pick);
   return`<div class="split"><div class="sec" style="gap:24px">
     <div class="sec"><div class="sechead"><h2>Data source</h2><span class="pill" id="srcPill">…</span></div>
-      <div class="seg">${[["auto","Auto"],["rl","Rocket League"],["lol","League of Legends"],["ocr","Screen OCR"],["push","External"],["demo","Test match"]].map(([k,n])=>`<button type="button" data-act="source" data-arg="${k}" aria-pressed="${pick===k}">${n}</button>`).join("")}</div>
+      ${SRC_OPTS(e.game).length>1?`<div class="seg">${SRC_OPTS(e.game).map(([k,n])=>`<button type="button" data-act="source" data-arg="${k}" aria-pressed="${pick===k}">${n}</button>`).join("")}</div>`:""}
       ${pick==="auto"?`<p class="note">Auto reads the real game for this event: ${esc(LIVE_FEED[e.game]||"screen OCR (this game has no live data feed)")}.</p>`:""}
       ${src==="lol"?`<p class="note">Reads Riot's Live Client Data API on this PC. It works for live games, spectating and replays. Name roster IGNs exactly like the in-game Riot ID (without the #tag) for auto team tracking.</p><div id="replayPanel"></div>`
       :src==="mc"?`<p class="note">Reads your Minecraft server (RCON and the server log), and Screen OCR can add the clock and border. Set the server up on the Minecraft page.</p><div class="row c"><button class="btn sm blue" type="button" data-act="nav" data-arg="mc">Open Minecraft</button></div>`
@@ -405,18 +406,18 @@ live(e){
       :src==="demo"?`<div class="banner">Test match: simulated data for checking your layout. Nothing here comes from a real game. Switch back to Auto to go live.</div><div class="row c"><button class="btn sm" type="button" data-act="demoReset">Restart test match</button><button class="btn sm" type="button" data-act="demoPause">Pause / resume</button></div>`
       :`<p class="note">Waiting for JSON at <code>${esc(location.origin)}/api/ingest</code>. See Overview for the format.</p>`}
       <div class="plist" id="plist"></div></div>
-    <div class="sec"><div class="sechead"><h2>Teams</h2><span class="row c">${F.sw("live.autoTeams","Auto")}<button class="btn icon" type="button" data-act="swap" aria-label="Swap sides">${ico("swap")}</button></span></div>
-      <div class="row nowrap">${F.sel("live.left","Left team (blue)",teamOpts(e))}${F.sel("live.right","Right team (orange)",teamOpts(e))}</div>
+    ${teamed?`<div class="sec"><div class="sechead"><h2>Teams</h2><span class="row c">${F.sw("live.autoTeams","Auto")}<button class="btn icon" type="button" data-act="swap" aria-label="Swap sides">${ico("swap")}</button></span></div>
+      <div class="row nowrap">${F.sel("live.left",e.game==="League of Legends"?"Left team (blue side)":"Left team",teamOpts(e))}${F.sel("live.right",e.game==="League of Legends"?"Right team (red side)":"Right team",teamOpts(e))}</div>
       <div class="row nowrap" id="trackRow"></div></div>
     <div class="sec"><div class="sechead"><h2>Scoreline</h2>${F.sw("live.autoScore","Auto")}</div>
-      <p class="note">With Auto on, goals come from the game. Turn it off to set the score by hand.</p>
-      <div class="row c" style="justify-content:space-between">${F.step("live.score.0")}<b>VS</b>${F.step("live.score.1")}</div></div>
+      <p class="note">With Auto on, the score comes from the game. Turn it off to set the score by hand.</p>
+      <div class="row c" style="justify-content:space-between">${F.step("live.score.0")}<b>VS</b>${F.step("live.score.1")}</div></div>`:""}
     <div class="sec"><h2>Information</h2><div class="cols">${F.text("live.seriesTitle","Series title","NACE VARSITY")}${F.text("live.eventTitle","Event title","SCC vs WVWC")}${F.text("live.roundTitle","Round title","e.g. Lower finals")}${F.text("live.gameSeries","Game series","BEST OF 5")}</div></div>
   </div>
   <div class="sec" style="gap:24px">
-    <div class="sec"><div class="sechead"><h2>Series score</h2>${F.sw("live.autoSeries","Auto")}</div>
+    ${teamed?`<div class="sec"><div class="sechead"><h2>Series score</h2>${F.sw("live.autoSeries","Auto")}</div>
       <div class="row c" style="justify-content:space-between"><div style="width:110px">${F.sel("live.bestOf","",[[1,"BO1"],[3,"BO3"],[5,"BO5"],[7,"BO7"]],"data-num")}</div><span class="row c">${F.step("live.series.0")}<span class="sub">to</span>${F.step("live.series.1")}</span><button class="btn sm" type="button" data-act="resetSeries">Reset series</button></div>
-      <p class="note">With Auto on, each match the game reports as finished adds a game win.</p></div>
+      <p class="note">With Auto on, each match the game reports as finished adds a game win.</p></div>`:""}
     <div class="sec"><div class="sechead"><h2>Final preview</h2><div style="width:240px">${F.sel("hud.scene","",Object.entries(SCENES))}</div></div>${stage()}</div>
   </div></div>`;
 },
@@ -447,7 +448,7 @@ camera(e){
   const n=kitSeats(e);
   const opts=[["","Empty seat"],...e.talent.map(t=>[t.id,`${t.name} · ${t.role}`])];
   return`<div class="split"><div class="sec"><div><h2>Caster nameplates</h2><p class="sub">Pick who sits on the desk. Add a camera link (VDO.Ninja, OBS.Ninja or any web camera page) to show live video; otherwise the portrait is used.</p></div>
-    <div class="fld"><span>Seats in the ${esc(e.kit)} kit</span><div class="seg">${[[1,"Solo"],[2,"Duo"],[3,"Trio"],[4,"Quad"],[5,"Five"]].map(([k,l])=>`<button type="button" data-act="kitSeats" data-arg="${k}" aria-pressed="${n===k}">${l}</button>`).join("")}</div>
+    <div class="fld"><span>Seats in the ${esc(e.kit)} kit</span><div class="seg">${[[1,"Solo"],[2,"Duo"],[3,"Trio"],[4,"Quad"],[5,"Five"],[6,"Six"],[7,"Seven"],[8,"Eight"]].map(([k,l])=>`<button type="button" data-act="kitSeats" data-arg="${k}" aria-pressed="${n===k}">${l}</button>`).join("")}</div>
       <span class="note">The seat count belongs to the kit, so every event using ${esc(e.kit)} shares it. Who sits in each seat, and their camera link, are set per event below.</span></div>
     ${Array.from({length:n},(_,i)=>`<div class="box"><b>Seat ${i+1}</b>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.url`,"Camera link","https://vdo.ninja/?view=…")}</div>`).join("")}
   </div><div class="sec">${stage("casters")}</div></div>`;
@@ -476,11 +477,28 @@ bracket(e){
   <div class="sec">${stage("bracket")}</div>`;
 },
 standings(e){
-  return`<div class="sec"><div class="sechead"><div><h2>Rankings</h2><p class="sub">Sorted by wins, then losses, then goal difference. The top ten show on screen.</p></div><button class="btn" type="button" data-act="addStanding">+ Add team</button></div>
-  <div class="tw"><table class="grid" style="min-width:560px"><thead><tr><th>Team</th><th style="width:90px">Wins</th><th style="width:90px">Losses</th><th style="width:110px">Goal diff</th><th style="width:44px"></th></tr></thead><tbody>
+  return`<div class="sec"><div class="sechead"><div><h2>Rankings</h2><p class="sub">Sorted by wins, then losses, then the difference column. The top ten show on screen.</p></div><button class="btn" type="button" data-act="addStanding">+ Add team</button></div>
+  <div class="tw"><table class="grid" style="min-width:560px"><thead><tr><th>Team</th><th style="width:90px">Wins</th><th style="width:90px">Losses</th><th style="width:110px">${esc(SaintsHUD.gdLabel(e.game))}</th><th style="width:44px"></th></tr></thead><tbody>
   ${e.standings.map((r,i)=>`<tr><td>${F.sel(`standings.${i}.team`,"",teamOpts(e))}</td><td>${F.num(`standings.${i}.w`,"")}</td><td>${F.num(`standings.${i}.l`,"")}</td><td>${F.num(`standings.${i}.gd`,"")}</td><td><button class="btn icon" type="button" data-act="delStanding" data-arg="${i}" aria-label="Remove row">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="5" class="sub" style="padding:16px">No rows yet.</td></tr>`}
   </tbody></table></div></div><div class="sec">${stage("rankings")}</div>`;
 }};
+/* what this game reads from, and how to set it up */
+function gameData(e){
+  const box=(t,b)=>`<div class="box"><b>${t}</b><p class="sub">${b}</p></div>`,g=e.game;
+  const other=box("Other trackers",`Any program can send Stats API–shaped JSON to <code class="mono">${esc(location.origin)}/api/ingest</code>, for example <code>{"Event":"UpdateState","Data":{…}}</code>, with this event's source set to External on Live Game.`);
+  if(g==="Rocket League")return box("Rocket League (official Stats API)",`On the game PC, edit <code>&lt;Install Dir&gt;/TAGame/Config/TAStatsAPI.ini</code> (or <code>DefaultStatsAPI.ini</code>), set <code>PacketSendRate=30</code> under <code>[TAGame.MatchStatsExporter_TA]</code>, then restart the game. Spectate the match so boost and the player card are sent.`)+other;
+  if(g==="League of Legends")return box("League of Legends (Live Client Data API)","Nothing to configure. Run Saints HUD on the PC that is playing, spectating or watching a replay, and data flows once the match loads: kills, deaths, assists, CS, levels, respawn timers, towers, dragons and barons. Replay controls need the Replay API switched on: Live Game has a button for it.")+other;
+  if(g==="Minecraft")return box("Minecraft (Java server)","Connect your server on the Minecraft page: RCON for who is online, health and the border, and the server log for kills and deaths. With no server, Screen OCR can read the alive count, kills, clock and border from the screen.")+other;
+  if(g==="Riftbound")return box("Riftbound","There is no live data feed. You score the match by hand on the Riftbound page: points, games, turns, the clock and the cards in play.");
+  return box(esc(g)+" (screen reading)","${esc(g)} has no live data feed, so scores, the clock and team names are read from the screen with Screen OCR. Pick the game's window on the Screen OCR page and draw a box around each value.".replace("${esc(g)}",esc(g)))+other;
+}
+/* ---------- caster nameplates ---------- */
+function castersPanel(e){
+  const n=kitSeats(e),opts=[["","Open seat"],...e.talent.map(t=>[t.id,`${t.name} · ${t.role}`])];
+  return`<div class="sec"><div class="sechead"><div><h2>Caster nameplates</h2><p class="sub">Drag a nameplate in the preview to put it anywhere. The number of casters belongs to the ${esc(e.kit)} kit, so every event using it shares the count.</p></div>
+    <span class="row c"><span class="note">${n} caster${n===1?"":"s"} shown</span><button class="btn" type="button" data-act="addCaster"${n>=8?" disabled":""}>+ Add caster</button><button class="btn sm" type="button" data-act="resetCasterPos">Reset positions</button></span></div>
+    <div class="cols" style="--n:2">${Array.from({length:n},(_,i)=>`<div class="box"><div class="row c" style="justify-content:space-between"><b>Caster ${i+1}</b>${n>1?`<button class="btn icon" type="button" data-act="rmCaster" data-arg="${i}" aria-label="Remove caster ${i+1}">${ico("trash")}</button>`:""}</div>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.role`,"Role or title (optional)","Caster")}</div>`).join("")}</div></div>`;
+}
 /* ---------- Minecraft and Riftbound ---------- */
 const NAMERE=/^[A-Za-z0-9_]{3,16}$/;
 const roster=e=>[...new Set(e.teams.flatMap(t=>t.players.map(p=>p.ign)).filter(Boolean))];
@@ -561,6 +579,7 @@ function talentList(e){const q=ui.talentq.toLowerCase();return e.talent.map((t,i
 const ro=new ResizeObserver(es=>es.forEach(x=>{const h=x.target.querySelector(".hud");if(h)h.style.transform=`scale(${x.target.clientWidth/1280})`}));
 function mountStages(){$$("[data-stage]").forEach(st=>{st.innerHTML=`<canvas aria-hidden="true"></canvas><div class="hud"></div>`;ro.observe(st)});updateStages(true)}
 function updateStages(redraw){
+  if(DRAG)return;
   const e=ev();if(!e)return;
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
     const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
@@ -682,6 +701,10 @@ document.addEventListener("click",async ev0=>{
     case "pause":api("/api/rl",{Command:"SetMatchPaused",Data:{bPaused:!(G()&&G().paused)}});return;
     case "demoReset":api("/api/demo/reset",{event:e.id});return;
     case "demoPause":api("/api/demo/pause",{event:e.id});return;
+    case "addCaster":{const n=Math.min(8,kitSeats(e)+1);DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:n};put(`settings.kits.${e.kit}`,{seats:n},false);break}
+    case "rmCaster":{const n=Math.max(1,kitSeats(e)-1),seats=e.camera.seats.slice();seats.splice(+arg,1);seats.push({talent:"",url:"",role:""});
+      DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:n};put("camera.seats",seats);put(`settings.kits.${e.kit}`,{seats:n},false);break}
+    case "resetCasterPos":put("camera.seats",e.camera.seats.map(s=>{const c=Object.assign({},s);delete c.x;delete c.y;return c}));break;
     case "kitSeats":{DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:+arg};put(`settings.kits.${e.kit}`,{seats:+arg},false);break;}
     case "timer":{const t=Object.assign({},e.timer);
       if(arg==="start"){if(t.endsAt){t.remaining=Math.max(0,Math.round((t.endsAt-Date.now())/1000));t.endsAt=0}else t.endsAt=Date.now()+t.remaining*1000}
@@ -816,6 +839,15 @@ function ocrLive(){
   $$("[data-rawof]").forEach(td=>{const r=(o.readings||{})[td.dataset.rawof];td.textContent=r?(r.error?"error":(r.raw||"(blank)")):"—"});
   $$("[data-valof]").forEach(td=>{const r=(o.readings||{})[td.dataset.valof];td.textContent=r&&r.value!=null?(r.key==="clock"?SaintsHUD.fmt(r.value):r.value):"—";td.className="read "+(r&&r.ok?"ok":"bad")});
 }
+/* drag a caster nameplate anywhere on the preview */
+document.addEventListener("pointerdown",ev0=>{
+  const np=ev0.target.closest(".np"),st=np&&np.closest("[data-stage]"),e=ev();if(!np||!st||!e)return;
+  const i=+np.dataset.i,k=st.clientWidth/1280,x0=parseFloat(np.style.left),y0=parseFloat(np.style.top),sx=ev0.clientX,sy=ev0.clientY;
+  DRAG=true;np.setPointerCapture(ev0.pointerId);ev0.preventDefault();
+  const move=m=>{const x=Math.max(0,Math.min(1280-np.offsetWidth,Math.round(x0+(m.clientX-sx)/k))),y=Math.max(0,Math.min(720-np.offsetHeight,Math.round(y0+(m.clientY-sy)/k)));np.style.left=x+"px";np.style.top=y+"px";np.dataset.x=x;np.dataset.y=y};
+  const up=()=>{np.removeEventListener("pointermove",move);np.removeEventListener("pointerup",up);DRAG=false;if(np.dataset.x!=null){put(`camera.seats.${i}.x`,+np.dataset.x);put(`camera.seats.${i}.y`,+np.dataset.y)}};
+  np.addEventListener("pointermove",move);np.addEventListener("pointerup",up);
+});
 document.addEventListener("pointerdown",ev0=>{
   const box=ev0.target.closest("#ocrBoxes");if(!box)return;
   const rect=box.getBoundingClientRect(),c=ocrCfg(),cl=v=>Math.max(0,Math.min(1,v)),rel=(x,y)=>[(x-rect.left)/rect.width,(y-rect.top)/rect.height];

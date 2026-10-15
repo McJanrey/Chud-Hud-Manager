@@ -39,7 +39,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     talent: [],
     live: { left: "", right: "", swap: false, autoTeams: true, autoScore: true, autoSeries: true, score: [0, 0], bestOf: 5,
       series: [0, 0], seriesTitle: "", eventTitle: "", roundTitle: "", gameSeries: "BEST OF 5" },
-    camera: { layout: "duo", seats: Array.from({ length: 5 }, () => ({ talent: "", url: "" })) }, // how many seats show is decided by the kit (settings.kits)
+    camera: { layout: "duo", seats: Array.from({ length: 8 }, () => ({ talent: "", url: "", role: "" })) }, // how many seats show is decided by the kit (settings.kits)
     schedule: [],
     bracket: { rounds: [
       { name: "Quarterfinals", matches: Array.from({ length: 4 }, () => ({ a: "", b: "", sa: "", sb: "" })) },
@@ -61,7 +61,7 @@ function upgrade(ev) {
   const d = newEvent(ev.name);
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
-  while (ev.camera.seats.length < 5) ev.camera.seats.push({ talent: "", url: "" }); // older events kept three seats
+  while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
   ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
   if (!ev.source) ev.source = "auto";
   if (typeof ev.kit === "string" && ev.kit.startsWith("Squish ")) ev.kit = "Saints " + ev.kit.slice(7); // events saved before the rename
@@ -77,8 +77,12 @@ const SQUAD = { "League of Legends": 5, "Rocket League": 3 };
 const seatPlayers = (ev, n) => ev.teams.forEach(t => { while (t.players.length < n) t.players.push({ id: uid(), ign: "", alias: "", country: "", avatar: "", cam: "" }); });
 function freshEvent(game, name = "New Event") {
   const ev = newEvent(name, game);
-  const A = blankTeam("Blue Side", "BLU", "#2f7dff"), B = blankTeam("Orange Side", "ORG", "#ff9b1a");
-  ev.teams = [A, B]; Object.assign(ev.live, { left: A.id, right: B.id });
+  // Blue and Orange are Rocket League's sides (and League has blue and red); every other game starts with names that fit it
+  const NAMES = { "Rocket League": ["Blue Side", "BLU", "Orange Side", "ORG"], "League of Legends": ["Blue Side", "BLU", "Orange Side", "ORG"], "Riftbound": ["Player 1", "P1", "Player 2", "P2"] };
+  const [an, at, bn, bt] = NAMES[game] || ["Team A", "TMA", "Team B", "TMB"];
+  const A = blankTeam(an, at, "#2f7dff"), B = blankTeam(bn, bt, "#ff9b1a");
+  ev.teams = game === "Minecraft" ? [blankTeam("Players", "PLR", "#1d8a4a", "#f2b51c")] : [A, B]; // Minecraft has players, not two sides
+  Object.assign(ev.live, { left: ev.teams[0].id, right: ev.teams[1] ? ev.teams[1].id : "" });
   if (game === "League of Legends") { B.name = "Red Side"; B.tag = "RED"; B.color = "#e84057"; ev.hud.colorMode = "custom"; ev.hud.custom = ["#3a8dff", "#e84057"]; }
   if (SQUAD[game]) seatPlayers(ev, SQUAD[game]);
   return upgrade(ev);

@@ -468,3 +468,18 @@
 .pc.r span{text-align:right}
 .l2-buffs.pc{left:166px}.l2-buffs.pc.r{left:auto;right:166px}
 .h-cams.many .h-cam .h-plate .bar{background:var(--gold)}
+
+/* caster nameplates */
+.np{position:absolute;width:max-content;min-width:210px}
+.np .sh{position:absolute;inset:0;transform:translate(12px,9px);background:#FDC82F;clip-path:polygon(0 0,calc(100% - 24px) 0,100% 100%,0 100%)}
+.np .bd{position:relative;display:flex;flex-direction:column;gap:3px;padding:9px 50px 8px 20px;background:linear-gradient(110deg,#033a1f,#02281a);border-left:9px solid #FDC82F;clip-path:polygon(0 0,calc(100% - 24px) 0,100% 100%,0 100%);box-shadow:inset 0 0 0 1px rgba(253,200,47,.35)}
+.np b{font-size:31px;line-height:.9;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.np small{font-size:13px;letter-spacing:.14em;color:#FDC82F;font-weight:700;white-space:nowrap}
+[data-stage] .np{cursor:grab;pointer-events:auto}
+[data-stage] .np:active{cursor:grabbing}
+.hud .cams{pointer-events:none}.hud .cams iframe{pointer-events:auto}
+.hd.huge{--hs:240px}
+.mc-roster{display:grid;grid-template-columns:repeat(6,150px);gap:14px;justify-content:center}
+.mc-roster div{display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(8,36,25,.92);padding:12px 6px 8px;font-size:20px;min-width:0}
+.mc-roster span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-lineup .tl{font-size:44px;padding-bottom:6px;border-bottom:5px solid var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
