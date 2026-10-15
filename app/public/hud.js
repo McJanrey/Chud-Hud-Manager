@@ -471,7 +471,15 @@
     vignette(.5);
   }
 
-  const api = { SCENES, model, render, drawBg, esc, fmt };
+  /* Which live feed an event reads: its own game's feed unless its Live Game page picked another source. The server and the
+     pages share this, so they always agree. "demo:<id>" is that event's own test match; "manual" has no feed (Riftbound). */
+  const AUTO_FEED = { "Rocket League": "rl", "League of Legends": "lol", "Minecraft": "mc", "Riftbound": "manual" };
+  function feedKey(ev) {
+    const s = (ev && ev.source) || "auto";
+    return s === "auto" ? AUTO_FEED[ev && ev.game] || "ocr" : s === "demo" ? "demo:" + ev.id : s;
+  }
+
+  const api = { SCENES, model, render, drawBg, esc, fmt, feedKey };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

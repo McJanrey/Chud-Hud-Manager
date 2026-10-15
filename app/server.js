@@ -31,7 +31,7 @@ const talent = (name, role, socials = []) => ({ id: uid(), name, role, portrait:
 
 function newEvent(name, game = "Rocket League", organiser = "") {
   return {
-    id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(),
+    id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(), source: "auto", // source: which live feed the event reads (auto = its game's own)
     hud: { scene: "ingame", colorMode: "team", custom: ["#2f7dff", "#ff9b1a"], bg: "pitch", autoBoard: true,
       show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false } },
     teams: [],
@@ -63,6 +63,7 @@ function upgrade(ev) {
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
   while (ev.camera.seats.length < 5) ev.camera.seats.push({ talent: "", url: "" }); // older events kept three seats
   ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
+  if (!ev.source) ev.source = "auto";
   if (typeof ev.kit === "string" && ev.kit.startsWith("Squish ")) ev.kit = "Saints " + ev.kit.slice(7); // events saved before the rename
   if (!ev.hud.lolPanel || ev.hud.lolPanel === "auto") ev.hud.lolPanel = "lane"; // the teamfight strip is a manual switch
   if (ev.game === "League of Legends") ev.lol = require("./league.js").merge(require("./league.js").DEFAULTS, ev.lol || {}); // every League setting has a visible value
@@ -127,6 +128,15 @@ if (!DB || !Array.isArray(DB.events)) DB = seed();
 DB.settings = Object.assign({ source: "auto" }, DB.settings);
 if (!DB.settings.v) { DB.settings.v = 2; if (DB.settings.source === "demo") DB.settings.source = "auto"; } // the demo is no longer the default
 DB.events.forEach(upgrade);
+// The data source used to be one setting for the whole workspace (and only the on-air event used it). Now every event has its own:
+// a test match, screen reading or external feed set before stays with the event that was on air; League or Rocket League sources
+// are what Auto already does for the matching game.
+if (!DB.settings.perEventSource) {
+  DB.settings.perEventSource = true;
+  const first = DB.events.find(e => e.id === DB.onAir) || DB.events[0];
+  if (first && ["demo", "ocr", "push"].includes(DB.settings.source)) first.source = DB.settings.source;
+  DB.settings.source = "auto";
+}
 // Ready-made events for Minecraft (Hunger Games and Build Battle) and Riftbound, added once to a saved workspace that has none.
 if (!DB.settings.extraEvents) {
   DB.settings.extraEvents = true;
@@ -172,25 +182,26 @@ function save() {
 const onAirEvent = () => DB.events.find(e => e.id === DB.onAir) || DB.events[0];
 
 /* ------------------------------------------------------- live game state */
-// "auto" follows the on-air event's game; games without a live feed fall back to screen OCR.
-let activeSource = "";
-const AUTO_SOURCE = { "Rocket League": "rl", "League of Legends": "lol", "Minecraft": "mc", "Riftbound": "manual" };
-function resolveSource() {
-  const s = DB.settings.source;
-  if (s !== "auto") return s;
-  const ev = onAirEvent();
-  return AUTO_SOURCE[ev && ev.game] || "ocr";
-}
-const blankGame = () => ({
+// Every kind of live source runs at once, one feed each: Rocket League, League, Minecraft, screen OCR, the external feed and one
+// test match per event. An event reads the feed of its own game (or the source picked on its Live Game page), so any number of
+// events can be live together, each with its own overlay link.
+const HUD = require("./public/hud.js");
+const blankGame = (key = "") => ({
   kind: "rl", lol: null, ocr: null, mc: null, mcOcr: null, scoreLive: false, clockLive: false,
-  source: activeSource, connected: false, inMatch: false, lastPacket: 0, matchGuid: "", arena: "",
+  source: String(key).split(":")[0], connected: false, inMatch: false, lastPacket: 0, matchGuid: "", arena: "",
   teams: [{ name: "Blue", score: 0, color: "" }, { name: "Orange", score: 0, color: "" }],
   time: 300, overtime: false, replay: false, paused: false, podium: false, hasWinner: false, winner: -1,
   target: null, players: [], feed: [], lastGoal: null,
 });
-let game = blankGame();
-let gameDirty = true;
-const touch = () => { gameDirty = true; };
+const feeds = new Map(); // key -> { game, dirty, lolLast, demo, lolDemo }
+let game = blankGame(), curKey = ""; // `game` is the feed the running handler is updating (set by inFeed)
+const feedOf = key => { let f = feeds.get(key); if (!f) { f = { game: blankGame(key), dirty: true, lolLast: -1, demo: null, lolDemo: null }; feeds.set(key, f); } return f; };
+function inFeed(key, fn) { const pg = game, pk = curKey, f = feedOf(key); game = f.game; curKey = key; try { return fn(f); } finally { game = pg; curKey = pk; } }
+const touch = () => { const f = feeds.get(curKey); if (f) f.dirty = true; };
+const feedKeyOf = ev => HUD.feedKey(ev);
+const usedKeys = () => new Set(DB.events.map(feedKeyOf));
+const eventForFeed = key => DB.events.find(e => feedKeyOf(e) === key);
+const low = s => String(s || "").toLowerCase().trim();
 
 function pushFeed(item) {
   game.feed.push(Object.assign({ id: uid(), t: Date.now() }, item));
@@ -198,13 +209,20 @@ function pushFeed(item) {
 }
 const who = p => p ? { name: p.Name || "", team: p.TeamNum ?? -1, shortcut: p.Shortcut ?? 0 } : null;
 
+// A finished match adds a game win to every event on this feed whose roster played it.
 function onMatchEnded(winnerTeamNum) {
-  const ev = onAirEvent();
-  if (!ev || !ev.live.autoSeries || winnerTeamNum < 0) return;
-  const side = ev.live.swap ? 1 - winnerTeamNum : winnerTeamNum;
-  ev.live.series[side] = Math.min(9, (ev.live.series[side] || 0) + 1);
-  save(); broadcastDb("server");
-  notice(`Series updated: ${ev.live.series[0]}–${ev.live.series[1]}`);
+  if (winnerTeamNum < 0) return;
+  const names = new Set(game.players.map(p => low(p.name)));
+  let changed = false;
+  for (const ev of DB.events) {
+    if (feedKeyOf(ev) !== curKey || !ev.live.autoSeries) continue;
+    const roster = ev.teams.flatMap(t => t.players.map(p => low(p.ign))).filter(Boolean);
+    if (roster.length && names.size && !roster.some(n => names.has(n))) continue; // a different match on the same game
+    const side = ev.live.swap ? 1 - winnerTeamNum : winnerTeamNum;
+    ev.live.series[side] = Math.min(9, (ev.live.series[side] || 0) + 1);
+    changed = true; notice(`${ev.name}: series ${ev.live.series[0]}–${ev.live.series[1]}`);
+  }
+  if (changed) { save(); broadcastDb("server"); }
 }
 
 // Rocket League Stats API message handler (also used by /api/ingest and the demo feed)
@@ -298,25 +316,26 @@ function makeSplitter(onObject) {
   };
 }
 
-let rlSock = null, rlTimer = null, rlWarned = false;
+let rlSock = null, rlTimer = null, rlWarned = false, rlOn = false;
 function connectRL() {
   clearTimeout(rlTimer);
-  if (activeSource !== "rl") return;
+  if (!rlOn) return;
   const sock = net.connect({ host: RL_HOST, port: RL_PORT });
   rlSock = sock;
   sock.setEncoding("utf8");
-  sock.on("connect", () => { rlWarned = false; game.connected = true; touch(); log(`Connected to Rocket League Stats API on ${RL_HOST}:${RL_PORT}`); });
-  sock.on("data", makeSplitter(handleMessage));
+  sock.on("connect", () => { rlWarned = false; inFeed("rl", () => { game.connected = true; touch(); }); log(`Connected to Rocket League Stats API on ${RL_HOST}:${RL_PORT}`); });
+  sock.on("data", makeSplitter(m => inFeed("rl", () => handleMessage(m))));
   sock.on("error", err => {
     if (!rlWarned) { rlWarned = true; log(`Waiting for Rocket League on ${RL_HOST}:${RL_PORT} (${err.code || err.message}). Is the game running with the Stats API enabled?`); }
   });
   sock.on("close", () => {
-    if (rlSock === sock) { rlSock = null; game.connected = false; touch(); }
-    if (activeSource === "rl") rlTimer = setTimeout(connectRL, 2000);
+    if (rlSock === sock) { rlSock = null; inFeed("rl", () => { game.connected = false; touch(); }); }
+    if (rlOn) rlTimer = setTimeout(connectRL, 2000);
   });
 }
 function sendRL(cmd) {
-  if (!rlSock || !game.connected) return false;
+  const f = feeds.get("rl");
+  if (!rlSock || !f || !f.game.connected) return false;
   rlSock.write(JSON.stringify(cmd));
   return true;
 }
@@ -328,13 +347,13 @@ const LOL_HOST = process.env.LOL_HOST || "127.0.0.1";
 const league = require("./league.js");
 const dd = league.createDDragon(path.join(DATA, "ddragon_cache.json"), log); // item prices and the patch version for icons
 
-let lolLastEvent = -1, lolTimer = null, lolWarned = false;
+let lolTimer = null, lolWarned = false, lolOn = false;
 const lolName = p => p.riotIdGameName || (p.riotId || "").split("#")[0] || p.summonerName || "";
 
 function handleLoL(d) {
-  const players = d.allPlayers || [];
+  const players = d.allPlayers || [], F = feedOf(curKey);
   game.kind = "lol"; game.inMatch = true; game.connected = true; game.lastPacket = Date.now();
-  const lol = league.build(d, (onAirEvent() || {}).lol, dd); // objectives, timers, gold
+  const lol = league.build(d, (eventForFeed(curKey) || {}).lol, dd); // objectives, timers, gold
   game.players = players.map((p, i) => {
     const s = p.scores || {};
     return { name: lolName(p), id: p.riotId || p.summonerName || "", team: p.team === "CHAOS" ? 1 : 0, shortcut: i + 1,
@@ -356,10 +375,10 @@ function handleLoL(d) {
   [0, 1].forEach(t => { game.teams[t] = { name: t ? "Red" : "Blue", score: game.players.filter(p => p.team === t).reduce((a, p) => a + p.kills, 0), color: "" }; });
 
   const events = (d.events && d.events.Events) || [];
-  const initial = lolLastEvent < 0 || (events.length && events[events.length - 1].EventID < lolLastEvent);
-  if (initial) { lolLastEvent = -1; game.feed = []; game.hasWinner = false; game.winner = -1; } // a new game: the series can count its result
+  const initial = F.lolLast < 0 || (events.length && events[events.length - 1].EventID < F.lolLast);
+  if (initial) { F.lolLast = -1; game.feed = []; game.hasWinner = false; game.winner = -1; } // a new game: the series can count its result
   for (const e of events) {
-    const fresh = !initial && e.EventID > lolLastEvent;
+    const fresh = !initial && e.EventID > F.lolLast;
     const kt = teamOf(e.KillerName);
     const structSide = name => (/_T1_/.test(name || "") ? 1 : /_T2_/.test(name || "") ? 0 : kt);
     switch (e.EventName) {
@@ -385,7 +404,7 @@ function handleLoL(d) {
         }
         break;
     }
-    if (e.EventID > lolLastEvent) lolLastEvent = e.EventID;
+    if (e.EventID > F.lolLast) F.lolLast = e.EventID;
   }
   // A teamfight is two or more kills within 12 seconds of each other, still ongoing 8 seconds after the latest kill.
   let cluster = [];
@@ -402,39 +421,40 @@ function handleLoL(d) {
 
 function pollLoL() {
   clearTimeout(lolTimer);
-  if (activeSource !== "lol") return;
+  if (!lolOn) return;
   const req = https.get({ host: LOL_HOST, port: 2999, path: "/liveclientdata/allgamedata", rejectUnauthorized: false, timeout: 1500 }, res => {
     let s = ""; res.setEncoding("utf8");
     res.on("data", c => (s += c));
     res.on("end", () => {
-      if (res.statusCode === 200) { try { lolWarned = false; handleLoL(JSON.parse(s)); } catch (e) { log("Couldn't read League data:", e.message); } }
-      else { game.connected = true; game.inMatch = false; touch(); } // client answers but the game is still loading
+      inFeed("lol", () => {
+        if (res.statusCode === 200) { try { lolWarned = false; handleLoL(JSON.parse(s)); } catch (e) { log("Couldn't read League data:", e.message); } }
+        else { game.connected = true; game.inMatch = false; touch(); } // client answers but the game is still loading
+      });
       lolTimer = setTimeout(pollLoL, 1000);
     });
   });
   req.on("timeout", () => req.destroy(new Error("timeout")));
   req.on("error", err => {
     if (!lolWarned) { lolWarned = true; log(`Waiting for League of Legends on ${LOL_HOST}:2999 (${err.code || err.message}). Start a game or spectate one on this PC.`); }
-    if (game.connected || game.inMatch) { game.connected = false; game.inMatch = false; lolLastEvent = -1; touch(); }
+    inFeed("lol", F => { if (game.connected || game.inMatch) { game.connected = false; game.inMatch = false; F.lolLast = -1; touch(); } });
     lolTimer = setTimeout(pollLoL, 2000);
   });
 }
 
 // Demo match for League events: builds Live Client Data–shaped payloads
-let lolDemo = null;
-function lolDemoTick() {
-  const ev = onAirEvent(), rnd = n => Math.floor(Math.random() * n);
-  if (!lolDemo) {
+function lolDemoTick(ev, F) {
+  const rnd = n => Math.floor(Math.random() * n);
+  if (!F.lolDemo) {
     const L = ev.teams.find(t => t.id === ev.live.left), R = ev.teams.find(t => t.id === ev.live.right);
     const champs = [["Aatrox", "Aatrox"], ["Lee Sin", "LeeSin"], ["Ahri", "Ahri"], ["Jinx", "Jinx"], ["Thresh", "Thresh"],
       ["Darius", "Darius"], ["Viego", "Viego"], ["Orianna", "Orianna"], ["Kai'Sa", "Kaisa"], ["Nautilus", "Nautilus"]];
     const nm = (t, i, side) => (t && t.players[i] && t.players[i].ign) || `${side ? "Red" : "Blue"} ${["Top", "Jungle", "Mid", "Bot", "Support"][i]}`;
-    lolDemo = { time: 0, events: [{ EventID: 0, EventName: "GameStart", EventTime: 0 }], players: champs.map(([c, k], i) => ({
+    F.lolDemo = { time: 0, events: [{ EventID: 0, EventName: "GameStart", EventTime: 0 }], players: champs.map(([c, k], i) => ({
       riotIdGameName: nm(i < 5 ? L : R, i % 5, i < 5 ? 0 : 1), championName: c, rawChampionName: "game_character_displayname_" + k,
       team: i < 5 ? "ORDER" : "CHAOS", level: 1, isDead: false, respawnTimer: 0, items: [], scores: { kills: 0, deaths: 0, assists: 0, creepScore: 0, wardScore: 0 } })) };
-    lolLastEvent = -1;
+    F.lolLast = -1;
   }
-  const D = lolDemo, P = D.players, add = e => D.events.push(Object.assign({ EventID: D.events.length, EventTime: D.time }, e));
+  const D = F.lolDemo, P = D.players, add = e => D.events.push(Object.assign({ EventID: D.events.length, EventTime: D.time }, e));
   D.time += 1;
   P.forEach((p, i) => {
     if (i % 5 !== 4 && i % 5 !== 1) p.scores.creepScore += Math.random() < 0.55 ? 1 : 0;
@@ -456,30 +476,28 @@ function lolDemoTick() {
   if (D.time > 300 && Math.random() < 0.012) { const s = rnd(2); add({ EventName: "DragonKill", KillerName: P[s * 5 + 1].riotIdGameName, DragonType: ["Fire", "Water", "Earth", "Air", "Hextech", "Chemtech"][rnd(6)], Stolen: "False" }); }
   if (D.time > 600 && Math.random() < 0.012) { const s = rnd(2); add({ EventName: "TurretKilled", KillerName: P[s * 5 + rnd(5)].riotIdGameName, TurretKilled: `Turret_T${s ? 1 : 2}_L_03_A` }); }
   if (D.time > 1200 && Math.random() < 0.004) { const s = rnd(2); add({ EventName: "BaronKill", KillerName: P[s * 5 + 1].riotIdGameName }); }
-  if (D.time > 1800) { lolDemo = null; return; }
+  if (D.time > 1800) { F.lolDemo = null; return; }
   handleLoL({ allPlayers: P, events: { Events: D.events }, gameData: { gameTime: D.time, mapName: "Map11", gameMode: "CLASSIC" } });
 }
 
 /* -------------------------------------------------------------- demo feed */
-let demo = null;
-function demoStart() {
-  const ev = onAirEvent();
+function demoStart(ev, F) {
   const L = ev && ev.teams.find(t => t.id === ev.live.left), R = ev && ev.teams.find(t => t.id === ev.live.right);
   const names = (t, side) => [0, 1, 2].map(i => (t && t.players[i] && t.players[i].ign) || `${side ? "Orange" : "Blue"} ${i + 1}`);
   const [b, o] = ev && ev.live.swap ? [names(R, 0), names(L, 1)] : [names(L, 0), names(R, 1)];
-  demo = { clock: 300, ended: 0 };
-  game = Object.assign(blankGame(), { connected: true, inMatch: true, arena: "Stadium_P", matchGuid: "DEMO" });
+  F.demo = { clock: 300, ended: 0 };
+  F.game = Object.assign(blankGame("demo:" + ev.id), { connected: true, inMatch: true, arena: "Stadium_P", matchGuid: "DEMO" });
+  game = F.game;
   game.players = [...b, ...o].map((n, i) => ({ name: n, id: "Demo|" + i, shortcut: i + 1, team: i < 3 ? 0 : 1, score: 0, goals: 0, shots: 0,
     assists: 0, saves: 0, touches: 0, demos: 0, boost: 33, speed: 0, boosting: false, supersonic: false, demolished: false }));
   game.target = { name: game.players[0].name, team: 0, shortcut: 1 };
   touch();
 }
-function demoTick() {
-  if (activeSource !== "demo") return;
-  const ev = onAirEvent();
-  if (ev && ev.game === "League of Legends") { if (!game.paused) lolDemoTick(); return; } // runs at 4x speed
-  if (game.kind === "lol") { game = blankGame(); demo = null; }
-  if (!demo) demoStart();
+function demoStep(ev, F) {
+  if (ev.game === "League of Legends") { if (!game.paused) lolDemoTick(ev, F); return; } // runs at 4x speed
+  if (game.kind === "lol") { F.game = blankGame("demo:" + ev.id); game = F.game; F.demo = null; }
+  if (!F.demo) demoStart(ev, F);
+  const demo = F.demo;
   const rnd = n => Math.floor(Math.random() * n);
   const P = game.players;
   game.lastPacket = Date.now();
@@ -490,7 +508,7 @@ function demoTick() {
     p.speed = Math.round(800 + Math.random() * 1500); p.supersonic = p.speed > 2200;
   });
   if (demo.ended) {
-    if (Date.now() - demo.ended > 9000) { demoStart(); handleMessage({ Event: "MatchCreated", Data: {} }); }
+    if (Date.now() - demo.ended > 9000) { demoStart(ev, F); handleMessage({ Event: "MatchCreated", Data: {} }); }
     return touch();
   }
   if (!game.paused) {
@@ -523,13 +541,13 @@ function demoTick() {
       if ((demo.clock === 0 && s0 !== s1) || (game.overtime && s0 !== s1)) {
         demo.ended = Date.now();
         handleMessage({ Event: "MatchEnded", Data: { WinnerTeamNum: s0 > s1 ? 0 : 1 } });
-        setTimeout(() => { if (demo && demo.ended) handleMessage({ Event: "PodiumStart", Data: {} }); }, 2500);
+        setTimeout(() => inFeed("demo:" + ev.id, G => { if (G.demo && G.demo.ended) handleMessage({ Event: "PodiumStart", Data: {} }); }), 2500);
       }
     }
   }
   touch();
 }
-setInterval(demoTick, 250);
+setInterval(() => { for (const ev of DB.events) if (ev.source === "demo") inFeed("demo:" + ev.id, F => demoStep(ev, F)); }, 250); // one test match per event that asks for one
 
 // Part of each game's window title, used to find the game on screen for the live preview background.
 const GAME_WINDOWS = { "League of Legends": ["League of Legends (TM) Client"], "Rocket League": ["Rocket League"], "Minecraft": ["Minecraft"], "Overwatch 2": ["Overwatch"],
@@ -589,63 +607,69 @@ async function ensureOfficialIcons() {
 const fieldsLib = require("./fields.js");
 const OUT_DIR = path.join(DATA, "output");
 fs.mkdirSync(OUT_DIR, { recursive: true });
-function currentFields(query = {}, base = "") {
-  return fieldsLib.build(DB, onAirEvent(), game, { dataDir: DATA, appDir: ROOT, images: query.images, base });
-}
+const eventById = id => DB.events.find(e => e.id === id) || onAirEvent(); // the on-air event is only the fallback for old links that name no event
+function fieldsOf(ev, query = {}, base = "") { return fieldsLib.build(DB, ev, ev ? feedOf(feedKeyOf(ev)).game : null, { dataDir: DATA, appDir: ROOT, images: query.images, base }); }
+function currentFields(query = {}, base = "") { return fieldsOf(eventById(query.event), query, base); }
 let lastCsv = "", lastJson = "";
+const lastOut = new Map();
 function atomicWrite(file, text) { const tmp = file + ".tmp"; fs.writeFile(tmp, text, err => { if (!err) fs.rename(tmp, file, () => {}); }); } // vMix never reads half a file
 setInterval(() => {
-  try {
-    const { fields } = currentFields(), csv = fieldsLib.toCsv(fields), json = JSON.stringify(fields, null, 1);
+  for (const ev of DB.events) { // every event has its own three files in output/events/<event id>/
+    try {
+      const { fields } = fieldsOf(ev), csv = fieldsLib.toCsv(fields), json = JSON.stringify(fields, null, 1), last = lastOut.get(ev.id) || {}, dir = path.join(OUT_DIR, "events", ev.id);
+      if (csv === last.csv && json === last.json) continue;
+      fs.mkdirSync(dir, { recursive: true });
+      if (csv !== last.csv) atomicWrite(path.join(dir, "hud.csv"), csv);
+      if (json !== last.json) { atomicWrite(path.join(dir, "hud.json"), json); atomicWrite(path.join(dir, "hud.xml"), fieldsLib.toXml(fields)); }
+      lastOut.set(ev.id, { csv, json });
+    } catch (e) { /* a game mid-update can't break the overlay */ }
+  }
+  try { // the three files in output/ itself keep following one event (the first, or the one that was on air) for older vMix setups
+    const ev = onAirEvent(); if (!ev) return;
+    const { fields } = fieldsOf(ev), csv = fieldsLib.toCsv(fields), json = JSON.stringify(fields, null, 1);
     if (csv !== lastCsv) { lastCsv = csv; atomicWrite(path.join(OUT_DIR, "hud.csv"), csv); }
     if (json !== lastJson) { lastJson = json; atomicWrite(path.join(OUT_DIR, "hud.json"), json); atomicWrite(path.join(OUT_DIR, "hud.xml"), fieldsLib.toXml(fields)); }
-  } catch (e) { /* a game mid-update can't break the overlay */ }
+  } catch (e) { /* ignore */ }
 }, 1000);
 
 /* ------------------------------------------------------------- Minecraft */
 const mcc = require("./minecraft.js").create(log);
-function mcRoster() { const ev = onAirEvent(); return ev ? ev.teams.flatMap(t => t.players.map(p => p.ign)).filter(Boolean) : []; }
+let mcOn = false;
+function mcRoster() { return DB.events.filter(e => feedKeyOf(e) === "mc").flatMap(ev => ev.teams.flatMap(t => t.players.map(p => p.ign))).filter(Boolean); }
 function startMc() {
   const c = DB.settings.mc || {};
   if (c.host || c.logPath) mcc.start(Object.assign({}, c, { roster: mcRoster() })); // only connect once a server is set up
 }
 
-// Switch the live connector when the chosen source (or the on-air event's game, for "auto") changes.
-function applySource(force) {
-  const want = resolveSource();
-  if (!force && want === activeSource) return;
-  activeSource = want;
-  clearTimeout(rlTimer); clearTimeout(lolTimer);
-  if (rlSock) { rlSock.destroy(); rlSock = null; }
-  demo = null; lolDemo = null; lolLastEvent = -1; lolWarned = false; rlWarned = false;
-  game = blankGame();
-  mcc.stop();
-  if (want === "rl") connectRL();
-  if (want === "lol") pollLoL();
-  if (want === "mc") startMc();
-  touch(); broadcastDb("server");
-  log("Data source:", want + (DB.settings.source === "auto" ? " (auto)" : ""));
+// Bring the live connectors in line with the events: a connector runs while at least one event reads its feed, and a feed that
+// nothing reads any more is dropped. Runs every 1.5 s and whenever an event or its source changes.
+function applyFeeds() {
+  const used = usedKeys();
+  for (const k of used) feedOf(k);
+  for (const k of [...feeds.keys()]) if (!used.has(k)) feeds.delete(k);
+  if (used.has("rl") && !rlOn) { rlOn = true; rlWarned = false; connectRL(); }
+  else if (!used.has("rl") && rlOn) { rlOn = false; clearTimeout(rlTimer); if (rlSock) { rlSock.destroy(); rlSock = null; } }
+  if (used.has("lol") && !lolOn) { lolOn = true; lolWarned = false; pollLoL(); }
+  else if (!used.has("lol") && lolOn) { lolOn = false; clearTimeout(lolTimer); }
+  if (used.has("mc") && !mcOn) { mcOn = true; startMc(); }
+  else if (!used.has("mc") && mcOn) { mcOn = false; mcc.stop(); }
 }
-// A game-specific source left over from an earlier event (League chosen, then a Minecraft event goes on air) would read the wrong
-// game, so go back to Auto. Choosing a source by hand on Live Game is still respected: this only runs when the on-air event or its game changes.
-function dropMismatchedSource() {
-  const ev = onAirEvent(), s = DB.settings.source, own = { "Rocket League": "rl", "League of Legends": "lol" }[ev && ev.game];
-  if ((s === "rl" || s === "lol") && own !== s) { DB.settings.source = "auto"; save(); log(`Data source back to Auto: the on-air event is ${ev ? ev.game : "empty"}, not what ${s} reads.`); }
+const SOURCES = ["auto", "rl", "lol", "mc", "ocr", "push", "demo"];
+function setEventSource(id, src) {
+  const ev = DB.events.find(e => e.id === id) || onAirEvent();
+  if (!ev || !SOURCES.includes(src)) return false;
+  ev.source = src; save(); applyFeeds(); broadcastDb("server");
+  return true;
 }
-function setSource(src) {
-  if (!["auto", "rl", "lol", "ocr", "push", "demo"].includes(src)) return;
-  DB.settings.source = src; save();
-  applySource(true);
-}
-setInterval(() => applySource(false), 1500);
-setInterval(() => { if (activeSource === "mc") mcc.update({ roster: mcRoster() }); }, 5000);
+setInterval(applyFeeds, 1500);
+setInterval(() => { if (mcOn) mcc.update({ roster: mcRoster() }); }, 5000);
 
 /* ---------------------------------------------------- screen OCR (desktop app) */
 // The Electron shell registers a provider (ocr.js). In plain Node there is none and the OCR endpoints say so.
 let ocr = null;
 function setOcrProvider(p) { ocr = p; }
-// OCR readings arrive as Stats API–shaped messages; they only drive the HUD while OCR is the active source.
-function ocrIngest(msg) { if (activeSource === "ocr" || activeSource === "mc") { game.connected = true; [].concat(msg).forEach(handleMessage); } }
+// OCR readings arrive as Stats API–shaped messages and go to every event that reads the screen (the OCR and Minecraft feeds).
+function ocrIngest(msg) { for (const key of ["ocr", "mc"]) if (feeds.has(key)) inFeed(key, () => { game.connected = true; [].concat(msg).forEach(handleMessage); }); }
 
 /* -------------------------------------------- League replay and game config */
 function lolHttp(method, pth, body) {
@@ -691,22 +715,27 @@ function broadcastDb(by) { const msg = frame("db", { db: DB, by, screens: screen
 function notice(text) { clients.forEach(c => sse(c.res, "notice", { text })); }
 function screens() { const s = { dashboard: 0, overlay: 0 }; clients.forEach(c => { s[c.kind] = (s[c.kind] || 0) + 1; }); return s; }
 setInterval(() => {
-  if (activeSource === "push") game.connected = Date.now() - game.lastPacket < 5000;
-  if (activeSource === "ocr") {
-    const st = ocr ? ocr.state() : { available: false };
-    game.ocr = st; game.connected = !!(st.running && st.lastRead && Date.now() - st.lastRead < 5000);
-    if (st.running) gameDirty = true;
+  for (const [key, f] of feeds) {
+    const base = key.split(":")[0];
+    inFeed(key, () => {
+      if (base === "push") game.connected = Date.now() - game.lastPacket < 5000;
+      if (base === "ocr") {
+        const st = ocr ? ocr.state() : { available: false };
+        game.ocr = st; game.connected = !!(st.running && st.lastRead && Date.now() - st.lastRead < 5000);
+        if (st.running) f.dirty = true;
+      }
+      if (base === "mc") { // server feed and screen OCR both land here; the HUD prefers whichever is live
+        game.mc = mcc.state(); game.ocr = ocr ? ocr.state() : null;
+        game.connected = !!(game.mc.connected || (game.ocr && game.ocr.running && game.ocr.lastRead && Date.now() - game.ocr.lastRead < 5000));
+        f.dirty = true;
+      }
+      game.source = base;
+    });
+    if (!f.dirty) continue;
+    f.dirty = false;
+    const msg = frame("game", { key, game: f.game });
+    clients.forEach(c => c.res.write(msg));
   }
-  if (activeSource === "mc") { // server feed and screen OCR both land here; the HUD prefers whichever is live
-    game.mc = mcc.state(); game.ocr = ocr ? ocr.state() : null;
-    game.connected = !!(game.mc.connected || (game.ocr && game.ocr.running && game.ocr.lastRead && Date.now() - game.ocr.lastRead < 5000));
-    gameDirty = true;
-  }
-  if (!gameDirty) return;
-  gameDirty = false;
-  game.source = activeSource;
-  const msg = frame("game", game);
-  clients.forEach(c => c.res.write(msg));
 }, 100);
 setInterval(() => clients.forEach(c => c.res.write(": ping\n\n")), 15000);
 
@@ -769,12 +798,12 @@ const server = http.createServer((req, res) => {
       const c = { res, kind: url.searchParams.get("kind") === "overlay" ? "overlay" : "dashboard" };
       clients.add(c);
       sse(res, "db", { db: DB, by: "init", screens: screens() });
-      sse(res, "game", game);
+      feeds.forEach((f, key) => sse(res, "game", { key, game: f.game }));
       broadcastDb("screens");
       req.on("close", () => { clients.delete(c); broadcastDb("screens"); });
       return;
     }
-    if (p === "/api/state") return json(res, 200, { db: DB, game });
+    if (p === "/api/state") { const ev = eventById(url.searchParams.get("event")); return json(res, 200, { db: DB, game: ev ? feedOf(feedKeyOf(ev)).game : null, games: Object.fromEntries([...feeds].map(([k, f]) => [k, f.game])) }); }
     if (p === "/api/event-template") { // a clean, independent event for the chosen game (nothing copied from another event)
       const g = new URL(req.url, "http://x").searchParams.get("game") || "Rocket League";
       return json(res, 200, freshEvent(g));
@@ -793,7 +822,7 @@ const server = http.createServer((req, res) => {
         : p === "/hud.xml" ? ["application/xml; charset=utf-8", fieldsLib.toXml(fields)] : ["text/csv; charset=utf-8", fieldsLib.toCsv(fields)];
       res.writeHead(200, { "content-type": type, "cache-control": "no-store", "access-control-allow-origin": "*" }); return res.end(body);
     }
-    if (p === "/api/outputs") return json(res, 200, { dir: OUT_DIR, files: ["hud.csv", "hud.json", "hud.xml"], port: PORT, lan: HOST === "0.0.0.0" });
+    if (p === "/api/outputs") return json(res, 200, { dir: OUT_DIR, eventsDir: path.join(OUT_DIR, "events"), files: ["hud.csv", "hud.json", "hud.xml"], port: PORT, lan: HOST === "0.0.0.0" });
     if (p === "/api/preview/frame") { // the game's window, live, behind the HUD preview (desktop app only)
       if (!ocr) return json(res, 501, { error: "The live game picture needs the desktop app." });
       const g = url.searchParams.get("game") || "", names = GAME_WINDOWS[g] || [g];
@@ -849,10 +878,9 @@ const server = http.createServer((req, res) => {
             const target = body.event ? DB.events.find(e => e.id === body.event) : DB;
             if (!target) return json(res, 404, { error: "event not found" });
             setPath(target, body.path, body.value);
-            if (body.path === "onAir" || /(^|\.)game$/.test(body.path)) dropMismatchedSource();
             if (body.event && body.path === "game") { upgrade(target); if (SQUAD[target.game] && target.teams.every(t => !t.players.length)) seatPlayers(target, SQUAD[target.game]); } // switching game gives that game's own settings
             save(); broadcastDb(body.by || "api");
-            if (body.path === "onAir" || /(^|\.)game$/.test(body.path)) applySource(false); // auto source follows the on-air game
+            applyFeeds(); // an event's game decides which feed it reads
             return json(res, 200, { ok: true });
           }
           case "/api/lol/playback": case "/api/lol/render": { // forwarded to League's Replay API
@@ -867,20 +895,21 @@ const server = http.createServer((req, res) => {
           }
           case "/api/ocr/start": {
             if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
-            if (!["ocr", "mc"].includes(activeSource)) setSource("ocr");
             return ocr.start(DB.settings.ocr || {}, ocrIngest).then(() => json(res, 200, { ok: true })).catch(e => json(res, 400, { error: e.message }));
           }
           case "/api/ocr/stop": if (ocr) ocr.stop(); return json(res, 200, { ok: true });
           case "/api/mc/config": {
             DB.settings.mc = { host: String(body.host || "127.0.0.1"), port: +body.port || 25575, password: String(body.password || ""), logPath: String(body.logPath || "") };
-            save(); mcc.stop(); if (activeSource === "mc") startMc(); broadcastDb("server");
+            save(); mcc.stop(); if (mcOn) startMc(); broadcastDb("server");
             return json(res, 200, { ok: true });
           }
           case "/api/icons/fetch": return fetchOfficialIcons().then(r => json(res, 200, r)).catch(e => json(res, 500, { error: e.message }));
-          case "/api/lol/panel": { // flip (or set) the bottom board between the lane board and the teamfight strip on the on-air event
-            const ev = onAirEvent(); if (!ev) return json(res, 404, { error: "No event is on air." });
-            ev.hud.lolPanel = body.mode === "lane" || body.mode === "fight" ? body.mode : ev.hud.lolPanel === "fight" ? "lane" : "fight";
-            save(); broadcastDb("hotkey"); return json(res, 200, { mode: ev.hud.lolPanel });
+          case "/api/lol/panel": { // flip (or set) the bottom board between the lane board and the teamfight strip: one event, or every League event for the F9 hotkey
+            const evs = body.event ? [DB.events.find(e => e.id === body.event)].filter(Boolean) : DB.events.filter(e => e.game === "League of Legends");
+            if (!evs.length) return json(res, 404, { error: "No League event." });
+            const mode = body.mode === "lane" || body.mode === "fight" ? body.mode : evs[0].hud.lolPanel === "fight" ? "lane" : "fight";
+            evs.forEach(e => { e.hud.lolPanel = mode; });
+            save(); broadcastDb("hotkey"); return json(res, 200, { mode });
           }
           case "/api/mc/test": return mcc.test(body).then(r => json(res, 200, r));
           case "/api/mc/reset": mcc.reset(); return json(res, 200, { ok: true });
@@ -889,18 +918,24 @@ const server = http.createServer((req, res) => {
             return ocr.testRegion(body.source || (DB.settings.ocr || {}).sourceId, (DB.settings.ocr || {}).sourceName, body.region)
               .then(r => json(res, 200, r)).catch(e => json(res, 400, { error: e.message }));
           }
-          case "/api/source": setSource(body.source); return json(res, 200, { ok: true });
+          case "/api/source": return json(res, setEventSource(body.event, body.source) ? 200 : 400, { ok: true });
           case "/api/rl": { // forward a Stats API command, e.g. {Command:"ChangePOV",Data:{Focus:"1"}}
             const ok = sendRL({ Command: body.Command, Data: body.Data || {} });
             return json(res, ok ? 200 : 409, ok ? { ok } : { error: "Rocket League isn't connected." });
           }
-          case "/api/ingest": { // external feeds (OCR etc.) post Stats API-shaped messages
-            (Array.isArray(body) ? body : [body]).forEach(handleMessage);
-            if (DB.settings.source === "push") game.connected = true;
+          case "/api/ingest": { // external feeds (OCR etc.) post Stats API-shaped messages; they reach every event whose source is External
+            if (!feeds.has("push")) return json(res, 200, { ok: true, used: false });
+            inFeed("push", () => { (Array.isArray(body) ? body : [body]).forEach(handleMessage); game.connected = true; });
+            return json(res, 200, { ok: true, used: true });
+          }
+          case "/api/demo/reset": { // restart the test match of one event, or of every event that has one
+            for (const [k, f] of feeds) if (k.startsWith("demo:") && (!body.event || k === "demo:" + body.event)) { f.demo = null; f.lolDemo = null; f.lolLast = -1; f.game = blankGame(k); f.dirty = true; }
             return json(res, 200, { ok: true });
           }
-          case "/api/demo/reset": demo = null; lolDemo = null; lolLastEvent = -1; game = blankGame(); touch(); return json(res, 200, { ok: true });
-          case "/api/demo/pause": game.paused = !game.paused; touch(); return json(res, 200, { paused: game.paused });
+          case "/api/demo/pause": {
+            const f = feeds.get("demo:" + body.event); if (!f) return json(res, 404, { error: "That event has no test match." });
+            f.game.paused = !f.game.paused; f.dirty = true; return json(res, 200, { paused: f.game.paused });
+          }
           default: return json(res, 404, { error: "unknown endpoint" });
         }
       } catch (e) { return json(res, 400, { error: e.message }); }
@@ -917,11 +952,10 @@ server.on("error", err => {
 module.exports = { server, PORT, DATA, setOcrProvider, getDb: () => DB };
 
 server.listen(PORT, HOST, () => {
-  dropMismatchedSource();
   const shown = HOST === "0.0.0.0" ? "localhost" : HOST;
   log(`Saints HUD running`);
   log(`  Dashboard:  http://${shown}:${PORT}/`);
   log(`  Overlay:    http://${shown}:${PORT}/overlay   (add as an OBS Browser Source, 1920x1080)`);
-  applySource(true);
+  applyFeeds();
   ensureOfficialIcons();
 });

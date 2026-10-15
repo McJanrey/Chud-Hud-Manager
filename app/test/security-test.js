@@ -29,15 +29,26 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     check("each kit starts with a caster-seat count", ["Saints Default", "Saints Varsity", "Saints Gaming"].every(k => sb.settings.kits[k] && sb.settings.kits[k].seats >= 1 && sb.settings.kits[k].seats <= 5), JSON.stringify(sb.settings.kits));
     check("every event has five seats to choose from", sb.events.every(e => e.camera.seats.length >= 5));
 
-    const rlEv = sb.events.find(e => e.game === "Rocket League"), lolEv = sb.events.find(e => e.game === "League of Legends"), setP = (path, value) => fetch(base + "/api/set", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path, value }) });
-    const srcNow = async () => (await (await fetch(base + "/api/state")).json()).db.settings.source;
-    await fetch(base + "/api/source", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: "lol" }) });
-    check("a hand-picked source stays until the on-air event changes", (await srcNow()) === "lol");
-    await setP("onAir", rlEv.id);
-    check("a League source goes back to Auto when a Rocket League event is on air", (await srcNow()) === "auto", await srcNow());
-    await fetch(base + "/api/source", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: "lol" }) });
-    await setP("onAir", lolEv.id);
-    check("a source that matches the on-air game is kept", (await srcNow()) === "lol", await srcNow());
+    // every event reads its own live feed and has its own links: nothing is "on air"
+    const rlEv = sb.events.find(e => e.game === "Rocket League"), lolEv = sb.events.find(e => e.game === "League of Legends");
+    const sleep = ms => new Promise(r => setTimeout(r, ms)), api = (p, b) => fetch(base + p, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) }).then(r => r.json());
+    const games = async () => (await (await fetch(base + "/api/state")).json()).games;
+    let g = await games();
+    check("Rocket League and League feeds run at the same time", !!(g.rl && g.lol), Object.keys(g).join());
+    check("every event starts on Auto", sb.events.every(e => e.source === "auto"));
+    await api("/api/source", { event: rlEv.id, source: "push" });
+    await api("/api/ingest", { Event: "UpdateState", Data: { Players: [{ Name: "Tester", TeamNum: 0, Shortcut: 1, Score: 5 }], Game: { Teams: [{ TeamNum: 0, Score: 2 }, { TeamNum: 1, Score: 1 }], TimeSeconds: 120 } } });
+    g = await games();
+    check("an event can read the external feed on its own", g.push && g.push.players.length === 1 && g.push.players[0].name === "Tester", JSON.stringify(Object.keys(g)));
+    check("the Rocket League feed stops when no event reads it, League keeps going", !g.rl && !!g.lol);
+    await api("/api/source", { event: lolEv.id, source: "demo" }); await sleep(1500);
+    g = await games();
+    const demo = g["demo:" + lolEv.id];
+    check("an event can run its own test match", demo && demo.kind === "lol" && demo.players.length === 10, JSON.stringify(Object.keys(g)));
+    const fo = async ev => (await (await fetch(base + "/hud.json?event=" + ev.id)).json());
+    const fr = await fo(rlEv), fl = await fo(lolEv);
+    check("each event has its own data fields", fr.GAME === "Rocket League" && fl.GAME === "League of Legends" && fr["SCORE LEFT"] !== undefined, JSON.stringify([fr.GAME, fl.GAME]));
+    check("the push feed reaches only the event that reads it", fr.STATUS === "LIVE" && fl.STATUS === "LIVE", JSON.stringify([fr.STATUS, fl.STATUS]));
 
     const hit = await fetch(base + "/ddragon/cdn/1.0/img/champion/Ahri.png");
     check("a cached icon is served without internet", hit.status === 200 && (await hit.arrayBuffer()).byteLength === PNG.length, String(hit.status));

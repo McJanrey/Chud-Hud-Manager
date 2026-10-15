@@ -21,13 +21,13 @@ Live broadcast graphics for St. Clair Saints esports. One desktop app runs the c
 | **Riftbound** (card game) | Operator-driven scoring, cards and clock | None, see [Riftbound](#riftbound) |
 | **Anything else** | `POST /api/ingest` | See [Other trackers](#other-trackers) |
 
-The default data source is **Auto**: it follows the game of the event that is on air. The only simulated feed is **Test match** in Live Game, and it is clearly marked.
+Every event is live at the same time and reads the feed of its own game, so a Rocket League event, a League event and a Minecraft event can all be on stream together. Each event's **Live Game** page can instead pick another source (screen OCR, the external feed, or a **Test match**, which is clearly marked). Events of the same game share that game's feed.
 
 ## Install
 
 Download **`SaintsHUD-Setup-x.y.z.exe`** from the [latest release](https://github.com/McJanrey/saints-hud/releases/latest) and run it. Windows may show "Windows protected your PC" because the app isn't code-signed: choose **More info → Run anyway**. No administrator rights, Node.js or Python needed.
 
-The app always starts on a small launcher, the only window at first: update status, the data source, **Copy overlay URL for OBS** and **Open Control Room**. Opening the control room replaces the launcher, so only one window is open at a time; **Help → Launcher** goes back. Signing in saves a **local profile** (name and email) on this PC; there is no account server.
+The app always starts on a small launcher, the only window at first: update status, **Open Control Room**, and the overlay link of every event with a **Copy link** button. Opening the control room replaces the launcher, so only one window is open at a time; **Help → Launcher** goes back. Signing in saves a **local profile** (name and email) on this PC; there is no account server.
 
 ### Updates
 
@@ -47,20 +47,20 @@ A restart briefly takes the overlay offline in OBS, which is why the app never d
 |---|---|
 | `db.json` | events, teams, players, talent, schedule, bracket, settings |
 | `uploads\` | logos, avatars, portraits you uploaded |
-| `output\` | `hud.csv`, `hud.json`, `hud.xml`, rewritten every second |
+| `output\events\<event id>\` | each event's own `hud.csv`, `hud.json`, `hud.xml`, rewritten every second (`output\hud.*` follows the first event, for older vMix setups) |
 | `backups\` | automatic copies taken before each update |
 | `objective-icons\`, `ddragon-img\` | League icons, downloaded once and kept so the overlay works offline |
 | `launcher.json` | your local profile and launcher preferences |
 
 ## Add the overlay to OBS
 
-In the app, **File → Copy overlay URL for OBS**, then add a **Browser** source in OBS:
+There is no "on air" switch: every event has its own overlay link and all of them are live at once. Copy an event's link from the launcher, from **File → Copy overlay link**, from **Copy overlay link** at the top of the control room, or from **Outputs**, then add a **Browser** source in OBS:
 
-- URL: `http://localhost:7777/overlay?scene=auto` (the app has to be open)
+- URL: `http://localhost:7777/overlay?scene=auto&event=<event id>` (the app has to be open)
 - Width **1920**, height **1080**, transparent background
 - Turn **off** "Shutdown source when not visible" so it stays live
 
-`scene=auto` follows the **Scene on air** picked in the HUD Editor, so the producer switches graphics without touching OBS. To pin a source to one scene use `?scene=ingame`, `?scene=casters`, `?scene=bracket` and so on.
+`scene=auto` follows the **Scene shown** picked in that event's HUD Editor, so the producer switches graphics without touching OBS. To pin a source to one scene use `scene=ingame`, `scene=casters`, `scene=bracket` and so on; **Outputs** lists a link for every scene of every event.
 
 | Scene | Parameter |
 |---|---|
@@ -78,7 +78,7 @@ In the app, **File → Copy overlay URL for OBS**, then add a **Browser** source
 | Timer | `timer` |
 | Title Screen | `title` |
 
-The Ingame HUD adapts to the event's game (Rocket League, League of Legends, Minecraft or Riftbound). In Rocket League it switches itself to the Replay scene during goal replays and to Team Stats on the podium. Add `&event=<id>` to show a specific event instead of the one on air.
+The Ingame HUD adapts to the event's game (Rocket League, League of Legends, Minecraft or Riftbound). In Rocket League it switches itself to the Replay scene during goal replays and to Team Stats on the podium. A link with no `event=` (older OBS sources) shows the first event.
 
 The overlay is built for a 1280×720 stage and scales to the source size. Its fonts ship with the app, so it looks the same with no internet at the venue.
 
@@ -87,8 +87,8 @@ The overlay is built for a 1280×720 stage and scales to the source size. Its fo
 | Section | What it does |
 |---|---|
 | **My Events** | One event per broadcast, each with its own game, HUD, teams and settings. **New Event** starts clean (nothing is copied from another event). |
-| **Overview** | Overlay URL, workspace name, game, broadcast kit, Saints branding |
-| **HUD Editor** | **Scene on air**, colours (custom or team), preview background, and for the Ingame HUD the list toggles, boost lists, bottom board and League settings |
+| **Overview** | This event's overlay link, workspace name, game, broadcast kit, Saints branding |
+| **HUD Editor** | **Scene shown**, colours (custom or team), preview background, and for the Ingame HUD the list toggles, boost lists, bottom board and League settings |
 | **Players & Teams** | Up to 64 teams: name, tag, colours, three logos, roster with in-game names, aliases, countries, avatars and webcam links |
 | **Tournament** | Name, region, format, logos and sponsors (sponsor names rotate through the HUD ticker) |
 | **Talent Profiles** | Casters, hosts and observers with portraits and socials |
@@ -148,7 +148,7 @@ The scenes read a Java server through two built-in channels, so no plugin or mod
 - **RCON** (`enable-rcon=true`, `rcon.port` and `rcon.password` in `server.properties`): who is online, health, food, game mode and the world border.
 - **`logslatest.log`** (path set on the page): deaths and kills, parsed from the server's death messages. Lines written before the app connects are ignored.
 
-Enter the host, port, password and log path, use **Test connection**, then **Save and connect**. It connects while a Minecraft event is on air. Add the player names under **Roster** (exactly as in Minecraft); they label the HUD and match kills from the log.
+Enter the host, port, password and log path, use **Test connection**, then **Save and connect**. It connects as soon as an event for Minecraft exists. Add the player names under **Roster** (exactly as in Minecraft); they label the HUD and match kills from the log.
 
 **Hunger Games:** title, players at the start, a spotlight player (or automatic: most kills), a match clock, and a reset for kills and the feed. The HUD shows the title, players alive out of the total, the clock and world border, a kills leaderboard, an elimination feed, the spotlight player's hearts and food, and a head for every player with a health bar. Spectators count as out.
 
@@ -178,7 +178,7 @@ A value is accepted once two reads in a row agree, so a single misread never rea
 
 ### Other trackers
 
-Any program can send Stats API–shaped JSON to `http://localhost:7777/api/ingest` with the data source set to **External**:
+Any program can send Stats API–shaped JSON to `http://localhost:7777/api/ingest` with an event's source set to **External** on its Live Game page:
 
 ```json
 { "Event": "UpdateState", "Data": {
@@ -194,8 +194,8 @@ Programs that send no `Origin` header (curl, scripts, desktop trackers) work as 
 
 Every value on screen is also available as a named field, so you can build your own title and bind it to live data.
 
-- **File:** `output\hud.csv` (also `hud.json`, `hud.xml`) in the data folder. One header row and one data row, swapped in whole each time, so vMix never reads half a file.
-- **URL:** `http://localhost:7777/hud.json`, `/hud.xml` or `/hud.csv`. Add `?images=url` to get logos as URLs instead of file paths, and `?detail=1` on JSON for source and connection details.
+- **File:** `output\events\<event id>\hud.csv` (also `hud.json`, `hud.xml`) in the data folder, one folder per event; **Outputs** shows the exact path. One header row and one data row, swapped in whole each time, so vMix never reads half a file.
+- **URL:** `http://localhost:7777/hud.json?event=<event id>`, `/hud.xml` or `/hud.csv`. Add `?images=url` to get logos as URLs instead of file paths, and `?detail=1` on JSON for source and connection details.
 
 In vMix: **Settings → Data Sources → Add**, point it at the CSV or the JSON URL, set the refresh to 1 second, then bind each field in your title. In XML, spaces and dashes in field names become `_` (`TRI_CODE_LEFT`). If vMix runs on another PC, start the app with `HOST=0.0.0.0` (see [Settings](#settings)) and use `http://<this-PC>:7777/hud.json`.
 
@@ -246,6 +246,8 @@ The server listens on `127.0.0.1` only and has **no login**. With `HOST=0.0.0.0`
 On top of that the server refuses requests that a web page on another site could send to your PC's localhost: a `POST` whose `Origin` doesn't match the host is answered with 403, and when listening on loopback only, requests that arrive under any other host name are refused. Programs that send no `Origin` (OBS, vMix, curl, scripts) are unaffected.
 
 ## Known gaps
+
+- Events of the same game read one shared feed. Two Rocket League events see the same match, and the League settings (gold mode, timings) come from the first League event.
 
 - Lower Thirds draw a headline and subline only: there is no clock, score or ticker bar yet.
 - Player webcams show every player who has a camera link, but nothing switches to the player in the action automatically.

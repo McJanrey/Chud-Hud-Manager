@@ -183,12 +183,14 @@ const LIVE_FEED={"Rocket League":"Rocket League Stats API","League of Legends":"
 const PLATFORMS=["X","Twitch","YouTube","Instagram","TikTok","Kick"];
 const COUNTRIES=[["","—"],["US","United States"],["CA","Canada"],["MX","Mexico"],["BR","Brazil"],["AR","Argentina"],["PE","Peru"],["CL","Chile"],["GB","United Kingdom"],["IE","Ireland"],["FR","France"],["DE","Germany"],["AT","Austria"],["CH","Switzerland"],["NL","Netherlands"],["BE","Belgium"],["ES","Spain"],["PT","Portugal"],["IT","Italy"],["PL","Poland"],["SE","Sweden"],["NO","Norway"],["DK","Denmark"],["FI","Finland"],["CZ","Czechia"],["TR","Turkey"],["SA","Saudi Arabia"],["AE","UAE"],["MA","Morocco"],["ZA","South Africa"],["JP","Japan"],["KR","South Korea"],["AU","Australia"],["NZ","New Zealand"],["IN","India"],["PH","Philippines"]];
 
-let DB=null,GAME=null,SCREENS={dashboard:0,overlay:0},online=false;
+let DB=null,FEEDS={},SCREENS={dashboard:0,overlay:0},online=false;
 const ui=(()=>{let s={};try{s=JSON.parse(localStorage.getItem("saints-ui")||"{}")}catch(e){}return Object.assign({cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null},s)})();
 const saveUi=()=>{try{localStorage.setItem("saints-ui",JSON.stringify({cur:ui.cur,view:ui.view}))}catch(e){}};
 const ev=()=>DB&&DB.events.find(e=>e.id===ui.cur);
 const tm=(e,id)=>e.teams.find(t=>t.id===id);
 let E=null;
+function G(){const e=ev();return e?FEEDS[SaintsHUD.feedKey(e)]||null:null} // the live feed this event reads
+let OUTS=null;fetch("/api/outputs").then(r=>r.json()).then(j=>{OUTS=j;if(ui.view==="outputs")render()}).catch(()=>{});
 
 /* ---------- server sync ---------- */
 async function api(url,body){
@@ -212,7 +214,7 @@ function connect(){
     const a=document.activeElement;
     if(a&&a.closest(".view")&&/INPUT|SELECT|TEXTAREA/.test(a.tagName))mirrors();else render();
   });
-  es.addEventListener("game",m=>{const prev=GAME&&GAME.source;GAME=JSON.parse(m.data);if(prev&&prev!==GAME.source&&ui.view==="live"&&DB)render();else{updateStages();liveBits()}});
+  es.addEventListener("game",m=>{const j=JSON.parse(m.data),prev=FEEDS[j.key]&&FEEDS[j.key].source;FEEDS[j.key]=j.game;if(!DB)return;const e=ev();if(!e||SaintsHUD.feedKey(e)!==j.key)return;if(prev&&prev!==j.game.source&&ui.view==="live")render();else{updateStages();liveBits()}});
   es.addEventListener("notice",m=>toast(JSON.parse(m.data).text));
   es.onopen=()=>{online=true;railStatus()};
   es.onerror=()=>{online=false;railStatus()};
@@ -262,16 +264,16 @@ const teamOpts=e=>[["","Select team"],...e.teams.map(t=>[t.id,t.name])];
 function screensText(){return`${SCREENS.overlay||0} overlay${SCREENS.overlay===1?"":"s"} · ${SCREENS.dashboard||0} dashboard${SCREENS.dashboard===1?"":"s"} connected`}
 function sourceState(){
   if(!online)return["bad","Server offline"];
-  if(!GAME)return["warn","Waiting…"];
-  if(GAME.source==="manual")return["ok","Riftbound · scored by hand"];
-  if(GAME.source==="mc"){const s=GAME.mc;return s&&s.connected?["ok","Minecraft · server connected"]:GAME.connected?["ok","Minecraft · screen OCR"]:["warn","Minecraft · no server or screen reading"]}
-  const src={rl:"Rocket League",lol:"League of Legends",ocr:"Screen OCR",demo:"Demo (test)",push:"External feed"}[GAME.source]||GAME.source||"No source";
-  const eg=(ev()||{}).game,fg={rl:"Rocket League",lol:"League of Legends"}[GAME.source];
+  if(!G())return["warn","Waiting…"];
+  if(G().source==="manual")return["ok","Riftbound · scored by hand"];
+  if(G().source==="mc"){const s=G().mc;return s&&s.connected?["ok","Minecraft · server connected"]:G().connected?["ok","Minecraft · screen OCR"]:["warn","Minecraft · no server or screen reading"]}
+  const src={rl:"Rocket League",lol:"League of Legends",ocr:"Screen OCR",demo:"Demo (test)",push:"External feed"}[G().source]||G().source||"No source";
+  const eg=(ev()||{}).game,fg={rl:"Rocket League",lol:"League of Legends"}[G().source];
   if(fg&&eg&&fg!==eg)return["bad","Feed is "+fg+" but the event is "+eg];
-  if(GAME.source==="ocr"){const o=GAME.ocr||{};return o.running?(GAME.connected?["ok","Screen OCR · reading"]:["warn","Screen OCR · "+(o.error?"capture problem":"starting")]):["warn","Screen OCR · not started"]}
-  if(GAME.source==="lol")return GAME.inMatch?["ok","League · in game"]:GAME.connected?["warn","League · loading"]:["bad","League · no game or replay"];
-  if(GAME.source==="rl")return GAME.connected?(GAME.inMatch?["ok","Rocket League · in match"]:["warn","Rocket League · no match"]):["bad","Rocket League · not found"];
-  return GAME.connected?["ok",src]:["warn",src+" · no data"];
+  if(G().source==="ocr"){const o=G().ocr||{};return o.running?(G().connected?["ok","Screen OCR · reading"]:["warn","Screen OCR · "+(o.error?"capture problem":"starting")]):["warn","Screen OCR · not started"]}
+  if(G().source==="lol")return G().inMatch?["ok","League · in game"]:G().connected?["warn","League · loading"]:["bad","League · no game or replay"];
+  if(G().source==="rl")return G().connected?(G().inMatch?["ok","Rocket League · in match"]:["warn","Rocket League · no match"]):["bad","Rocket League · not found"];
+  return G().connected?["ok",src]:["warn",src+" · no data"];
 }
 function railStatus(){const el=$("#conn");if(!el)return;const[c,t]=sourceState();el.innerHTML=`<span><span class="dot ${c}"></span>${esc(t)}</span><span>${screensText()}</span>`}
 function rail(e){
@@ -286,9 +288,8 @@ function rail(e){
 }
 function topbar(e){
   if(!e)return`<div class="top"><div class="crumbs"><b>My Events</b></div><button class="btn primary" type="button" data-act="newEvent">New Event</button></div>`;
-  const on=DB.onAir===e.id;
   return`<div class="top"><div class="crumbs"><button type="button" data-act="home">My Events</button>/<button type="button" data-act="nav" data-arg="overview">${esc(e.name)}</button>/<b>${META[ui.view][0]}</b></div>
-  <button class="btn${on?" onair":""}" type="button" data-act="onAir" title="The overlay shows the on-air event">${on?"● On air":"Set on air"}</button></div>`;
+  <button class="btn" type="button" data-act="copyLink" title="Copy this event's own overlay link for OBS">${ico("copy")}Copy overlay link</button></div>`;
 }
 function render(){
   if(!DB){$("#app").innerHTML=`<div class="sub" style="padding:40px">Starting Saints HUD…</div>`;return}
@@ -304,14 +305,14 @@ function render(){
 /* ---------- home ---------- */
 function home(){
   const g={"Rocket League":"linear-gradient(135deg,#1f5bff,#0b1430 55%,#ff8a1a)","Valorant":"linear-gradient(135deg,#ff4655,#1a0f1c 60%,#3a2a60)","Counter-Strike 2":"linear-gradient(135deg,#d99a2b,#141414 60%,#3a4a5a)","League of Legends":"linear-gradient(135deg,#c8aa6e,#0a1428 60%,#0397ab)"};
-  return`<div class="sec"><h1>Your events</h1><div class="evgrid">${DB.events.map(e=>`<button type="button" class="evcard" data-act="open" data-arg="${e.id}"><div class="cover" style="background:${g[e.game]||"#333"}">${esc(e.game)}</div><div class="meta"><b>${esc(e.name)}</b><small>${DB.onAir===e.id?"● On air":"Open workspace"}</small></div></button>`).join("")}
+  return`<div class="sec"><h1>Your events</h1><div class="evgrid">${DB.events.map(e=>`<button type="button" class="evcard" data-act="open" data-arg="${e.id}"><div class="cover" style="background:${g[e.game]||"#333"}">${esc(e.game)}</div><div class="meta"><b>${esc(e.name)}</b><small>Open workspace</small></div></button>`).join("")}
   <button type="button" class="newcard" data-act="newEvent"><span style="font-size:22px">+</span><b style="color:var(--fg)">Create a new event</b></button></div></div>`;
 }
 
 /* ---------- views ---------- */
-const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene currently on air.":"Preview of "+esc(SCENES[scene])+"."} <span data-bgnote></span></span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
+const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene picked in the HUD Editor.":"Preview of "+esc(SCENES[scene])+"."} <span data-bgnote></span></span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
 const kitSeats=e=>Math.max(1,Math.min(5,Math.round(+((DB.settings.kits||{})[e.kit]||{}).seats||{solo:1,duo:2,trio:3}[e.camera.layout]||2)));
-const overlayUrl=s=>`${location.origin}/overlay?scene=${s}`;
+const overlayUrl=(s,e)=>`${location.origin}/overlay?scene=${s}&event=${(e||ev()).id}`; // every event has its own link
 const VIEWS={
 overview(e){
   const sc=ui.ovScene||"auto";
@@ -319,7 +320,7 @@ overview(e){
     <div class="sec"><div><h2>Start streaming</h2><p class="sub">Copy the overlay URL into an OBS or vMix browser source set to 1920 × 1080.</p></div>
       <div class="fld"><span>Overlay URL</span><div class="row c nowrap"><select id="ovScene" style="max-width:300px"><option value="auto"${sc==="auto"?" selected":""}>Follow HUD Editor (switch live)</option>${Object.entries(SCENES).map(([k,v])=>`<option value="${k}"${sc===k?" selected":""}>${v}</option>`).join("")}</select>
       <input class="mono" id="ovUrl" readonly value="${esc(overlayUrl(sc))}"><button class="btn icon" type="button" data-act="copy" aria-label="Copy overlay URL">${ico("copy")}</button></div>
-      <span class="note red">*Copy into a browser source to show the HUD. Tick "Shutdown source when not visible" off so it stays live.</span></div>
+      <span class="note red">*This link belongs to this event. Every event has its own and they are all live at once, so there is nothing to set on air. Tick "Shutdown source when not visible" off so it stays live. Links for each scene are on Outputs.</span></div>
       <p class="note" id="screens">${screensText()}</p>
     </div>
     <div class="sec"><h2>Workspace</h2><div class="cols">${F.text("name","Workspace name")}${F.text("organiser","Event organiser")}${F.sel("game","Select game",GAMES,"data-rerender")}${F.sel("kit","Broadcast kit",["Saints Default","Saints Varsity","Saints Gaming"])}</div></div>
@@ -339,7 +340,7 @@ hud(e){
   return`${!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?`<div class="banner">Scenes for ${esc(e.game)} use the Rocket League layout for now.</div>`:""}
   ${inGame&&e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
   <div class="row" style="gap:24px">
-    <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene on air",Object.entries(SCENES),"data-rerender")}</div>
+    <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene shown",Object.entries(SCENES),"data-rerender")}</div>
     <div class="fld" style="flex:none"><span>Colors</span><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}">Team</button></div></div>
     <div class="fld" style="flex:none"><span>Customise</span><div class="row c" style="gap:8px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></div></div>
     ${inGame&&e.game==="League of Legends"?`<div class="fld" style="flex:none"><span>Bottom board (F9)</span><div class="seg">${[["lane","Lane board"],["fight","Teamfight strip"]].map(([k,l])=>`<button type="button" data-act="lolPanel" data-arg="${k}" aria-pressed="${(e.hud.lolPanel==="fight"?"fight":"lane")===k}">${l}</button>`).join("")}</div></div>`:""}
@@ -389,11 +390,11 @@ talent(e){
   :`<p class="sub">Add casters, hosts and observers.</p>`}</div></div>`;
 },
 live(e){
-  const l=e.live,pick=DB.settings.source,src=(GAME&&GAME.source)||(pick==="auto"?({"Rocket League":"rl","League of Legends":"lol","Minecraft":"mc","Riftbound":"manual"}[e.game]||"ocr"):pick);
+  const l=e.live,pick=e.source||"auto",src=(G()&&G().source)||(pick==="auto"?({"Rocket League":"rl","League of Legends":"lol","Minecraft":"mc","Riftbound":"manual"}[e.game]||"ocr"):pick);
   return`<div class="split"><div class="sec" style="gap:24px">
     <div class="sec"><div class="sechead"><h2>Data source</h2><span class="pill" id="srcPill">…</span></div>
       <div class="seg">${[["auto","Auto"],["rl","Rocket League"],["lol","League of Legends"],["ocr","Screen OCR"],["push","External"],["demo","Test match"]].map(([k,n])=>`<button type="button" data-act="source" data-arg="${k}" aria-pressed="${pick===k}">${n}</button>`).join("")}</div>
-      ${pick==="auto"?`<p class="note">Auto reads the real game for the on-air event: ${esc(LIVE_FEED[e.game]||"screen OCR (this game has no live data feed)")}.</p>`:""}
+      ${pick==="auto"?`<p class="note">Auto reads the real game for this event: ${esc(LIVE_FEED[e.game]||"screen OCR (this game has no live data feed)")}.</p>`:""}
       ${src==="lol"?`<p class="note">Reads Riot's Live Client Data API on this PC. It works for live games, spectating and replays. Name roster IGNs exactly like the in-game Riot ID (without the #tag) for auto team tracking.</p><div id="replayPanel"></div>`
       :src==="mc"?`<p class="note">Reads your Minecraft server (RCON and the server log), and Screen OCR can add the clock and border. Set the server up on the Minecraft page.</p><div class="row c"><button class="btn sm blue" type="button" data-act="nav" data-arg="mc">Open Minecraft</button></div>`
       :src==="manual"?`<p class="note">Riftbound has no live data feed. You score the match by hand on the Riftbound page.</p><div class="row c"><button class="btn sm blue" type="button" data-act="nav" data-arg="rb">Open Riftbound</button></div>`
@@ -420,7 +421,7 @@ live(e){
   </div></div>`;
 },
 ocr(e){
-  const c=ocrCfg(),on=!!(GAME&&GAME.ocr&&GAME.ocr.running);
+  const c=ocrCfg(),on=!!(G()&&G().ocr&&G().ocr.running);
   if(!OCR.available)return`<div class="sec"><h2>Screen OCR</h2><div class="banner">Screen OCR only works in the Saints HUD desktop app, because it needs permission to capture your screen. Open this page in the installed app.</div></div>`;
   return`<div class="split" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)"><div class="sec">
     <div class="sechead"><div><h2>Screen OCR</h2><p class="sub">For games without a live data feed. Pick the screen or window showing the game, then drag boxes over the score, clock and team names.</p></div><span class="pill" id="ocrPill">…</span></div>
@@ -454,11 +455,11 @@ camera(e){
 graphics(e){
   const t=e.timer,rem=t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining;
   return`<div class="split"><div class="sec"><h2>Lower third</h2>${F.text("lowerThird.title","Headline","Welcome to NACE Varsity")}${F.text("lowerThird.subtitle","Subline","Optional")}
-    <div class="row"><button class="btn" type="button" data-act="scene" data-arg="lowerthird">Put lower third on air</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button></div></div>
+    <div class="row"><button class="btn" type="button" data-act="scene" data-arg="lowerthird">Show lower third</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button></div></div>
     <div class="sec">${stage("lowerthird")}</div></div>
   <div class="split"><div class="sec"><h2>Timer</h2>${F.text("timer.label","Label","BACK SOON")}
     <div class="row"><label class="fld" style="max-width:160px"><span>Length (minutes)</span><input type="number" id="timerMin" min="0" max="180" step="0.5" value="${t.seconds/60}"></label>
-    <span class="row c"><button class="btn" type="button" data-act="timer" data-arg="start">${t.endsAt?"Pause":"Start"}</button><button class="btn" type="button" data-act="timer" data-arg="reset">Reset</button><button class="btn" type="button" data-act="scene" data-arg="timer">Put timer on air</button></span></div>
+    <span class="row c"><button class="btn" type="button" data-act="timer" data-arg="start">${t.endsAt?"Pause":"Start"}</button><button class="btn" type="button" data-act="timer" data-arg="reset">Reset</button><button class="btn" type="button" data-act="scene" data-arg="timer">Show timer</button></span></div>
     <p class="note">Remaining: <b data-timer>${SaintsHUD.fmt(rem)}</b></p></div><div class="sec">${stage("timer")}</div></div>`;
 },
 schedule(e){
@@ -487,6 +488,17 @@ const clkSecs=c=>c?(c.base||0)+(c.running?(Date.now()-c.startedAt)/1000:0):0;
 const clockBtns=p=>`<span class="row c"><b class="mono" data-clk="${p}">0:00</b><button class="btn sm" type="button" data-act="clk" data-arg="${p}|start">Start / pause</button><button class="btn sm" type="button" data-act="clk" data-arg="${p}|reset">Reset</button></span>`;
 const mcForm=()=>({host:$("#mcHost").value,port:$("#mcPort").value,password:$("#mcPass").value,logPath:$("#mcLog").value});
 Object.assign(VIEWS,{
+outputs(e){
+  const row=(label,url)=>`<div class="row c nowrap"><span class="note" style="width:200px;flex:none">${esc(label)}</span><input class="mono" readonly value="${esc(url)}"><button class="btn icon" type="button" data-act="copyText" data-arg="${esc(url)}" aria-label="Copy ${esc(label)}">${ico("copy")}</button></div>`;
+  const others=DB.events.filter(x=>x!==e);
+  return`<div class="sec"><div><h2>Overlay links for ${esc(e.name)}</h2><p class="sub">Every event has its own links and all of them are live at once, so there is nothing to set on air. Add one as a 1920 × 1080 browser source in OBS or vMix, with "Shutdown source when not visible" switched off.</p></div>
+    ${row("Follows the HUD Editor",overlayUrl("auto",e))}
+    <details open><summary class="note" style="cursor:pointer">One link per scene</summary><div class="sec" style="gap:8px;margin-top:10px">${Object.entries(SCENES).map(([k,v])=>row(v,overlayUrl(k,e))).join("")}</div></details></div>
+  <div class="sec"><div><h2>Data for vMix and GT Title Designer</h2><p class="sub">The same fields for this event, as a web address or as files that are rewritten every second.</p></div>
+    ${["json","xml","csv"].map(t=>row(t.toUpperCase()+" address",`${location.origin}/hud.${t}?event=${e.id}`)).join("")}
+    ${row("Files (hud.csv, .json, .xml)",((OUTS&&OUTS.eventsDir)||"output/events").replace(/\\/g,"/")+"/"+e.id+"/")}</div>
+  <div class="sec"><div><h2>Other events</h2><p class="sub">Each one has its own link too.</p></div>${others.map(x=>row(x.name+" · "+x.game,overlayUrl("auto",x))).join("")||`<p class="sub">No other events.</p>`}</div>`;
+},
 mc(e){
   const m=e.mc,bb=m.bb,hg=m.mode!=="buildbattle",c=DB.settings.mc||{},names=roster(e);
   return`<div class="split"><div class="sec" style="gap:24px">
@@ -506,7 +518,7 @@ mc(e){
     <div class="sec"><div><h2>Roster</h2><p class="sub">Player names exactly as they appear in Minecraft. They label the HUD and match kills from the server log. Remove players on Players &amp; Teams.</p></div>
       <div class="row nowrap"><label class="fld"><span>Add players (separated by spaces, commas or new lines)</span><textarea id="mcNames" rows="2" style="background:var(--field);border:1px solid var(--line);border-radius:9px;padding:8px 11px;width:100%;font:inherit;color:inherit"></textarea></label><button class="btn" type="button" data-act="mcAddNames">Add</button></div>
       <p class="note">${names.length?`${names.length} player${names.length===1?"":"s"}: ${esc(names.join(", "))}`:"No players yet."}</p></div>
-    <div class="sec"><div><h2>Server connection</h2><p class="sub">Reads a Java server you run, with no plugin or mod. In <code>server.properties</code> set <code>enable-rcon=true</code>, <code>rcon.port</code> and <code>rcon.password</code>, then give the path of <code>logs\\latest.log</code> so deaths and kills are counted. It connects while a Minecraft event is on air.</p></div>
+    <div class="sec"><div><h2>Server connection</h2><p class="sub">Reads a Java server you run, with no plugin or mod. In <code>server.properties</code> set <code>enable-rcon=true</code>, <code>rcon.port</code> and <code>rcon.password</code>, then give the path of <code>logs\\latest.log</code> so deaths and kills are counted. It connects as soon as an event for Minecraft exists.</p></div>
       <div class="cols">${[["mcHost","Host",c.host||"127.0.0.1"],["mcPort","RCON port",c.port||25575],["mcPass","RCON password",c.password||""],["mcLog","Path to latest.log",c.logPath||""]].map(([id,l,v])=>`<label class="fld"><span>${l}</span><input id="${id}" ${id==="mcPass"?'type="password"':""} value="${esc(v)}"></label>`).join("")}</div>
       <div class="row c"><button class="btn" type="button" data-act="mcTest">Test connection</button><button class="btn blue" type="button" data-act="mcSave">Save and connect</button><span class="note" id="mcTestMsg"></span></div></div>
   </div><div class="sec">${stage("ingame")}</div></div>`;
@@ -553,7 +565,7 @@ function updateStages(redraw){
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
     const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
     if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SaintsHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
-    SaintsHUD.render(h,e,GAME,st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons),kits:DB.settings&&DB.settings.kits});h.style.transform=`scale(${st.clientWidth/1280})`});
+    SaintsHUD.render(h,e,G(),st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons),kits:DB.settings&&DB.settings.kits});h.style.transform=`scale(${st.clientWidth/1280})`});
 }
 /* Preview background "Game": a live picture of the game's own window, when the desktop app can find it */
 const LIVEBG={ok:false,busy:false};
@@ -576,13 +588,13 @@ function liveBits(){
   railStatus();
   const e=ev();if(!e)return;
   const pill=$("#srcPill");if(pill){const[c,t]=sourceState();pill.className="pill "+(c==="ok"?"ok":c==="bad"?"bad":"");pill.textContent=t}
-  const m=SaintsHUD.model(e,GAME);
+  const m=SaintsHUD.model(e,G());
   const pl=$("#plist");
   if(pl){pl.innerHTML=m.live?m.all.map(p=>`<div class="pl${m.focus===p?" f":""}" style="--c:${m.colors[p.side]}"><b>${esc(p.display)}${m.kind==="lol"?` <span class="note">${esc(p.champion||"")}</span>`:""}</b><span class="bst" style="width:auto">${m.kind==="lol"?`${p.kills}/${p.deaths}/${p.assists}`:p.boost??""}</span>${DB.settings.source==="rl"?`<button class="btn sm" type="button" data-act="spectate" data-arg="${p.shortcut}">Watch</button>`:""}</div>`).join(""):`<p class="sub">No players in a match yet.</p>`}
   const tr=$("#trackRow");if(tr)tr.innerHTML=[0,1].map(s=>`<div class="tracked${m.tracked[s]?"":" manual"}">${m.tracked[s]?"Tracked via team data: "+esc(m.sides[s].name):"Using the team picked above"}</div>`).join("");
   $$("[data-clk]").forEach(el=>{el.textContent=SaintsHUD.fmt(Math.floor(clkSecs(get(e,el.dataset.clk))))});
   const bt=$("[data-bbtimer]");if(bt&&e.mc){const b=e.mc.bb;bt.textContent=SaintsHUD.fmt(b.endsAt?Math.max(0,Math.round((b.endsAt-Date.now())/1000)):b.remaining)}
-  const mp=$("#mcPill");if(mp){const s=GAME&&GAME.mc;mp.className="pill "+(s&&s.connected?"ok":"");mp.textContent=s?(s.connected?`Server connected · ${s.players.filter(p=>p.online).length} online`:(s.error||"Server not connected")):"Not on air"}
+  const mp=$("#mcPill");if(mp){const s=G()&&G().mc;mp.className="pill "+(s&&s.connected?"ok":"");mp.textContent=s?(s.connected?`Server connected · ${s.players.filter(p=>p.online).length} online`:(s.error||"Server not connected")):"No feed"}
   const rw=$("[data-rbwin]");if(rw&&e.rb){const r=e.rb,w=[0,1].find(s=>(r.points[s]||0)>=r.target);rw.hidden=w==null;if(w!=null)rw.textContent=`${r.names[w]||"Player "+(w+1)} has reached ${r.target} points`}
   const tt=$("[data-timer]");if(tt){const t=e.timer;tt.textContent=SaintsHUD.fmt(t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining)}
   if(ui.view==="ocr")ocrLive();
@@ -624,14 +636,15 @@ document.addEventListener("click",async ev0=>{
       if(!x)return toast("Couldn't create the event.");
       x.name=`New Event ${DB.events.length+1}`;
       DB.events.push(x);await put("events",DB.events,false);ui.cur=x.id;ui.view="overview";toast("Event created. Pick its game under Workspace.");break;}
-    case "onAir":await put("onAir",e.id,false);toast(`${e.name} is now on air`);break;
+    case "copyLink":{const v=overlayUrl("auto",e);try{await navigator.clipboard.writeText(v);toast("Overlay link for "+e.name+" copied")}catch(err){toast(v)}return}
+    case "copyText":{try{await navigator.clipboard.writeText(b.dataset.arg);toast("Copied")}catch(err){toast("Select the text and press Ctrl+C")}return}
     case "delEvent":if(!confirmTwice(b))return;await put("events",DB.events.filter(x=>x!==e),false);ui.cur=null;toast("Event deleted");break;
     case "copy":{const v=$("#ovUrl").value;try{await navigator.clipboard.writeText(v);toast("Overlay URL copied")}catch(err){$("#ovUrl").select();toast("Press Ctrl+C to copy")}return;}
     case "full":{const st=b.closest(".stagewrap").querySelector(".stage");try{await st.requestFullscreen()}catch(err){toast("Full screen isn't available.")}return;}
     case "hudColor":put("hud.colorMode",arg);break;
     case "hudBg":put("hud.bg",arg);break;
     case "resetColors":e.hud.colorMode="custom";put("hud.custom",["#2f7dff","#ff9b1a"]);put("hud.colorMode","custom");break;
-    case "scene":put("hud.scene",arg);toast(`${SCENES[arg]} is on air`);return;
+    case "scene":put("hud.scene",arg);toast(`${SCENES[arg]} is showing`);return;
     case "addTeam":{if(e.teams.length>=64)return toast("This event already has 64 teams.");const t=blankTeam();e.teams.push(t);ui.team=t.id;ui.teamq="";put("teams",e.teams);break;}
     case "selTeam":ui.team=arg;break;
     case "delTeam":{if(!confirmTwice(b))return;const t=tm(e,ui.team);put("teams",e.teams.filter(x=>x!==t));if(e.live.left===t.id)put("live.left","");if(e.live.right===t.id)put("live.right","");ui.team=null;toast(`${t.name} deleted`);break;}
@@ -648,13 +661,13 @@ document.addEventListener("click",async ev0=>{
     case "swap":{const l=e.live;const nl=Object.assign({},l,{left:l.right,right:l.left,swap:!l.swap,score:[l.score[1],l.score[0]],series:[l.series[1],l.series[0]]});put("live",nl);break;}
     case "bump":{const p=b.dataset.path;put(p,Math.max(0,(+get(e,p)||0)+(+b.dataset.d)));mirrors();return;}
     case "resetSeries":put("live.series",[0,0]);break;
-    case "source":await api("/api/source",{source:arg});DB.settings.source=arg;break;
+    case "source":await api("/api/source",{event:e.id,source:arg});e.source=arg;break;
     case "clearBrand":put("settings.brand",{logo:""},false);break;
-    case "lolPanel":e.hud.lolPanel=arg;await api("/api/lol/panel",{mode:arg});break;
+    case "lolPanel":e.hud.lolPanel=arg;await api("/api/lol/panel",{mode:arg,event:e.id});break;
     case "ocrSources":ocrLoadSources();return;
     case "ocrPick":{const s=OCR.shown[+arg],c=ocrCfg();c.sourceId=s.id;c.sourceName=s.name;ocrSourcesRender();ocrSave(true);return}
     case "ocrDel":{const c=ocrCfg();c.regions=c.regions.filter(r=>r.id!==arg);ocrBoxes();ocrRows();ocrSave();return}
-    case "ocrStart":{await ocrSave(true);const j=await api("/api/ocr/start",{});if(j&&j.ok)toast("Reading the screen");break}
+    case "ocrStart":{const fk=SaintsHUD.feedKey(e);if(fk!=="ocr"&&fk!=="mc"){await api("/api/source",{event:e.id,source:"ocr"});e.source="ocr"}await ocrSave(true);const j=await api("/api/ocr/start",{});if(j&&j.ok)toast("Reading the screen");break}
     case "ocrStop":await api("/api/ocr/stop",{});break;
     case "ocrTest":{const r=ocrCfg().regions.find(x=>x.id===arg);
       const j=await fetch("/api/ocr/test",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({region:r})}).then(r=>r.json()).catch(()=>({error:"Test failed."}));
@@ -666,9 +679,9 @@ document.addEventListener("click",async ev0=>{
     case "pov":api("/api/rl",{Command:"ChangePOV",Data:{Perspective:arg==="Ball"?undefined:arg,Focus:arg==="Ball"?"Ball":undefined}});return;
     case "spectate":api("/api/rl",{Command:"ChangePOV",Data:{Focus:String(arg)}});return;
     case "gamehud":api("/api/rl",{Command:"SetHUDVisibility",Data:{bVisible:arg==="1"}});return;
-    case "pause":api("/api/rl",{Command:"SetMatchPaused",Data:{bPaused:!(GAME&&GAME.paused)}});return;
-    case "demoReset":api("/api/demo/reset",{});return;
-    case "demoPause":api("/api/demo/pause",{});return;
+    case "pause":api("/api/rl",{Command:"SetMatchPaused",Data:{bPaused:!(G()&&G().paused)}});return;
+    case "demoReset":api("/api/demo/reset",{event:e.id});return;
+    case "demoPause":api("/api/demo/pause",{event:e.id});return;
     case "kitSeats":{DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:+arg};put(`settings.kits.${e.kit}`,{seats:+arg},false);break;}
     case "timer":{const t=Object.assign({},e.timer);
       if(arg==="start"){if(t.endsAt){t.remaining=Math.max(0,Math.round((t.endsAt-Date.now())/1000));t.endsAt=0}else t.endsAt=Date.now()+t.remaining*1000}
@@ -694,7 +707,7 @@ document.addEventListener("click",async ev0=>{
       put("teams",e.teams);toast(`${added} player${added===1?"":"s"} added`);break}
     case "mcReset":await api("/api/mc/reset",{});toast("Kills and feed cleared");return;
     case "mcTest":{const j=await fetch("/api/mc/test",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(mcForm())}).then(r=>r.json()).catch(()=>({message:"Test failed."}));const m=$("#mcTestMsg");if(m){m.textContent=j.message||j.error||"";m.className="note"+(j.ok?"":" red")}return}
-    case "mcSave":{const j=await api("/api/mc/config",mcForm());if(j&&j.ok)toast("Saved. It connects while a Minecraft event is on air.");return}
+    case "mcSave":{const j=await api("/api/mc/config",mcForm());if(j&&j.ok)toast("Saved. It connects as soon as an event for Minecraft exists.");return}
     case "bbPhase":put("mc.bb.phase",arg);break;
     case "bbClear":put("mc.bb.scores",{});break;
     case "bbTimer":{const bb=Object.assign({},e.mc.bb);
@@ -797,7 +810,7 @@ function ocrRows(){
     <button class="btn icon" type="button" data-act="ocrDel" data-arg="${r.id}" aria-label="Delete box">${ico("x")}</button></div></td></tr>`).join("")||`<tr><td colspan="4" class="sub" style="padding:14px">No boxes yet. Drag on the picture to draw one.</td></tr>`;
 }
 function ocrLive(){
-  const o=GAME&&GAME.ocr||{},pill=$("#ocrPill");
+  const o=G()&&G().ocr||{},pill=$("#ocrPill");
   if(pill){pill.className="pill "+(o.running&&!o.error?"ok":o.error?"bad":"");pill.textContent=o.running?(o.error?"Problem":`Reading · ${o.cycleMs||0} ms per pass`):"Stopped"}
   const er=$("#ocrError");if(er)er.textContent=o.error||"";
   $$("[data-rawof]").forEach(td=>{const r=(o.readings||{})[td.dataset.rawof];td.textContent=r?(r.error?"error":(r.raw||"(blank)")):"—"});
@@ -834,7 +847,7 @@ function rpRender(){
   if(!RP.available){const c=RP.config||{};
     el.innerHTML=`<div class="rp"><b>Replay controls</b><p class="note">${esc(RP.reason||"")}</p>${c.found?(c.enabled?`<p class="note">The Replay API is switched on in game.cfg. Close the replay and open it again for it to take effect.</p>`:`<div class="row c"><button class="btn sm blue" type="button" data-act="enableReplayApi">Turn on Replay API</button><span class="note">Adds EnableReplayApi=1 to ${esc(c.file)}. Reopen the replay afterwards.</span></div>`):`<p class="note">League's game.cfg wasn't found in C:\\Riot Games\\League of Legends. Set the LOL_DIR variable to your install folder.</p>`}</div>`;return}
   const pb=RP.playback||{},rn=RP.render||{},fm=s=>SaintsHUD.fmt(Math.floor(s||0));
-  const names=(GAME&&GAME.players||[]).map(p=>p.name);
+  const names=(G()&&G().players||[]).map(p=>p.name);
   const modes=["fps","tps","top"].concat(rn.cameraMode&&!["fps","tps","top"].includes(rn.cameraMode)?[rn.cameraMode]:[]);
   const bools=Object.keys(rn).filter(k=>typeof rn[k]==="boolean"&&/^interface/.test(k));
   el.innerHTML=`<div class="rp"><div class="row c" style="justify-content:space-between"><b>Replay controls</b><span class="read">${fm(pb.time)} / ${fm(pb.length)}</span></div>

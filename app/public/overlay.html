@@ -18,23 +18,23 @@
 <div class="offline" id="off">Lost connection to Saints HUD server, retrying…</div>
 <script src="/hud.js"></script>
 <script>
-// /overlay?scene=auto|ingame|bracket|...&event=<id>&bg=pitch (bg only for testing outside OBS)
+// /overlay?scene=auto|ingame|bracket|...&event=<id>&bg=pitch (bg only for testing outside OBS). Every event has its own link and all of them are live at once.
 const qs = new URLSearchParams(location.search);
 const scene = qs.get("scene") || "auto";
 const hud = document.getElementById("hud");
-let DB = null, GAME = null;
+let DB = null, GAMES = {};
 if (qs.get("bg")) { const c = document.getElementById("bg"); c.style.display = "block"; SaintsHUD.drawBg(c, qs.get("bg") === "pitch" ? "game" : qs.get("bg"), qs.get("game") || ""); }
 function fit() { hud.style.transform = `scale(${Math.min(innerWidth / 1280, innerHeight / 720)})`; }
 addEventListener("resize", fit); fit();
 function draw() {
   if (!DB) return;
   const ev = DB.events.find(e => e.id === (qs.get("event") || DB.onAir)) || DB.events[0];
-  if (ev) SaintsHUD.render(hud, ev, GAME, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons), kits: DB.settings && DB.settings.kits });
+  if (ev) SaintsHUD.render(hud, ev, GAMES[SaintsHUD.feedKey(ev)] || null, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons), kits: DB.settings && DB.settings.kits });
 }
 function connect() {
   const es = new EventSource("/events?kind=overlay");
   es.addEventListener("db", e => { DB = JSON.parse(e.data).db; draw(); });
-  es.addEventListener("game", e => { GAME = JSON.parse(e.data); draw(); });
+  es.addEventListener("game", e => { const m = JSON.parse(e.data); GAMES[m.key] = m.game; draw(); }); // one feed per kind of source; this event reads its own
   es.onopen = () => document.getElementById("off").style.display = "none";
   es.onerror = () => { document.getElementById("off").style.display = "block"; };
 }

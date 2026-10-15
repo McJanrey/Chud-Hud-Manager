@@ -75,6 +75,12 @@ main{flex:1;position:relative;min-height:0}
 .prog{height:6px;border-radius:3px;background:var(--field);overflow:hidden}.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 .corner{position:absolute;left:16px;bottom:16px}
 .btn.wide{width:100%;padding:13px 16px;font-size:15px}
+.lk small{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.evl{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto;margin-top:8px}
+.evl .r{display:flex;align-items:center;gap:8px;background:var(--field);border:1px solid var(--line2);border-radius:8px;padding:6px 8px}
+.evl .r span{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evl .r em{display:block;font-style:normal;font-size:11px;color:var(--dim)}
+.evl .r .btn{padding:6px 10px;font-size:12px}
 .tb .nm .tbi{width:20px;height:20px;margin-right:8px;vertical-align:-5px}
 </style>
 </head>
@@ -107,24 +113,21 @@ main{flex:1;position:relative;min-height:0}
       <button class="it" id="mdata">Open data folder</button><hr>
       <button class="it out" id="mout">Sign out</button>
     </div>
-    <div class="top">
-      <select id="src" aria-label="Data source"></select></div>
     <div class="card">
       <h2><img src="/brand/saints-emblem.png" alt="">Saints HUD</h2>
       <div class="stat" id="srv"><i class="d"></i><span>Overlay server</span></div>
       <button class="btn blue wide" id="cr">Open Control Room</button>
+      <div class="lk"><small>Overlay links: one per event, all live</small><div class="evl" id="evl"></div></div>
       <div class="prog hidden" id="prog"><i></i></div>
       <div class="stat" id="us"><i class="d"></i><span id="ut"></span><a id="ua" class="hidden"></a></div>
       <button class="btn blue hidden" id="ur">Update &amp; Restart Saints HUD</button>
     </div>
-    <button class="btn ghost corner" id="cu">Copy overlay URL for OBS</button>
   </section>
 </main>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
   const api = window.saints;
-  const SRC = [["auto", "Follow active game"], ["rl", "Rocket League"], ["lol", "League of Legends"], ["ocr", "Screen OCR"], ["push", "External feed"], ["demo", "Demo feed"]];
   let S = null;
   const show = v => { $("login").classList.toggle("hidden", v !== "login"); $("home").classList.toggle("hidden", v !== "home"); };
   $("wmin").onclick = () => api.win.min(); $("wmax").onclick = () => api.win.max(); $("wx").onclick = () => api.win.close();
@@ -150,13 +153,12 @@ main{flex:1;position:relative;min-height:0}
   async function renderHome() {
     $("mname").textContent = S.profile.name; $("mmail").textContent = S.profile.email;
     renderUpdate(S.update);
-    try { const d = await (await fetch("/api/state")).json(); $("src").value = d.db.settings.source || "auto";
+    try { const d = await (await fetch("/api/state")).json(); renderLinks(d.db.events);
       $("srv").className = "stat ok"; $("srv").lastElementChild.textContent = "Overlay server running"; }
     catch { $("srv").className = "stat bad"; $("srv").lastElementChild.textContent = "Overlay server not responding"; }
   }
   async function boot() {
     S = await api.state(); $("ver").textContent = "v" + S.version;
-    $("src").innerHTML = SRC.map(([k, n]) => `<option value="${k}">${n}</option>`).join("");
     if (S.profile) { show("home"); renderHome(); } else { show("login"); $("ln").focus(); }
   }
   api.onUpdate(u => { if (S) { S.update = u; renderUpdate(u); } });
@@ -177,9 +179,14 @@ main{flex:1;position:relative;min-height:0}
     const r = await (S && S.update.state === "available" ? api.downloadUpdate() : api.installUpdate());
     if (r && r.ok === false && r.error) { $("ut").textContent = r.error; $("us").className = "stat bad"; }
   };
-  $("src").onchange = e => fetch("/api/source", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: e.target.value }) });
-  const copy = async b => { await api.copyOverlay(); const o = b.textContent; b.textContent = "Copied"; setTimeout(() => (b.textContent = o), 1200); };
-  $("cu").onclick = e => copy(e.target);
+  const escH = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function renderLinks(evs) {
+    $("evl").innerHTML = evs.map(e => `<div class="r"><span>${escH(e.name)}<em>${escH(e.game)}</em></span><button class="btn ghost" data-ev="${escH(e.id)}">Copy link</button></div>`).join("") || "<small>No events yet.</small>";
+  }
+  $("evl").onclick = async e => { // every event has its own overlay link
+    const b = e.target.closest("[data-ev]"); if (!b) return;
+    await api.copyOverlay(b.dataset.ev); const o = b.textContent; b.textContent = "Copied"; setTimeout(() => (b.textContent = o), 1200);
+  };
   boot();
 })();
 </script>

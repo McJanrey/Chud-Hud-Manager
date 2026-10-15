@@ -23,6 +23,12 @@ function saveLauncher() { try { fs.mkdirSync(path.dirname(LAUNCHER_FILE()), { re
 let upd = { state: "idle", version: "", percent: 0, error: "" };
 function setUpdate(patch) { upd = Object.assign({}, upd, patch); if (launcher) launcher.webContents.send("launcher:update", upd); }
 
+// Every event has its own overlay link; they are all live at once.
+let dbOf = () => null, menuSig = "";
+const eventsList = () => { const d = dbOf(); return d && Array.isArray(d.events) ? d.events : []; };
+const overlayUrl = id => `${base}/overlay?scene=auto${id ? "&event=" + encodeURIComponent(id) : ""}`;
+const overlayItems = () => { const l = eventsList(); return l.length ? l.map(e => ({ label: `${e.name} (${e.game})`, click: () => clipboard.writeText(overlayUrl(e.id)) })) : [{ label: "No events yet", enabled: false }]; };
+
 function createLauncher() {
   launcher = new BrowserWindow({
     width: 1100, height: 770, minWidth: 900, minHeight: 640, frame: false, title: "Saints HUD", backgroundColor: "#08110d", show: false,
@@ -53,7 +59,7 @@ function setupLauncherIpc() {
   on("launcher:download", () => downloadUpdate());
   on("launcher:install", () => installUpdate());
   on("launcher:control-room", () => openControlRoom());
-  on("launcher:copy-overlay", () => { clipboard.writeText(base + "/overlay?scene=auto"); return base + "/overlay?scene=auto"; });
+  on("launcher:copy-overlay", id => { const u = overlayUrl(id); clipboard.writeText(u); return u; });
   on("launcher:open-data", () => shell.openPath(process.env.SAINTS_DATA));
   on("win:min", () => launcher && launcher.minimize());
   on("win:max", () => launcher && (launcher.isMaximized() ? launcher.unmaximize() : launcher.maximize()));
@@ -159,9 +165,10 @@ function checkNow() {
 }
 
 function buildMenu() {
+  menuSig = eventsList().map(e => e.id + e.name + e.game).join("|");
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: "File", submenu: [
-      { label: "Copy overlay URL for OBS", click: () => clipboard.writeText(base + "/overlay?scene=auto") },
+      { label: "Copy overlay link", submenu: overlayItems() },
       { label: "Open overlay preview window", click: overlayPreview },
       { label: "Open data folder", click: () => shell.openPath(process.env.SAINTS_DATA) },
       { type: "separator" }, { role: "quit" }] },
@@ -174,12 +181,14 @@ function buildMenu() {
 }
 
 app.whenReady().then(() => {
-  const { server, PORT, setOcrProvider } = require("./server.js");
+  const { server, PORT, setOcrProvider, getDb } = require("./server.js");
+  dbOf = getDb;
   setOcrProvider(require("./ocr.js"));
   base = `http://127.0.0.1:${PORT}`;
   loadLauncher();
   setupLauncherIpc();
   buildMenu();
+  setInterval(() => { if (menuSig !== eventsList().map(e => e.id + e.name + e.game).join("|")) buildMenu(); }, 4000); // the File menu lists each event's overlay link
   setupUpdates();
   // F9 flips the League bottom board between the lane board and the teamfight strip, even while OBS has focus
   if (!globalShortcut.register("F9", () => { fetch(base + "/api/lol/panel", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => {}); }))
