@@ -40,6 +40,7 @@ let E=null,DRAG=false;
 const HG_EL=[["top","Title bar","mcTop"],["kills","Kill leaderboard","mcKills"],["feed","Elimination feed","mcFeed"],["elim","Elimination banner","mcElim"],["spot","Spotlight player","mcSpot"],["grid","Player grid","mcGrid"],["sponsors","Sponsors","mcSponsors"],["cam","Spotlight webcam","mcCam"]];
 let HGEL=null; // the Hunger Games element being edited // DRAG: a nameplate is being dragged, so the preview must not redraw under the pointer
 function G(){const e=ev();return e?FEEDS[SaintsHUD.feedKey(e)]||null:null} // the live feed this event reads
+let HGCARD="";
 let OUTS=null;fetch("/api/outputs").then(r=>r.json()).then(j=>{OUTS=j;if(ui.view==="outputs")render()}).catch(()=>{});
 
 /* ---------- server sync ---------- */
@@ -166,7 +167,7 @@ const PAGE_DESC={overview:"Your overlay link, workspace details and where this g
   live:"Where the match data comes from, who is playing and what the score is.",ocr:"Read scores and the clock from the screen for games without a data feed.",mc:"Connect your server, manage the roster and run Hunger Games or Build Battle.",
   rb:"Score the match by hand and put cards on screen.",camera:"Caster seats and the camera link for each one.",graphics:"The lower third and the countdown timer.",schedule:"Matches for the Schedule scene.",
   bracket:"Rounds and results for the Bracket scene.",standings:"Standings for the Rankings scene.",outputs:"Every overlay link and data address for this event."};
-function railStatus(){const el=$("#conn");if(!el)return;const[c,t]=sourceState();el.innerHTML=`<span class="pill ${c==="bad"?"err":c}"><span class="lbl">${esc(t)}</span></span><span class="faint" style="font-size:12px;padding-left:2px">${screensText()}</span>`}
+function railStatus(){const sb=$("#srvbanner");if(sb)sb.hidden=online;const el=$("#conn");if(!el)return;const[c,t]=sourceState();el.innerHTML=`<span class="pill ${c==="bad"?"err":c}"><span class="lbl">${esc(t)}</span></span><span class="faint" style="font-size:12px;padding-left:2px">${screensText()}</span>`}
 function rail(e){
   const link=v=>`<a class="nl${ui.view===v?" on":""}" href="#" data-act="nav" data-arg="${v}"${ui.view===v?' aria-current="page"':""} title="${META[v][0]}">${ico(META[v][1])}<span class="t">${META[v][0]}</span></a>`;
   const grp=(t,vs)=>`<div class="navgroup">${t}</div>${vs.map(link).join("")}`;
@@ -198,7 +199,7 @@ function render(){
   const e=ev();E=e;if(!e)ui.cur=null;
   if(e&&!VIEWS[ui.view])ui.view="overview"; // a view that doesn't exist for this event falls back to Overview
   const key=ui.cur+"|"+ui.view,enter=ui.seen!==key;ui.seen=key;
-  $("#app").innerHTML=rail(e)+`<div class="main">${topbar(e)}<div class="page${enter?" enter":""}"><div class="pagebox">${pagehead(e)}${e?VIEWS[ui.view](e):home()}</div></div></div>`;
+  $("#app").innerHTML=rail(e)+`<div class="main">${topbar(e)}<div class="srvbanner" id="srvbanner" role="alert"${online?" hidden":""}>${ico("info")}<div class="grow"><b>Overlay server not responding.</b> Overlays and live data are paused. Close and reopen Saints HUD if this stays.</div></div><div class="page${enter?" enter":""}"><div class="pagebox">${pagehead(e)}${e?VIEWS[ui.view](e):home()}</div></div></div>`;
   railStatus();mountStages();liveBits();
   if(ui.view==="ocr")ocrMount();
   if(ui.view==="live")rpPoll();
@@ -214,6 +215,7 @@ function evCards(){
   return cards+empty+`<button class="newcard" type="button" data-act="newEvent">${`<i>${ico("plus")}</i>`}<b>New event</b><span class="faint">Pick a game and name it</span></button>`;
 }
 function home(){
+  if(!DB.events.length)return`<div class="empty"><div class="ico">${ico("events")}</div><p>No events yet. Make one for your next broadcast and every overlay link comes with it.</p><button class="btn primary" type="button" data-act="newEvent">${ico("plus")}New event</button></div>`;
   const games=[...new Set(DB.events.map(e=>e.game))];
   return`<div class="toolbar"><label class="search">${ico("search")}<input id="evq" placeholder="Search events" aria-label="Search events" value="${esc(ui.evq||"")}"></label>
     <div class="field"><label for="evgame" style="position:absolute;width:1px;height:1px;overflow:hidden">Game</label><select id="evgame"><option value="">All games</option>${games.map(g=>`<option${ui.evgame===g?" selected":""}>${esc(g)}</option>`).join("")}</select></div>
@@ -288,6 +290,7 @@ overview(e){
   <div class="sec"><h2>Game data</h2>${gameData(e)}</div></div>`;
 },
 hud(e){
+  HGCARD="";
   const h=e.hud,inGame=h.scene==="ingame"; // boost lists, lane panel, League timers and icons only matter for the in-game scene
   return`<div class="hudgrid"><div class="hudctl">${!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?`<div class="banner">${esc(e.game)} has no live player data. Scenes show team names, scores and the clock read from the screen with Screen OCR.</div>`:""}
   ${inGame&&e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
@@ -303,7 +306,7 @@ hud(e){
   ${e.game==="League of Legends"?lolSettings(e):""}`:""}
   ${e.game==="Minecraft"&&h.scene==="ingame"&&e.mc.mode!=="buildbattle"?hgEditor(e):""}
   ${h.scene==="casters"?castersPanel(e):""}
-  </div><div class="previewcol">${stage()}</div></div>`;
+  </div><div class="previewcol">${stage()}${HGCARD}</div></div>`;
 },
 teams(e){
   if(!ui.team||!tm(e,ui.team))ui.team=e.teams[0]?.id||null;
@@ -322,7 +325,7 @@ teams(e){
     <div class="sec"><div class="sechead"><div><h2>Team members</h2><p class="sub">The in-game name must match the IGN exactly for auto team tracking.</p></div><button class="btn" type="button" data-act="addPlayer">+ Add player</button></div>
       <div class="tw"><table class="grid"><thead><tr><th style="width:60px">Avatar</th><th>${IGN_LABEL(e.game)} *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source URL</th><th style="width:44px"></th></tr></thead><tbody>
       ${t.players.map((p,j)=>`<tr><td>${F.dz(`${P}.players.${j}.avatar`,"Avatar","mini")}</td><td>${F.text(`${P}.players.${j}.ign`,"","In-game name")}</td><td>${F.text(`${P}.players.${j}.alias`,"","Alias")}</td><td>${F.sel(`${P}.players.${j}.country`,"",COUNTRIES)}</td><td>${F.text(`${P}.players.${j}.cam`,"","https://vdo.ninja/?view=…")}</td><td><button class="btn icon" type="button" data-act="delPlayer" data-arg="${j}" aria-label="Remove player">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="6" class="sub" style="padding:16px">No players yet.</td></tr>`}
-      </tbody></table></div></div>`:`<p class="sub">Add your first team to start building the roster.</p>`}</div></div>`;
+      </tbody></table></div></div>`:`<div class="empty"><div class="ico">${ico("teams")}</div><p>No teams yet. Add your first team to start building the roster.</p><button class="btn primary" type="button" data-act="addTeam">${ico("plus")}Add team</button></div>`}</div></div>`;
 },
 tournament(e){
   return`<div class="sec"><div><h2>Tournament details</h2><p class="sub">These details appear on the overlay.</p></div>
@@ -341,7 +344,7 @@ talent(e){
     <div class="sec" style="flex:1;min-width:220px">${F.text(`talent.${i}.name`,"Display name")}${F.text(`talent.${i}.role`,"Role / title","Caster")}<div class="row" style="justify-content:flex-end"><button class="btn danger" type="button" data-act="delTalent">${ico("trash")}Delete profile</button></div></div></div>
     <div class="sec"><div class="sechead"><h2>Socials</h2><button class="btn" type="button" data-act="addSocial">+ Add social</button></div>
     ${t.socials.map((s,j)=>`<div class="row">${F.sel(`talent.${i}.socials.${j}.p`,j?"":"Platform",PLATFORMS)}${F.text(`talent.${i}.socials.${j}.h`,j?"":"Handle","@handle")}<button class="btn icon" type="button" data-act="delSocial" data-arg="${j}" aria-label="Remove social">${ico("trash")}</button></div>`).join("")||`<p class="sub">No socials yet. The first one shows on the caster nameplate.</p>`}</div>`
-  :`<p class="sub">Add casters, hosts and observers.</p>`}</div></div>`;
+  :`<div class="empty"><div class="ico">${ico("talent")}</div><p>No talent yet. Add casters, hosts and observers.</p><button class="btn primary" type="button" data-act="addTalent">${ico("plus")}Add talent</button></div>`}</div></div>`;
 },
 live(e){
   const teamed=!["Minecraft","Riftbound"].includes(e.game); // Minecraft and Riftbound are scored on their own pages: no teams, scoreline or series here
@@ -459,12 +462,13 @@ function hgEditor(e){
     sponsors:()=>`<p class="sub">Sponsors come from Tournament. Mark one as Main sponsor to show it large with "Presented by".</p><button class="btn sm" type="button" data-act="nav" data-arg="tournament">Open Tournament</button>`,
     cam:()=>`<p class="sub">Shows the spotlight player's camera link from Players &amp; Teams. Add the link on that player's row.</p><button class="btn sm" type="button" data-act="nav" data-arg="teams">Open Players &amp; Teams</button>`,
   };
+  HGCARD=cur?`<div class="box sec sel-card"><div class="cardhead"><span class="sel-badge">Selected</span><h2>${cur[1]}</h2></div>${F.sw(`hud.show.${cur[2]}`,"Show on stream")}${settings[cur[0]]()}</div>`:`<div class="box sec"><p class="sub">Click an element in the preview to edit its settings here.</p></div>`;
   return`<div class="sec"><div class="sechead"><div><h2>Hunger Games HUD</h2><p class="sub">Click an element in the preview, or pick one below, to change its settings.</p></div>
     <div class="fld" style="flex:none"><span>HUD state</span><div class="seg">${[["main","Main"],["final","Final"],["winner","Winner"]].map(([k,l])=>`<button type="button" data-act="mcState" data-arg="${k}" aria-pressed="${st===k}">${l}</button>`).join("")}</div></div></div>
     ${st==="winner"?F.sel("mc.winner","Winner (blank: the last player alive, or the most kills)",[["","Automatic"],...names]):""}
     <div class="chks">${HG_EL.map(([k,l,f])=>F.chk(`hud.show.${f}`,l)).join("")}</div>
     <div class="scenes">${HG_EL.map(([k,l])=>`<button type="button" data-act="hgEl" data-arg="${k}" aria-pressed="${HGEL===k}">${l}</button>`).join("")}</div>
-    ${cur?`<div class="box"><b>${cur[1]}</b>${settings[cur[0]]()}</div>`:""}</div>`;
+    </div>`;
 }
 /* ---------- caster nameplates ---------- */
 function castersPanel(e){

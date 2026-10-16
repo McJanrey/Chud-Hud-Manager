@@ -160,3 +160,21 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 
 .detail .sec{background:none;border:0;box-shadow:none;padding:0}
 .detail>.sec+.sec,.detail>.halves{padding-top:0}
+
+/* from the final-pass design: empty states, server banner, progress, radio rows, selected-element card */
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:72px 24px}
+.empty .ico{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--text-2)}
+.empty .ico .ic{width:28px;height:28px}
+.empty p{max-width:380px;color:var(--text-2);font-size:var(--fs-md);margin:0}
+.srvbanner{display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 24px;background:var(--err-bg);border-bottom:1px solid var(--err);color:var(--text)}
+.srvbanner .ic{color:var(--err);width:18px;height:18px}.srvbanner .grow{flex:1;min-width:0}
+.progress{height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden}.progress i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.spin{width:20px;height:20px;border-radius:50%;border:2.5px solid var(--surface-3);border-top-color:var(--accent);animation:spin .9s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tscroll{overflow-x:auto;max-width:100%}
+.sel-card{border-color:var(--accent-line)}
+.sel-badge{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:var(--r-pill);font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent-ink)}
+.cardhead{display:flex;align-items:center;gap:12px}.cardhead h2{flex:1;font-size:var(--fs-md);font-weight:650;margin:0}
+.readout{display:flex;align-items:center;gap:14px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2);font-family:var(--font-mono);font-size:13px}
+.readout b{color:var(--accent-ink)}
+.hudgrid .previewcol>.box.sec{padding:var(--s-4)}
