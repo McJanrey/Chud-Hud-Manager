@@ -503,6 +503,5 @@
 .mc-win em{display:block;font-style:normal;font-size:30px;color:#cbd6cf;margin-top:6px}
 
 /* logo tiles scale their tag to the tile; long team names shrink instead of being cut */
-.hud .lgbox{container-type:inline-size}
 .hud .lg{line-height:1;text-align:center;padding:0 2px}
 .h-team .tn.long{font-size:21px;padding-top:7px}

@@ -1,113 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Saints HUD</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap">
-<style>
-:root{--bg:#08110d;--panel:#0d1713;--raised:#12201a;--field:#0a120f;--line:#1c2c24;--line2:#27402f;--fg:#eef3ef;--dim:#8fa399;--faint:#5e7468;
-  --accent:#FDC82F;--on-accent:#14200a;--brand:#00693C;--ok:#3ecf72;--bad:#ff5d5d;
-  --f-ui:"Libre Franklin","Segoe UI",system-ui,sans-serif;--f-head:"Montserrat","Libre Franklin",system-ui,sans-serif;color-scheme:dark}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-ui);display:flex;flex-direction:column;overflow:hidden;user-select:none}
-button,input,select{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.hidden{display:none!important}
-
-/* title bar: drag region plus window buttons */
-.tb{height:32px;flex:none;display:flex;align-items:center;justify-content:space-between;padding-left:14px;background:#0a1410;border-bottom:1px solid var(--line);-webkit-app-region:drag}
-.tb .nm{font:800 13px var(--f-head);letter-spacing:.04em;color:var(--accent)}.tb .nm b{color:#fff}.tb .nm small{font:500 9px var(--f-ui);color:var(--faint);margin-left:5px;letter-spacing:0}
-.tb .wc{display:flex;height:100%;-webkit-app-region:no-drag}
-.tb .wc button{width:46px;border:0;background:none;color:var(--dim);cursor:pointer;display:grid;place-items:center}
-.tb .wc button:hover{background:var(--raised);color:var(--fg)}.tb .wc button.x:hover{background:#c42b1c;color:#fff}
-.tb svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.3}
-
-main{flex:1;position:relative;min-height:0}
-.view{position:absolute;inset:0}
-
-/* sign in */
-#login{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
-.art{position:relative;margin:20px;border-radius:6px;overflow:hidden;background:
-  repeating-linear-gradient(135deg,rgba(253,200,47,.07) 0 22px,transparent 22px 44px),
-  radial-gradient(circle at 50% 38%,#0b8a52 0,#00693C 38%,#043a22 100%);border:1px solid var(--line2)}
-.art::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.55))}
-.art img{position:absolute;left:50%;top:38%;width:62%;transform:translate(-50%,-50%);filter:drop-shadow(0 12px 22px rgba(0,0,0,.5))}
-.art .cap{position:absolute;left:0;right:0;bottom:28px;text-align:center;font:800 30px var(--f-head);letter-spacing:.12em;color:var(--accent);text-shadow:0 2px 0 rgba(0,0,0,.4)}
-.art .cap small{display:block;font:600 12px var(--f-ui);letter-spacing:.3em;color:#e8f3ec;margin-top:4px}
-.side{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:30px 40px;text-align:center}
-.side h1{margin:0;font:700 26px var(--f-head)}.side h1 b{color:var(--accent)}
-.side .sub{color:var(--dim)}
-.form{width:300px;display:flex;flex-direction:column;gap:10px;margin-top:6px;text-align:left}
-.form label{font-size:11px;letter-spacing:.06em;color:var(--faint);font-weight:600}
-.form input{width:100%;background:var(--field);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;user-select:text}
-.form input::placeholder{color:var(--faint)}
-.err{color:var(--bad);font-size:12px;min-height:16px}
-.btn{border:0;border-radius:8px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--accent);color:var(--on-accent)}
-.btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.55;cursor:default}
-.btn.blue{background:#2f7bff;color:#fff}
-.btn.ghost{background:var(--raised);color:var(--fg);border:1px solid var(--line2)}
-.fine{color:var(--faint);font-size:12px;max-width:300px}
-
-/* main */
-#home{background:radial-gradient(ellipse at 50% 0,#0e1f17,var(--bg) 70%)}
-.gear{position:absolute;left:16px;top:16px;width:44px;height:44px;border-radius:10px;background:var(--raised);border:1px solid var(--line2);display:grid;place-items:center;cursor:pointer;z-index:5}
-.gear:hover{border-color:var(--accent)}.gear svg{width:22px;height:22px;stroke:var(--fg);fill:none;stroke-width:1.8}
-.menu{position:absolute;left:16px;top:68px;width:290px;background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:14px 16px;z-index:5;box-shadow:0 12px 30px rgba(0,0,0,.45)}
-.menu .who b{display:block}.menu .who small{color:var(--dim)}
-.menu hr{border:0;border-top:1px solid var(--line);margin:10px 0}
-.menu .it{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:7px 0;text-align:left;cursor:pointer;color:var(--fg)}
-.menu .it:hover{color:var(--accent)}.menu .it.out{color:var(--bad)}
-.menu .it.link{color:#5fa0ff}
-.menu input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
-.top{position:absolute;right:16px;top:16px;width:200px;display:flex;flex-direction:column;gap:8px}
-.top select{width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:9px 10px;font-weight:600;font-size:12px}
-.card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:380px;background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:12px}
-.card h2{margin:0;font:700 17px var(--f-head);display:flex;align-items:center;gap:10px}
-.card h2 img{width:34px;height:34px;object-fit:contain}
-.url{display:flex;gap:8px}
-.url code{flex:1;min-width:0;background:var(--field);border:1px solid var(--line2);border-radius:8px;padding:9px 12px;font:12px Consolas,monospace;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:text}
-.stat{color:var(--dim);font-size:13px;display:flex;align-items:center;gap:8px}
-.stat .d{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
-.stat.ok .d{background:var(--ok)}.stat.warn .d{background:var(--accent)}.stat.bad .d{background:var(--bad)}
-.stat a{color:#5fa0ff;cursor:pointer;margin-left:auto;font-size:12px}
-.prog{height:6px;border-radius:3px;background:var(--field);overflow:hidden}.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
-.corner{position:absolute;left:16px;bottom:16px}
-.btn.wide{width:100%;padding:13px 16px;font-size:15px}
-.lk small{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-.evl{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto;margin-top:8px}
-.evl .r{display:flex;align-items:center;gap:8px;background:var(--field);border:1px solid var(--line2);border-radius:8px;padding:6px 8px}
-.evl .r span{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.evl .r em{display:block;font-style:normal;font-size:11px;color:var(--dim)}
-.evl .r .btn{padding:6px 10px;font-size:12px}
-.qj{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.qj>span{color:var(--dim);font-size:13px}
-.qchips{display:flex;gap:6px;flex-wrap:wrap}
-.qc{display:flex;align-items:center;gap:7px;background:var(--field);border:1px solid var(--line2);color:var(--fg);border-radius:9px;padding:5px 10px 5px 5px;font:600 12px var(--f-ui);cursor:pointer;max-width:150px}
-.qc:hover{border-color:var(--accent)}
-.qc b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.qt{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;color:#fff;font:700 10px var(--f-head);flex:none;font-style:normal}
-.qadd{background:none;border:1.5px dashed var(--line2);color:var(--fg);border-radius:9px;padding:6px 12px;font:700 12px var(--f-ui);cursor:pointer}
-.qadd:hover{border-color:var(--accent);color:var(--accent)}
-.modal{position:fixed;inset:0;background:rgba(3,8,6,.78);z-index:20;display:grid;place-items:center;padding:20px}
-.mbox{width:min(720px,100%);max-height:100%;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden}
-.mhead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line2)}
-.mhead h3{margin:0;flex:1;font:700 16px var(--f-head);letter-spacing:.04em;text-transform:uppercase}
-.mhead input{width:200px;background:var(--field);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;color:var(--fg);font:13px var(--f-ui)}
-.ib{background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer;padding:6px 8px;border-radius:8px}
-.ib:hover{color:var(--fg);background:var(--field)}
-.mgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:16px;overflow:auto}
-.mc{display:flex;align-items:center;gap:10px;background:var(--field);border:1px solid var(--line2);border-radius:10px;padding:8px;cursor:pointer;color:var(--fg);text-align:left;font-family:var(--f-ui)}
-.mc:hover{border-color:var(--dim)}
-.mc .qt{width:38px;height:38px;border-radius:9px;font-size:13px}
-.mc span{flex:1;min-width:0}
-.mc b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mc small{color:var(--dim);font-size:11px}
-.mc i.r{width:18px;height:18px;border-radius:50%;border:2px solid var(--line2);flex:none}
-.mc.on{border-color:var(--accent)}.mc.on i.r{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 45%,transparent 50%)}
-.tb .nm .tbi{width:20px;height:20px;margin-right:8px;vertical-align:-5px}
-</style>
+<link rel="stylesheet" href="/tokens.css">
+<link rel="stylesheet" href="/components.css">
+<link rel="stylesheet" href="/launcher.css">
 </head>
 <body>
 <div class="tb"><div class="nm"><img class="tbi" src="/brand/saints-emblem.png" alt="">SAINTS <b>HUD</b><small id="ver"></small></div>
@@ -124,7 +23,7 @@ main{flex:1;position:relative;min-height:0}
         <label for="ln">NAME</label><input id="ln" name="name" placeholder="Your name" autocomplete="name" maxlength="60">
         <label for="le">EMAIL</label><input id="le" name="email" type="email" placeholder="you@example.com" autocomplete="email" maxlength="120">
         <div class="err" id="lerr" role="alert"></div>
-        <button class="btn" id="lgo" type="submit">Sign in</button>
+        <button class="btn primary wide" id="lgo" type="submit">Sign in</button>
       </form>
       <p class="fine">There's no account server: signing in only stores a local profile. Nothing leaves this PC.</p>
     </div>
@@ -142,11 +41,11 @@ main{flex:1;position:relative;min-height:0}
       <h2><img src="/brand/saints-emblem.png" alt="">Saints HUD</h2>
       <div class="stat" id="srv"><i class="d"></i><span>Overlay server</span></div>
       <div class="qj"><span>Quick Join</span><div class="qchips" id="qchips"></div><button class="qadd" id="qadd" type="button">+ Add</button></div>
-      <button class="btn blue wide" id="cr">Open Control Room</button>
+      <button class="btn primary wide" id="cr">Open Control Room</button>
       <div class="lk"><small>Overlay links: one per event, all live</small><div class="evl" id="evl"></div></div>
       <div class="prog hidden" id="prog"><i></i></div>
       <div class="stat" id="us"><i class="d"></i><span id="ut"></span><a id="ua" class="hidden"></a></div>
-      <button class="btn blue hidden" id="ur">Update &amp; Restart Saints HUD</button>
+      <button class="btn primary hidden" id="ur">Update &amp; Restart Saints HUD</button>
     </div>
   </section>
 <div class="modal hidden" id="qm" role="dialog" aria-modal="true" aria-label="Add to Quick Join">

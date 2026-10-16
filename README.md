@@ -60,6 +60,10 @@ There is no "on air" switch: every event has its own overlay link and all of the
 - Width **1920**, height **1080**, transparent background
 - Turn **off** "Shutdown source when not visible" so it stays live
 
+**vMix:** add an **Input → Web Browser**, paste the same link, set width 1920 and height 1080, and tick **Transparent**. If vMix runs on another PC, start the app with `HOST=0.0.0.0` and use that PC's address in place of `localhost`.
+
+The overlay is plain HTML, CSS and SVG with the fonts bundled, so it has no internet dependency and runs on the older Chromium builds inside OBS 28 and later and vMix.
+
 `scene=auto` follows the **Scene shown** picked in that event's HUD Editor, so the producer switches graphics without touching OBS. To pin a source to one scene use `scene=ingame`, `scene=casters`, `scene=bracket` and so on; **Outputs** lists a link for every scene of every event.
 
 | Scene | Parameter |

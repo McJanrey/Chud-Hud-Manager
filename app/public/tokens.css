@@ -1,0 +1,71 @@
+/* Saints HUD design tokens. Dark is default; set data-theme="light" on any ancestor to switch. */
+:root,[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A0F0C;
+  --surface-1:#101713;
+  --surface-2:#161F19;
+  --surface-3:#1D2922;
+  --line:#25332A;
+  --line-strong:#364A3D;
+  --text:#E9EFEA;
+  --text-2:#A6B5AB;
+  --text-3:#7E8F84;
+  --accent:#FDC82F;
+  --accent-ink:#FDC82F;
+  --on-accent:#1B1400;
+  --accent-soft:rgba(253,200,47,.10);
+  --accent-line:rgba(253,200,47,.55);
+  --brand:#00693C;
+  --brand-soft:rgba(0,105,60,.28);
+  --ok:#3DBE84;   --ok-bg:rgba(61,190,132,.14);
+  --warn:#F2A33A; --warn-bg:rgba(242,163,58,.14);
+  --err:#F5736C;  --err-bg:rgba(240,97,90,.14);
+  --info:#5AA2F2; --info-bg:rgba(90,162,242,.14);
+  --scrim:rgba(4,8,6,.62);
+  --stage-bg:#050806;
+  --shadow-1:0 1px 2px rgba(0,0,0,.4);
+  --shadow-2:0 8px 24px rgba(0,0,0,.45);
+  --shadow-3:0 24px 64px rgba(0,0,0,.6);
+  --ring:0 0 0 2px var(--bg),0 0 0 4px var(--accent);
+}
+[data-theme="light"]{
+  color-scheme:light;
+  --bg:#F2F6F3;
+  --surface-1:#FFFFFF;
+  --surface-2:#EEF3EF;
+  --surface-3:#E3EBE5;
+  --line:#D6E0D8;
+  --line-strong:#B7C6BB;
+  --text:#0F1A13;
+  --text-2:#43554A;
+  --text-3:#59695F;
+  --accent:#FDC82F;
+  --accent-ink:#7F5A00;
+  --on-accent:#1B1400;
+  --accent-soft:rgba(253,200,47,.22);
+  --accent-line:#C99A00;
+  --brand:#00693C;
+  --brand-soft:rgba(0,105,60,.10);
+  --ok:#0B7A47;   --ok-bg:rgba(0,105,60,.10);
+  --warn:#9A5A00; --warn-bg:rgba(200,120,0,.14);
+  --err:#B3261E;  --err-bg:rgba(179,38,30,.10);
+  --info:#1F5FB8; --info-bg:rgba(31,95,184,.10);
+  --scrim:rgba(15,26,19,.36);
+  --stage-bg:#0B120E;
+  --shadow-1:0 1px 2px rgba(15,26,19,.08);
+  --shadow-2:0 8px 24px rgba(15,26,19,.12);
+  --shadow-3:0 24px 64px rgba(15,26,19,.22);
+  --ring:0 0 0 2px var(--bg),0 0 0 4px #7F5A00;
+}
+:root{
+  --font-sans:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  --font-mono:"Cascadia Mono","JetBrains Mono",Consolas,monospace;
+  --fs-xs:12px; --fs-sm:13px; --fs-base:14px; --fs-md:15px; --fs-lg:18px; --fs-xl:22px; --fs-2xl:28px;
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-8:32px; --s-10:40px;
+  --r-sm:6px; --r-md:10px; --r-lg:14px; --r-pill:999px;
+  --dur-fast:120ms; --dur:180ms; --dur-slow:220ms; --ease:cubic-bezier(.2,.7,.2,1);
+  --rail-w:252px; --rail-w-collapsed:76px; --top-h:64px; --target:36px;
+}
+@media (prefers-reduced-motion:reduce){
+  :root{--dur-fast:0ms;--dur:0ms;--dur-slow:0ms}
+}
