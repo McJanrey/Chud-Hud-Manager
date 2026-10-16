@@ -308,10 +308,10 @@ hud(e){
 teams(e){
   if(!ui.team||!tm(e,ui.team))ui.team=e.teams[0]?.id||null;
   const t=tm(e,ui.team),i=e.teams.indexOf(t),P=`teams.${i}`;
-  return`<div class="pane"><div class="list"><div class="lhead"><input id="teamq" value="${esc(ui.teamq)}" placeholder="Search teams" aria-label="Search teams">
+  return`<div class="split"><div class="box pane"><div class="list"><div class="lhead"><input id="teamq" value="${esc(ui.teamq)}" placeholder="Search teams" aria-label="Search teams">
     <button class="btn" type="button" data-act="addTeam" style="justify-content:space-between"><span>+ Add team</span><span class="note">${e.teams.length} / 64</span></button></div>
-    <div class="items" id="teamlist">${teamList(e)}</div></div>
-  <div class="detail">${t?`
+    <div class="items" id="teamlist">${teamList(e)}</div></div></div>
+  <div class="box detail">${t?`
     <div class="row c" style="justify-content:space-between"><div class="row c">${ml(t,"ml big")}<div><h2 style="font-size:20px">${esc(t.name)} <span style="color:var(--dim)">/ ${esc(t.tag)}</span></h2><p class="sub">${esc(t.division||"No division set")}</p></div></div>
       <button class="btn icon danger" type="button" data-act="delTeam" aria-label="Delete team">${ico("trash")}</button></div>
     <div class="halves" style="gap:24px"><div><h2>Team details</h2><p class="sub">Used across the broadcast and designs.</p>
@@ -336,8 +336,8 @@ tournament(e){
 talent(e){
   if(!ui.talent||!e.talent.find(t=>t.id===ui.talent))ui.talent=e.talent[0]?.id||null;
   const t=e.talent.find(x=>x.id===ui.talent),i=e.talent.indexOf(t);
-  return`<div class="pane"><div class="list"><div class="lhead"><input id="talentq" value="${esc(ui.talentq)}" placeholder="Search talent" aria-label="Search talent"><button class="btn" type="button" data-act="addTalent">+ Add talent</button></div><div class="items" id="talentlist">${talentList(e)}</div></div>
-  <div class="detail">${t?`<div class="row" style="align-items:stretch;gap:24px"><div style="width:230px">${F.dz(`talent.${i}.portrait`,"Portrait")}</div>
+  return`<div class="split"><div class="box pane"><div class="list"><div class="lhead"><input id="talentq" value="${esc(ui.talentq)}" placeholder="Search talent" aria-label="Search talent"><button class="btn" type="button" data-act="addTalent">+ Add talent</button></div><div class="items" id="talentlist">${talentList(e)}</div></div></div>
+  <div class="box detail">${t?`<div class="row" style="align-items:stretch;gap:24px"><div style="width:230px">${F.dz(`talent.${i}.portrait`,"Portrait")}</div>
     <div class="sec" style="flex:1;min-width:220px">${F.text(`talent.${i}.name`,"Display name")}${F.text(`talent.${i}.role`,"Role / title","Caster")}<div class="row" style="justify-content:flex-end"><button class="btn danger" type="button" data-act="delTalent">${ico("trash")}Delete profile</button></div></div></div>
     <div class="sec"><div class="sechead"><h2>Socials</h2><button class="btn" type="button" data-act="addSocial">+ Add social</button></div>
     ${t.socials.map((s,j)=>`<div class="row">${F.sel(`talent.${i}.socials.${j}.p`,j?"":"Platform",PLATFORMS)}${F.text(`talent.${i}.socials.${j}.h`,j?"":"Handle","@handle")}<button class="btn icon" type="button" data-act="delSocial" data-arg="${j}" aria-label="Remove social">${ico("trash")}</button></div>`).join("")||`<p class="sub">No socials yet. The first one shows on the caster nameplate.</p>`}</div>`

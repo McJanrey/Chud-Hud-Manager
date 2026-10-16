@@ -157,3 +157,6 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 .crumbs a{cursor:pointer;color:var(--text-3)}.crumbs a:hover{color:var(--text)}
 .nav a.nl .ic,.btn .ic{width:18px;height:18px}.btn .ic{width:16px;height:16px}
 .toast .ic{color:var(--ok)}
+
+.detail .sec{background:none;border:0;box-shadow:none;padding:0}
+.detail>.sec+.sec,.detail>.halves{padding-top:0}
