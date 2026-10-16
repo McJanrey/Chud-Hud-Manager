@@ -512,3 +512,18 @@
 .bb-poll>small{font-size:13px;letter-spacing:.2em;color:var(--gold,#FDC82F)}.bb-poll>b{font-size:24px;font-weight:500;line-height:1.1}
 .bb-poll .o{display:grid;grid-template-columns:34px 1fr 90px 40px;align-items:center;gap:8px;font-size:20px}.bb-poll .o .k{color:var(--gold,#FDC82F)}
 .bb-poll .o .t{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.bb-poll .o .bar{height:12px;background:rgba(255,255,255,.12)}.bb-poll .o .bar i{display:block;height:100%;background:var(--gold,#FDC82F);transition:width .4s}.bb-poll .o b{text-align:right}
+
+/* motion (hud.js adds these classes; transform, opacity and filter only) */
+.hud .hin{animation:hin .55s cubic-bezier(.2,.9,.25,1) both}
+.hud .hino{animation:hino .5s ease-out both}
+.hud .hout{animation:hout .3s ease-in both;pointer-events:none}
+.hud .houto{animation:houto .3s ease-in both;pointer-events:none}
+.hud .bump{animation:hbump .5s cubic-bezier(.3,1.6,.5,1)}
+.hud .bumpf{animation:hbumpf .5s ease-out}
+@keyframes hin{from{opacity:0;transform:translate(var(--dx,0px),var(--dy,12px))}}
+@keyframes hino{from{opacity:0;filter:blur(6px)}}
+@keyframes hout{to{opacity:0;transform:translate(var(--dx,0px),var(--dy,-12px))}}
+@keyframes houto{to{opacity:0;filter:blur(6px)}}
+@keyframes hbump{0%{transform:scale(1.4);filter:brightness(1.7)}100%{transform:scale(1);filter:brightness(1)}}
+@keyframes hbumpf{0%{filter:brightness(1.8)}100%{filter:brightness(1)}}
+.hud .bar,.hud .fill,.hud .hp i{transition:width .5s cubic-bezier(.2,.8,.2,1),height .5s cubic-bezier(.2,.8,.2,1)}

@@ -560,21 +560,80 @@
   /* Update the page in place instead of replacing it: unchanged elements stay put, so entry animations
      don't restart every second and bar widths can transition smoothly. Children are matched by a key
      (data-k, else class name plus its position among siblings with that class). */
-  const keyOf = (el, seen) => { const base = el.getAttribute("data-k") || el.getAttribute("class") || el.tagName; seen[base] = (seen[base] || 0) + 1; return base + "#" + seen[base]; };
+  const keyOf = (el, seen) => { const base = el.getAttribute("data-k") || (el.getAttribute("class") || "").replace(/\b(hin|hino|hout|houto|bump|bumpf)\b/g, "").trim() || el.tagName; seen[base] = (seen[base] || 0) + 1; return base + "#" + seen[base]; };
+  /* Motion. Only opacity, transform and filter are animated, with plain CSS keyframes, so it runs the same in OBS, vMix and the app.
+     New elements slide in from the nearest edge, elements that go away fade out, numbers flash when they change, and a new scene
+     staggers in. Turn it off with ?anim=off on the overlay link. Classes the script adds are kept across in-place patches (__fx). */
+  const FX = { on: true, born: [], dying: new Set() };
+  const FXKEEP = /^(hin|hino|hout|houto|bump|bumpf)$/;
   function syncAttrs(a, b) {
+    const keep = a.__fx;
     for (const at of [...a.attributes]) if (!b.hasAttribute(at.name)) a.removeAttribute(at.name);
     for (const at of b.attributes) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+    if (keep) keep.forEach(c => a.classList.add(c));
   }
-  function patchKids(a, b) {
-    const ac = [...a.childNodes], bc = [...b.childNodes], oldEl = new Map(), oldTxt = [], sa = {}, sb = {}, next = [];
-    for (const x of ac) { if (x.nodeType === 1) oldEl.set(keyOf(x, sa), x); else if (x.nodeType === 3) oldTxt.push(x); }
+  function fxAdd(el, cls, ms) {
+    if (!el.__fx) el.__fx = new Set();
+    el.__fx.forEach(c => { if (FXKEEP.test(c) && c !== cls) { el.classList.remove(c); el.__fx.delete(c); } });
+    el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); el.__fx.add(cls);
+    clearTimeout(el.__fxT); el.__fxT = setTimeout(() => { el.classList.remove(cls); el.__fx && el.__fx.delete(cls); }, ms);
+  }
+  const NOBUMP = /clk|timer|time|clock|\bcd\b/;
+  function fxBump(el, val) {
+    if (!FX.on || !el || el.nodeType !== 1 || !/^[\s\d.,+\-\u2013/%]+$/.test(val) || /:/.test(val) || NOBUMP.test(el.getAttribute("class") || "")) return;
+    // values that change over and over (boost, health, a ticking stat) just update; a score or a count that changes now and then flashes
+    const now = Date.now(), h = (el.__chg || []).filter(t => now - t < 3000); h.push(now); el.__chg = h;
+    if (h.length > 2) return;
+    fxAdd(el, getComputedStyle(el).display === "inline" ? "bumpf" : "bump", 520);
+  }
+  let fxIdx = 0;
+  function patchKids(a, b, depth) {
+    depth = depth || 0;
+    const ac = [...a.childNodes], bc = [...b.childNodes], oldEl = new Map(), oldTxt = [], sa = {}, sb = {}, next = [], leaving = [];
+    for (const x of ac) { if (x.__out) { leaving.push(x); continue; } if (x.nodeType === 1) oldEl.set(keyOf(x, sa), x); else if (x.nodeType === 3) oldTxt.push(x); }
     let ti = 0;
     for (const y of bc) {
-      if (y.nodeType === 3) { const x = oldTxt[ti++]; if (x) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; next.push(x); } else next.push(y.cloneNode(true)); }
-      else if (y.nodeType === 1) { const k = keyOf(y, sb), x = oldEl.get(k); if (x && x.tagName === y.tagName) { oldEl.delete(k); syncAttrs(x, y); patchKids(x, y); next.push(x); } else next.push(y.cloneNode(true)); }
+      if (y.nodeType === 3) { const x = oldTxt[ti++]; if (x) { if (x.nodeValue !== y.nodeValue) { if (FX.on && a.__seen) fxBump(a, y.nodeValue); x.nodeValue = y.nodeValue; } next.push(x); } else next.push(y.cloneNode(true)); }
+      else if (y.nodeType === 1) {
+        const k = keyOf(y, sb), x = oldEl.get(k);
+        if (x && x.tagName === y.tagName) { oldEl.delete(k); syncAttrs(x, y); patchKids(x, y, depth + 1); next.push(x); }
+        else { const n = y.cloneNode(true); if (FX.on) { n.__idx = depth === 0 ? fxIdx++ : 0; FX.born.push(n); } next.push(n); }
+      }
     }
+    a.__seen = true;
     next.forEach((n, i) => { if (a.childNodes[i] !== n) a.insertBefore(n, a.childNodes[i] || null); });
-    while (a.childNodes.length > next.length) a.removeChild(a.lastChild);
+    // elements that are gone: absolutely placed ones fade out where they are, the rest just leave
+    const gone = new Set(oldEl.values()), keepTail = [];
+    [...a.childNodes].forEach(n => {
+      if (next.includes(n) || leaving.includes(n)) return;
+      if (FX.on && gone.has(n) && n.nodeType === 1 && getComputedStyle(n).position === "absolute") { n.__out = true; keepTail.push(n); fxOut(n); } else a.removeChild(n);
+    });
+    leaving.forEach(n => { if (n.parentNode === a && !keepTail.includes(n)) keepTail.push(n); });
+  }
+  function fxDir(el, hr) {
+    const r = el.getBoundingClientRect(); if (!hr.width) return [0, 12, false];
+    const cx = (r.left + r.width / 2 - hr.left) / hr.width, cy = (r.top + r.height / 2 - hr.top) / hr.height, wide = r.width / hr.width > .5;
+    let dx = 0, dy = 12;
+    if (wide || cy < .22 || cy > .78) dy = cy < .5 ? -26 : 26;
+    else dx = cx < .5 ? -44 : 44, dy = 0;
+    return [dx * hr.width / 1280, dy * hr.height / 720, true];
+  }
+  function fxOut(n) {
+    const hasT = getComputedStyle(n).transform !== "none";
+    n.classList.add(hasT ? "houto" : "hout"); n.__fx = new Set([hasT ? "houto" : "hout"]);
+    setTimeout(() => { if (n.parentNode) n.parentNode.removeChild(n); }, 320);
+  }
+  function fxFlush(hudEl) {
+    const born = FX.born; FX.born = []; fxIdx = 0;
+    if (!born.length) return;
+    const hr = hudEl.getBoundingClientRect(), sc = hr.width ? hr.width / 1280 : 1;
+    born.forEach(n => {
+      if (!n.isConnected) return;
+      const hasT = getComputedStyle(n).transform !== "none", [dx, dy] = fxDir(n, hr);
+      n.style.setProperty("--dx", (dx / sc).toFixed(0) + "px"); n.style.setProperty("--dy", (dy / sc).toFixed(0) + "px");
+      n.style.animationDelay = Math.min(n.__idx || 0, 8) * 55 + "ms";
+      fxAdd(n, hasT ? "hino" : "hin", 900 + Math.min(n.__idx || 0, 8) * 55);
+    });
   }
 
   let CTX = {}; // per-render extras: { icons } (the uploaded objective icons)
@@ -586,8 +645,9 @@
     const out = S[s](m);
     hudEl.style.setProperty("--L", m.colors[0]); hudEl.style.setProperty("--R", m.colors[1]);
     const lay = hudEl.firstChild;
-    if (lay.dataset.scene !== s) { lay.dataset.scene = s; lay.className = "lay fade"; lay.textContent = ""; lay.__html = null; void lay.offsetWidth; } else lay.className = "lay";
-    if (lay.__html !== out.html) { const tpl = document.createElement("div"); tpl.innerHTML = out.html; patchKids(lay, tpl); lay.__html = out.html; }
+    if (lay.dataset.scene !== s) { lay.dataset.scene = s; lay.className = "lay"; lay.textContent = ""; lay.__html = null; lay.__seen = false; }
+    FX.on = !(typeof location !== "undefined" && /[?&]anim=off\b/.test(location.search));
+    if (lay.__html !== out.html) { const tpl = document.createElement("div"); tpl.innerHTML = out.html; patchKids(lay, tpl); lay.__html = out.html; fxFlush(hudEl); }
     syncCams(hudEl.lastChild, out.cams);
     return m;
   }

@@ -64,6 +64,8 @@ There is no "on air" switch: every event has its own overlay link and all of the
 
 The overlay is plain HTML, CSS and SVG with the fonts bundled, so it has no internet dependency and runs on the older Chromium builds inside OBS 28 and later and vMix.
 
+The overlay is animated: elements slide in from the nearest edge, ones that go away fade out, scores flash when they change and a new scene staggers in. It only animates opacity, position and blur, so it stays smooth in OBS and vMix. Add `&anim=off` to a link for a static overlay.
+
 `scene=auto` follows the **Scene shown** picked in that event's HUD Editor, so the producer switches graphics without touching OBS. To pin a source to one scene use `scene=ingame`, `scene=casters`, `scene=bracket` and so on; **Outputs** lists a link for every scene of every event.
 
 | Scene | Parameter |
