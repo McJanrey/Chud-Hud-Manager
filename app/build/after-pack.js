@@ -1,4 +1,4 @@
-// electron-builder hook: stamp the Saints emblem and product details onto Saints HUD.exe.
+// electron-builder hook: stamp the Saints emblem and product details onto Chud Hud.exe.
 // (electron-builder's own resource editing needs symlink rights that a normal Windows account doesn't have.)
 const path = require("path");
 
@@ -8,6 +8,6 @@ exports.default = async function afterPack(context) {
   const exe = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.exe`);
   await rcedit(exe, {
     icon: path.join(__dirname, "icon.ico"),
-    "version-string": { ProductName: "Saints HUD", FileDescription: "Saints HUD", CompanyName: "St. Clair Saints Broadcast", OriginalFilename: "Saints HUD.exe" },
+    "version-string": { ProductName: "Chud Hud", FileDescription: "Chud Hud", CompanyName: "St. Clair Saints Broadcast", OriginalFilename: "Chud Hud.exe" },
   });
 };

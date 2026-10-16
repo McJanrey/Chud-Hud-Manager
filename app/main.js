@@ -1,15 +1,17 @@
-// Desktop shell: runs the Saints HUD server inside the app and shows the control room in its own window.
+// Desktop shell: runs the Chud Hud server inside the app and shows the control room in its own window.
 // OBS still reads the overlay from http://localhost:7777/overlay while the app is open.
 "use strict";
 const { app, BrowserWindow, Menu, shell, dialog, clipboard, globalShortcut, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
-// `Saints HUD.exe --ocr-selftest` checks that screen capture and text reading work on this PC.
+// `Chud Hud.exe --ocr-selftest` checks that screen capture and text reading work on this PC.
 if (process.argv.includes("--ocr-selftest")) { require("./test/ocr-selftest.js"); return; }
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 if (process.platform === "win32") app.setAppUserModelId("ca.stclair.saintshud"); // same id as the installer's shortcuts, so the taskbar and Start keep the Saints icon
 
+// The product used to be called "Saints HUD": keep that userData folder so a renamed install still finds its events, settings and backups.
+app.setPath("userData", path.join(app.getPath("appData"), "Saints HUD"));
 process.env.SAINTS_DATA = process.env.SAINTS_DATA || path.join(app.getPath("userData"), "data");
 let win = null, launcher = null, base = "";
 
@@ -31,7 +33,7 @@ const overlayItems = () => { const l = eventsList(); return l.length ? l.map(e =
 
 function createLauncher() {
   launcher = new BrowserWindow({
-    width: 1100, height: 770, minWidth: 900, minHeight: 640, frame: false, title: "Saints HUD", backgroundColor: "#08110d", show: false,
+    width: 1100, height: 770, minWidth: 900, minHeight: 640, frame: false, title: "Chud Hud", backgroundColor: "#08110d", show: false,
     icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, "preload.js") },
   });
@@ -71,7 +73,7 @@ function setupLauncherIpc() {
 function createWindow(id) {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 980, minHeight: 640,
-    title: "Saints HUD Control Room", backgroundColor: "#08110d", show: false, autoHideMenuBar: true,
+    title: "Chud Hud Control Room", backgroundColor: "#08110d", show: false, autoHideMenuBar: true,
     icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: { contextIsolation: true, sandbox: true },
   });
@@ -106,14 +108,14 @@ function setupUpdates() {
     if (BUSY.includes(upd.state)) return;
     setUpdate({ state: "available", version: info.version, percent: 0, error: "" });
     if (!launcher && win) dialog.showMessageBox(win, { type: "info", buttons: ["Download", "Later"], defaultId: 0, cancelId: 1,
-      title: "Update available", message: `Saints HUD ${info.version} is available.`, detail: "Downloading does not restart anything. You choose when to install it." })
+      title: "Update available", message: `Chud Hud ${info.version} is available.`, detail: "Downloading does not restart anything. You choose when to install it." })
       .then(r => { if (r.response === 0) downloadUpdate(); });
   });
   updater.on("download-progress", p => setUpdate({ state: "downloading", percent: Math.round(p.percent || 0) }));
   updater.on("update-downloaded", info => {
     setUpdate({ state: "ready", version: info.version });
     if (!launcher && win) dialog.showMessageBox(win, { type: "info", buttons: ["Restart now", "Later"], defaultId: 0, cancelId: 1,
-      title: "Update ready", message: `Saints HUD ${info.version} is ready to install.`,
+      title: "Update ready", message: `Chud Hud ${info.version} is ready to install.`,
       detail: "Your events and settings are backed up first. Restarting briefly takes the overlay offline in OBS." })
       .then(r => { if (r.response === 0) installUpdate(); });
   });
@@ -198,8 +200,8 @@ app.whenReady().then(() => {
   const start = () => createLauncher(); // the launcher is the only window at start; Open Control Room replaces it
   if (server.listening) start(); else server.once("listening", start);
   server.once("error", err => {
-    dialog.showErrorBox("Saints HUD can't start",
-      err.code === "EADDRINUSE" ? `Port ${PORT} is already in use. Close any other copy of Saints HUD (or START.bat) and try again.` : err.message);
+    dialog.showErrorBox("Chud Hud can't start",
+      err.code === "EADDRINUSE" ? `Port ${PORT} is already in use. Close any other copy of Chud Hud (or START.bat) and try again.` : err.message);
     app.quit();
   });
 });

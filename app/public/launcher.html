@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Saints HUD</title>
+<title>Chud Hud</title>
 <link rel="stylesheet" href="/tokens.css">
 <link rel="stylesheet" href="/components.css">
 <link rel="stylesheet" href="/launcher.css">
@@ -17,7 +17,7 @@
   <section id="login" class="view hidden">
     <div class="art"><img src="/brand/saints-emblem.png" alt=""><div class="cap">ST. CLAIR SAINTS<small>BROADCAST</small></div></div>
     <div class="side">
-      <h1>Sign in to <b>Saints HUD</b></h1>
+      <h1>Sign in to <b>Chud Hud</b></h1>
       <p class="sub">Your name and email are saved on this PC for the control room.</p>
       <form class="form" id="lf" autocomplete="on">
         <label for="ln">NAME</label><input id="ln" name="name" placeholder="Your name" autocomplete="name" maxlength="60">
@@ -38,14 +38,14 @@
       <button class="it out" id="mout">Sign out</button>
     </div>
     <div class="card">
-      <h2><img src="/brand/saints-emblem.png" alt="">Saints HUD</h2>
+      <h2><img src="/brand/saints-emblem.png" alt="">Chud Hud</h2>
       <div class="stat" id="srv"><i class="d"></i><span>Overlay server</span></div>
       <div class="qj"><span>Quick Join</span><div class="qchips" id="qchips"></div><button class="qadd" id="qadd" type="button">+ Add</button></div>
       <button class="btn primary wide" id="cr">Open Control Room</button>
       <div class="lk"><small>Overlay links: one per event, all live</small><div class="evl" id="evl"></div></div>
       <div class="prog hidden" id="prog"><i></i></div>
       <div class="stat" id="us"><i class="d"></i><span id="ut"></span><a id="ua" class="hidden"></a></div>
-      <button class="btn primary hidden" id="ur">Update &amp; Restart Saints HUD</button>
+      <button class="btn primary hidden" id="ur">Update &amp; Restart Chud Hud</button>
     </div>
   </section>
 <div class="modal hidden" id="qm" role="dialog" aria-modal="true" aria-label="Add to Quick Join">
@@ -71,10 +71,10 @@
       case "checking": t.textContent = "Checking for updates…"; st.classList.add("warn"); break;
       case "none": t.textContent = `You're up to date (v${v})`; st.classList.add("ok"); link("Check again"); break;
       case "available": t.textContent = `Update available (v${u.version})`; st.classList.add("warn"); ur.textContent = "Download update"; ur.classList.remove("hidden"); break;
-      case "installing": t.textContent = "Backing up and installing… Saints HUD will restart."; st.classList.add("warn"); break;
+      case "installing": t.textContent = "Backing up and installing… Chud Hud will restart."; st.classList.add("warn"); break;
       case "downloading": t.textContent = `Downloading ${u.version ? "v" + u.version : "update"}… ${u.percent || 0}%`; st.classList.add("warn");
         pr.classList.remove("hidden"); pr.firstElementChild.style.width = (u.percent || 0) + "%"; break;
-      case "ready": t.textContent = `Update downloaded${u.version ? " (v" + u.version + ")" : ""}. Your data is backed up before it installs.`; st.classList.add("ok"); ur.textContent = "Update & Restart Saints HUD"; ur.classList.remove("hidden");
+      case "ready": t.textContent = `Update downloaded${u.version ? " (v" + u.version + ")" : ""}. Your data is backed up before it installs.`; st.classList.add("ok"); ur.textContent = "Update & Restart Chud Hud"; ur.classList.remove("hidden");
         if (u.error) { t.textContent = u.error; st.className = "stat bad"; } break;
       case "error": t.textContent = "Couldn't check for updates" + (u.error ? `: ${u.error}` : ""); st.classList.add("bad"); link("Try again"); break;
       case "source": t.textContent = `Running from source (v${v}). Updates apply to the installed app.`; break;

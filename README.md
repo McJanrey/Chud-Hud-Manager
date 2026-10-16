@@ -1,4 +1,4 @@
-# Saints HUD
+# Chud Hud
 
 Live broadcast graphics for St. Clair Saints esports. One desktop app runs the control room, reads the game while you produce the show, and feeds your stream three ways:
 
@@ -25,7 +25,7 @@ Every event is live at the same time and reads the feed of its own game, so a Ro
 
 ## Install
 
-Download **`SaintsHUD-Setup-x.y.z.exe`** from the [latest release](https://github.com/McJanrey/saints-hud/releases/latest) and run it. Windows may show "Windows protected your PC" because the app isn't code-signed: choose **More info → Run anyway**. No administrator rights, Node.js or Python needed.
+Download **`ChudHud-Setup-x.y.z.exe`** from the [latest release](https://github.com/McJanrey/saints-hud/releases/latest) and run it. Windows may show "Windows protected your PC" because the app isn't code-signed: choose **More info → Run anyway**. No administrator rights, Node.js or Python needed.
 
 The app always starts on a small launcher, the only window at first: update status, **Quick Join** (pin events with **+ Add**, then one click opens the control room straight inside that event), **Open Control Room**, and the overlay link of every event with a **Copy link** button. Opening the control room replaces the launcher, so only one window is open at a time; **Help → Launcher** goes back. Signing in saves a **local profile** (name and email) on this PC; there is no account server.
 
@@ -41,7 +41,7 @@ A restart briefly takes the overlay offline in OBS, which is why the app never d
 
 ### Where your data lives
 
-`%APPDATA%\Saints HUD\data` (**File → Open data folder**). Updates and reinstalls keep it.
+`%APPDATA%\Chud Hud\data` (**File → Open data folder**). Updates and reinstalls keep it.
 
 | Item | Purpose |
 |---|---|
@@ -129,7 +129,7 @@ Restart the game, then play or spectate. Boost, score, goals, assists, saves, th
 
 ### League of Legends
 
-Nothing to set up. Run Saints HUD on the PC that is playing, spectating or watching a replay.
+Nothing to set up. Run Chud Hud on the PC that is playing, spectating or watching a replay.
 
 The HUD follows the in-game broadcast layout: a scorebar with each team's tag, series pips, turrets, gold and the gold lead, kills in the middle, the clock underneath, and claimed dragons, heralds, void grubs and barons beside it. Objective timers for Dragon, Void Grubs, Rift Herald, Elder and Baron sit top-left. Baron and Elder buff cards show who took it and drain with the buff. A banner announces dragons, barons, towers, inhibitors, aces and first blood.
 
@@ -178,7 +178,7 @@ Open **Screen OCR**:
 2. Drag boxes over the left score, right score, game clock and team names. Use **Test** on each box to see exactly what the reader sees.
 3. Press **Start reading**.
 
-A value is accepted once two reads in a row agree, so a single misread never reaches the broadcast. Starting layouts are only guesses: every game's HUD is different, so move the boxes onto your game. To check the engine on a PC, run `"Saints HUD.exe" --ocr-selftest`.
+A value is accepted once two reads in a row agree, so a single misread never reaches the broadcast. Starting layouts are only guesses: every game's HUD is different, so move the boxes onto your game. To check the engine on a PC, run `"Chud Hud.exe" --ocr-selftest`.
 
 ### Other trackers
 
@@ -315,8 +315,8 @@ League of Legends data comes from Riot's Live Client Data API on the player's ow
 
 The cover images on the My Events cards are each game's official key art, downloaded on the user's PC the first time a card needs it (Steam's store assets for Rocket League, Overwatch 2, Call of Duty, Deadlock and Counter-Strike 2; Riot's Data Dragon for League; valorant-api for Valorant; Mojang's launcher content for Minecraft; Epic's news feed for Fortnite) and kept in the data folder. They are not bundled with the app or this repository, they belong to their publishers, and any event can use its own uploaded cover instead (Overview). Riftbound has no source yet and keeps a plain gradient.
 
-Saints HUD isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+Chud Hud isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
 
 Rocket League is a trademark of Psyonix LLC. Teko and JetBrains Mono are used under the SIL Open Font License.
 
-No open-source license is granted for the Saints HUD code (`UNLICENSED` in `app/package.json`).
+No open-source license is granted for the Chud Hud code (`UNLICENSED` in `app/package.json`).

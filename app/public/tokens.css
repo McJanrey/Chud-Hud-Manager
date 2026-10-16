@@ -1,4 +1,4 @@
-/* Saints HUD design tokens. Dark is default; set data-theme="light" on any ancestor to switch. */
+/* Chud Hud design tokens. Dark is default; set data-theme="light" on any ancestor to switch. */
 :root,[data-theme="dark"]{
   color-scheme:dark;
   --bg:#0A0F0C;

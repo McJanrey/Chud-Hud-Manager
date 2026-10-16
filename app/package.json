@@ -1,6 +1,6 @@
 {
   "name": "saints-hud",
-  "productName": "Saints HUD",
+  "productName": "Chud Hud",
   "version": "0.3.6",
   "private": true,
   "description": "St. Clair Saints broadcast control room and OBS overlays with live Rocket League and League of Legends data, plus screen OCR for other games.",
@@ -28,7 +28,7 @@
   },
   "build": {
     "appId": "ca.stclair.saintshud",
-    "productName": "Saints HUD",
+    "productName": "Chud Hud",
     "asar": false,
     "files": [
       "main.js",
@@ -65,16 +65,16 @@
       }
     ],
     "nsis": {
-      "artifactName": "SaintsHUD-Setup-${version}.exe",
+      "artifactName": "ChudHud-Setup-${version}.exe",
       "oneClick": false,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "Saints HUD"
+      "shortcutName": "Chud Hud"
     },
     "portable": {
-      "artifactName": "SaintsHUD-portable-${version}.exe"
+      "artifactName": "ChudHud-portable-${version}.exe"
     }
   },
   "dependencies": {

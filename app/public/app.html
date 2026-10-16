@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Saints HUD Control Room</title>
+<title>Chud Hud Control Room</title>
 <link rel="stylesheet" href="/hud.css">
 <link rel="stylesheet" href="/tokens.css">
 <link rel="stylesheet" href="/components.css">
@@ -47,7 +47,7 @@ let OUTS=null;fetch("/api/outputs").then(r=>r.json()).then(j=>{OUTS=j;if(ui.view
 async function api(url,body){
   try{const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));if(!r.ok)toast(j.error||"The server rejected that change.");return j}
-  catch(e){toast("Can't reach the Saints HUD server. Restart the app.");return{}}
+  catch(e){toast("Can't reach the Chud Hud server. Restart the app.");return{}}
 }
 // apply locally, then persist on the server (which tells the other screens)
 function put(path,value,eventScoped=true){
@@ -176,7 +176,7 @@ function rail(e){
     +grp("Broadcast",["hud","camera","graphics","schedule","bracket","standings","outputs"])
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
   const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/saints-emblem.png";
-  return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="St. Clair Saints emblem"></div><div><b>Saints HUD</b><small>Control room</small></div></div>
+  return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="St. Clair Saints emblem"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
     <button class="evsw" type="button" data-act="palette" title="Switch event (Ctrl+K)"><div class="cover" style="${e?`background-image:${coverCss(e)}`:"background:var(--surface-3)"}"></div><span><b>${e?esc(e.name):"No event open"}</b><small>${e?esc(e.game):"Choose one to begin"}</small></span>${ico("updown")}</button>
     <div class="navscroll">${nav}</div>
     <div class="navfoot"><div id="conn" style="display:flex;flex-direction:column;gap:8px"></div><div class="row">
@@ -195,11 +195,11 @@ function pagehead(e){
   return`<div class="pagehead row"><div><h1>${META[ui.view][0]}</h1><p>${PAGE_DESC[ui.view]||""}</p></div>${pill}</div>`;
 }
 function render(){
-  if(!DB){$("#app").innerHTML=`<div class="muted" style="padding:40px">Starting Saints HUD…</div>`;return}
+  if(!DB){$("#app").innerHTML=`<div class="muted" style="padding:40px">Starting Chud Hud…</div>`;return}
   const e=ev();E=e;if(!e)ui.cur=null;
   if(e&&!VIEWS[ui.view])ui.view="overview"; // a view that doesn't exist for this event falls back to Overview
   const key=ui.cur+"|"+ui.view,enter=ui.seen!==key;ui.seen=key;
-  $("#app").innerHTML=rail(e)+`<div class="main">${topbar(e)}<div class="srvbanner" id="srvbanner" role="alert"${online?" hidden":""}>${ico("info")}<div class="grow"><b>Overlay server not responding.</b> Overlays and live data are paused. Close and reopen Saints HUD if this stays.</div></div><div class="page${enter?" enter":""}"><div class="pagebox">${pagehead(e)}${e?VIEWS[ui.view](e):home()}</div></div></div>`;
+  $("#app").innerHTML=rail(e)+`<div class="main">${topbar(e)}<div class="srvbanner" id="srvbanner" role="alert"${online?" hidden":""}>${ico("info")}<div class="grow"><b>Overlay server not responding.</b> Overlays and live data are paused. Close and reopen Chud Hud if this stays.</div></div><div class="page${enter?" enter":""}"><div class="pagebox">${pagehead(e)}${e?VIEWS[ui.view](e):home()}</div></div></div>`;
   railStatus();mountStages();liveBits();
   if(ui.view==="ocr")ocrMount();
   if(ui.view==="live")rpPoll();
@@ -380,7 +380,7 @@ live(e){
 },
 ocr(e){
   const c=ocrCfg(),on=!!(G()&&G().ocr&&G().ocr.running);
-  if(!OCR.available)return`<div class="sec"><h2>Screen OCR</h2><div class="banner">Screen OCR only works in the Saints HUD desktop app, because it needs permission to capture your screen. Open this page in the installed app.</div></div>`;
+  if(!OCR.available)return`<div class="sec"><h2>Screen OCR</h2><div class="banner">Screen OCR only works in the Chud Hud desktop app, because it needs permission to capture your screen. Open this page in the installed app.</div></div>`;
   return`<div class="halves" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)"><div class="sec">
     <div class="sechead"><div><h2>Screen OCR</h2><p class="sub">For games without a live data feed. Pick the screen or window showing the game, then drag boxes over the score, clock and team names.</p></div><span class="pill" id="ocrPill">…</span></div>
     <div class="row c"><b style="font:700 13px var(--f-head)">1. Pick what to read</b><button class="btn sm" type="button" data-act="ocrSources">Refresh list</button></div>
@@ -444,7 +444,7 @@ function gameData(e){
   const box=(t,b)=>`<div class="box"><b>${t}</b><p class="sub">${b}</p></div>`,g=e.game;
   const other=box("Other trackers",`Any program can send Stats API–shaped JSON to <code class="mono">${esc(location.origin)}/api/ingest</code>, for example <code>{"Event":"UpdateState","Data":{…}}</code>, with this event's source set to External on Live Game.`);
   if(g==="Rocket League")return box("Rocket League (official Stats API)",`On the game PC, edit <code>&lt;Install Dir&gt;/TAGame/Config/TAStatsAPI.ini</code> (or <code>DefaultStatsAPI.ini</code>), set <code>PacketSendRate=30</code> under <code>[TAGame.MatchStatsExporter_TA]</code>, then restart the game. Spectate the match so boost and the player card are sent.`)+other;
-  if(g==="League of Legends")return box("League of Legends (Live Client Data API)","Nothing to configure. Run Saints HUD on the PC that is playing, spectating or watching a replay, and data flows once the match loads: kills, deaths, assists, CS, levels, respawn timers, towers, dragons and barons. Replay controls need the Replay API switched on: Live Game has a button for it.")+other;
+  if(g==="League of Legends")return box("League of Legends (Live Client Data API)","Nothing to configure. Run Chud Hud on the PC that is playing, spectating or watching a replay, and data flows once the match loads: kills, deaths, assists, CS, levels, respawn timers, towers, dragons and barons. Replay controls need the Replay API switched on: Live Game has a button for it.")+other;
   if(g==="Minecraft")return box("Minecraft (Java server)","Connect your server on the Minecraft page: RCON for who is online, health and the border, and the server log for kills and deaths. With no server, Screen OCR can read the alive count, kills, clock and border from the screen.")+other;
   if(g==="Riftbound")return box("Riftbound","There is no live data feed. You score the match by hand on the Riftbound page: points, games, turns, the clock and the cards in play.");
   return box(esc(g)+" (screen reading)","${esc(g)} has no live data feed, so scores, the clock and team names are read from the screen with Screen OCR. Pick the game's window on the Screen OCR page and draw a box around each value.".replace("${esc(g)}",esc(g)))+other;
@@ -791,7 +791,7 @@ async function ocrMount(){
   ocrLoadSources();ocrBoxes();ocrRows();ocrFrameLoop();ocrLive();
 }
 function ocrLoadSources(){
-  fetch("/api/ocr/sources").then(r=>r.json()).then(l=>{OCR.shown=(Array.isArray(l)?l:[]).filter(s=>!/Saints HUD/i.test(s.name));ocrSourcesRender()})
+  fetch("/api/ocr/sources").then(r=>r.json()).then(l=>{OCR.shown=(Array.isArray(l)?l:[]).filter(s=>!/Chud Hud/i.test(s.name));ocrSourcesRender()})
     .catch(()=>{const el=$("#ocrSources");if(el)el.innerHTML=`<span class="note">Couldn't list screens and windows.</span>`});
 }
 function ocrSourcesRender(){

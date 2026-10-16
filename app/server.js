@@ -1,4 +1,4 @@
-// Saints HUD server: dashboard + OBS overlays + Rocket League Stats API bridge.
+// Chud Hud server: dashboard + OBS overlays + Rocket League Stats API bridge.
 // Zero dependencies: needs only Node.js 18+.
 "use strict";
 const http = require("http");
@@ -881,11 +881,11 @@ const server = http.createServer((req, res) => {
     if (p === "/api/lol/swagger") return lolHttp("GET", "/swagger/v3/openapi.json").then(r => json(res, r.status === 200 ? 200 : 502, r.json || { error: r.error }));
     if (p === "/api/ocr/state") return json(res, 200, ocr ? Object.assign({ available: true, config: DB.settings.ocr || null }, ocr.state()) : { available: false, config: DB.settings.ocr || null });
     if (p === "/api/ocr/sources") {
-      if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+      if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
       return ocr.listSources().then(s => json(res, 200, s)).catch(e => json(res, 500, { error: e.message }));
     }
     if (p === "/api/ocr/frame") {
-      if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+      if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
       return ocr.frame(url.searchParams.get("source") || (DB.settings.ocr || {}).sourceId, (DB.settings.ocr || {}).sourceName)
         .then(buf => { res.writeHead(200, { "content-type": "image/jpeg", "cache-control": "no-store" }); res.end(buf); })
         .catch(e => json(res, 404, { error: e.message }));
@@ -943,12 +943,12 @@ const server = http.createServer((req, res) => {
           }
           case "/api/lol/enable-replay-api": { const file = enableReplayApi(); return json(res, 200, { ok: true, file }); }
           case "/api/ocr/config": {
-            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
             DB.settings.ocr = body; save(); ocr.update(body); broadcastDb("server");
             return json(res, 200, { ok: true });
           }
           case "/api/ocr/start": {
-            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
             return ocr.start(DB.settings.ocr || {}, ocrIngest).then(() => json(res, 200, { ok: true })).catch(e => json(res, 400, { error: e.message }));
           }
           case "/api/ocr/stop": if (ocr) ocr.stop(); return json(res, 200, { ok: true });
@@ -968,7 +968,7 @@ const server = http.createServer((req, res) => {
           case "/api/mc/test": return mcc.test(body).then(r => json(res, 200, r));
           case "/api/mc/reset": mcc.reset(); return json(res, 200, { ok: true });
           case "/api/ocr/test": {
-            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Saints HUD desktop app." });
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
             return ocr.testRegion(body.source || (DB.settings.ocr || {}).sourceId, (DB.settings.ocr || {}).sourceName, body.region)
               .then(r => json(res, 200, r)).catch(e => json(res, 400, { error: e.message }));
           }
@@ -999,7 +999,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.on("error", err => {
-  if (err.code === "EADDRINUSE") log(`Port ${PORT} is already in use. Close the other Saints HUD window or set PORT to a different number.`);
+  if (err.code === "EADDRINUSE") log(`Port ${PORT} is already in use. Close the other Chud Hud window or set PORT to a different number.`);
   else log("Server error:", err.message);
   if (require.main === module) process.exit(1);
 });
@@ -1007,7 +1007,7 @@ module.exports = { server, PORT, DATA, setOcrProvider, getDb: () => DB };
 
 server.listen(PORT, HOST, () => {
   const shown = HOST === "0.0.0.0" ? "localhost" : HOST;
-  log(`Saints HUD running`);
+  log(`Chud Hud running`);
   log(`  Dashboard:  http://${shown}:${PORT}/`);
   log(`  Overlay:    http://${shown}:${PORT}/overlay   (add as an OBS Browser Source, 1920x1080)`);
   applyFeeds();
