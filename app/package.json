@@ -39,6 +39,7 @@
       "minecraft.js",
       "ocr.js",
       "cams.js",
+      "twitch.js",
       "test/ocr-selftest.js",
       "build/icon.png",
       "public/**/*",

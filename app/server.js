@@ -52,7 +52,9 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     timer: { label: "BACK SOON", seconds: 300, endsAt: 0, remaining: 300 },
     // Minecraft: Hunger Games and Build Battle
     mc: { mode: "hungergames", title: "HUNGER GAMES", total: 24, spotlight: "", winner: "", clock: { running: false, base: 0, startedAt: 0 },
-      bb: { theme: "", phase: "waiting", buildSeconds: 900, endsAt: 0, remaining: 900, judging: "", scores: {} } },
+      bb: { theme: "", phase: "waiting", buildSeconds: 900, endsAt: 0, remaining: 900, judging: "", scores: {},
+        judges: [], judgeScores: {}, audience: { open: false, weight: 0, scores: {} } },
+      poll: { question: "", options: ["", ""], open: false, show: false, counts: [0, 0], total: 0 } },
     // Riftbound (trading card game): operator-driven scoring
     rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
       limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "", play: [[], []], log: [] },
@@ -63,6 +65,9 @@ function upgrade(ev) {
   const d = newEvent(ev.name);
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
+  { const dm = d.mc; // Build Battle judges, audience scores and the chat poll arrived later than the first Minecraft events
+    ev.mc.bb = Object.assign({}, dm.bb, ev.mc.bb); ev.mc.bb.audience = Object.assign({}, dm.bb.audience, ev.mc.bb.audience);
+    ev.mc.poll = Object.assign({}, dm.poll, ev.mc.poll); }
   if (ev.camera && ev.camera.own === undefined) ev.camera.own = true; // our own camera links are used unless an event opts out
   ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
@@ -879,6 +884,51 @@ function camLinks() {
     seats: ev.camera.seats.map((s, i) => Object.assign({ n: i + 1 }, mk(ev.id + ".seat" + i))) })) };
 }
 
+/* ------------------------------------------------ Twitch chat votes: build scores and chat polls (twitch.js) */
+const twitchLib = require("./twitch.js");
+const chatEvent = id => (id ? DB.events.find(e => e.id === id) : null); // never the on-air fallback: a vote only ever lands on the event it was opened for
+const chat = { event: "", mode: "", voters: new Map(), dirty: false }; // voters: build name (or "poll") -> Map(user -> number)
+const voteMap = k => { let m = chat.voters.get(k); if (!m) chat.voters.set(k, m = new Map()); return m; };
+function onChat({ user, text }) {
+  const ev = chatEvent(chat.event); if (!ev) return;
+  const n = twitchLib.parseVote(text); if (n == null) return;
+  if (chat.mode === "score") {
+    const bb = ev.mc.bb; if (!bb.audience.open || !bb.judging || n > 10) return;
+    const m = voteMap(bb.judging); if (m.size < 50000) { m.set(user, n); chat.dirty = true; }
+  } else if (chat.mode === "poll") {
+    const p = ev.mc.poll; if (!p.open || n < 1 || n > p.options.length) return;
+    const m = voteMap("poll"); if (m.size < 50000) { m.set(user, n); chat.dirty = true; }
+  }
+}
+const twitch = twitchLib.create({ onMessage: onChat, log });
+function tally(ev) {
+  const bb = ev.mc.bb, sc = {};
+  chat.voters.forEach((m, k) => { if (k === "poll" || !m.size) return; let sum = 0; m.forEach(v => { sum += v; }); sc[k] = { avg: Math.round(sum / m.size * 10) / 10, count: m.size }; });
+  bb.audience.scores = sc;
+  const p = ev.mc.poll, pm = chat.voters.get("poll"), counts = p.options.map(() => 0);
+  if (pm) pm.forEach(v => { if (counts[v - 1] != null) counts[v - 1]++; });
+  p.counts = counts; p.total = counts.reduce((a, b) => a + b, 0);
+}
+setInterval(() => { // votes arrive in bursts: write them out once a second
+  if (!chat.dirty) return; chat.dirty = false;
+  const ev = chatEvent(chat.event); if (!ev) return;
+  tally(ev); save(); broadcastDb("chat");
+}, 1000).unref();
+function chatOpen(evId, mode, open) {
+  const ev = chatEvent(evId); if (!ev || !["score", "poll"].includes(mode)) return "Pick an event and a mode.";
+  const prev = chatEvent(chat.event);
+  if (open && prev && (prev !== ev || chat.mode !== mode)) { prev.mc.bb.audience.open = false; prev.mc.poll.open = false; } // one vote at a time
+  if (open) { chat.event = ev.id; chat.mode = mode; }
+  if (mode === "score") ev.mc.bb.audience.open = open; else ev.mc.poll.open = open;
+  save(); broadcastDb("chat");
+  return "";
+}
+function chatClear(evId, mode, build) {
+  const ev = chatEvent(evId); if (!ev) return;
+  if (mode === "poll") chat.voters.delete("poll"); else if (build) chat.voters.delete(build); else [...chat.voters.keys()].forEach(k => k !== "poll" && chat.voters.delete(k));
+  tally(ev); save(); broadcastDb("chat");
+}
+
 const server = http.createServer((req, res) => {
   if (!hostOk(req)) { res.writeHead(421, { "content-type": "text/plain" }); return res.end("Unexpected host name"); }
   const url = new URL(req.url, "http://x");
@@ -890,6 +940,7 @@ const server = http.createServer((req, res) => {
     if (p === "/camview") return sendFile(res, path.join(PUB, "camview.html"));
     if (p === "/api/cam/status") return json(res, 200, cams.status());
     if (p === "/api/cam/links") return json(res, 200, camLinks());
+    if (p === "/api/chat/status") return json(res, 200, Object.assign(twitch.status(), { event: chat.event, mode: chat.mode, voters: Object.fromEntries([...chat.voters].map(([k, m]) => [k, m.size])) }));
     if (p === "/" || p === "/dashboard") return sendFile(res, path.join(PUB, "app.html"));
     if (p === "/overlay") return sendFile(res, path.join(PUB, "overlay.html"));
     if (p === "/launcher") return sendFile(res, path.join(PUB, "launcher.html"));
@@ -1003,6 +1054,13 @@ const server = http.createServer((req, res) => {
             if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
             return ocr.start(DB.settings.ocr || {}, ocrIngest).then(() => json(res, 200, { ok: true })).catch(e => json(res, 400, { error: e.message }));
           }
+          case "/api/chat/connect": {
+            const r = twitch.connect(body.channel); if (!r.ok) return json(res, 400, { error: r.error });
+            DB.settings.twitch = { channel: String(body.channel || "").replace(/^#/, "").trim() }; save(); broadcastDb("chat");
+            return json(res, 200, twitch.status());
+          }
+          case "/api/chat/open": { const err = chatOpen(String(body.event || ""), String(body.mode || ""), !!body.open); return err ? json(res, 400, { error: err }) : json(res, 200, { ok: true }); }
+          case "/api/chat/clear": chatClear(String(body.event || ""), String(body.mode || ""), String(body.build || "")); return json(res, 200, { ok: true });
           case "/api/cam/lan": {
             const on = !!body.on;
             return setCamLan(on).then(() => { DB.settings.camLan = on; save(); json(res, 200, camLinks()); })
@@ -1069,5 +1127,6 @@ server.listen(PORT, HOST, () => {
   log(`  Overlay:    http://${shown}:${PORT}/overlay   (add as an OBS Browser Source, 1920x1080)`);
   applyFeeds();
   ensureOfficialIcons();
+  if (DB.settings.twitch && DB.settings.twitch.channel) twitch.connect(DB.settings.twitch.channel);
   if (DB.settings.camLan) setCamLan(true).catch(e => log("Player cameras could not start:", e.message));
 });

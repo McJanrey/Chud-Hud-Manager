@@ -384,19 +384,41 @@
     }
     return { html: h, cams };
   }
+  /* A build's score: a number typed by hand wins; otherwise the average of the judges (casters, players, guests), mixed with the
+     Twitch chat average by the audience weight (0 = judges only). */
+  function bbScore(bb, name) {
+    const man = (bb.scores || {})[name];
+    if (man != null && man !== "") return { v: +man, manual: true, chips: [], jud: null, aud: null, count: 0 };
+    const js = bb.judgeScores || {}, judges = bb.judges || [], key = j => j.id + "~" + name; // flat keys ("<judge id>~<build>") so every cell is one simple path
+    const chips = judges.filter(j => js[key(j)] != null && js[key(j)] !== "").map(j => ({ name: j.name, kind: j.kind, v: +js[key(j)] }));
+    const jud = chips.length ? chips.reduce((a, c) => a + c.v, 0) / chips.length : null;
+    const au = bb.audience || {}, a = (au.scores || {})[name], aud = a && a.count ? a.avg : null, w = Math.min(100, Math.max(0, +au.weight || 0)) / 100;
+    const v = jud != null && aud != null ? jud * (1 - w) + aud * w : jud != null ? jud : aud != null && w > 0 ? aud : null;
+    return { v: v == null ? null : Math.round(v * 10) / 10, manual: false, chips, jud, aud, count: a ? a.count : 0 };
+  }
   function mcBuild(m, d) {
     const bb = d.cfg.bb || {}, oc = d.oc, phase = (oc && oc.phase && phaseOf(String(oc.phase))) || bb.phase || "waiting";
     const theme = (oc && oc.theme) || bb.theme || "", rem = oc && oc.clock != null ? oc.clock : bb.endsAt ? Math.max(0, (bb.endsAt - Date.now()) / 1000) : bb.remaining || 0;
-    const scores = bb.scores || {};
+    const sc = n => bbScore(bb, n).v;
     if (phase === "results") {
-      const names = [...new Set([...Object.keys(scores), ...d.list.map(p => p.name)])];
-      const rows = names.map(n => ({ n, s: scores[n] })).sort((a, b) => (b.s ?? -1) - (a.s ?? -1)).slice(0, 10);
+      const names = [...new Set([...Object.keys(bb.scores || {}), ...Object.keys(bb.judgeScores || {}).map(k => k.split("~")[1]).filter(Boolean), ...d.list.map(p => p.name)])];
+      const rows = names.map(n => ({ n, s: sc(n) })).sort((a, b) => (b.s ?? -1) - (a.s ?? -1)).slice(0, 10);
       return { html: `<div class="h-full"><div class="h-eyebrow">${esc(theme || d.cfg.title || "BUILD BATTLE")}</div><div class="h-title" style="font-size:90px">RESULTS</div>
         <table class="h-table" style="width:760px"><tbody>${rows.map((r, i) => `<tr class="${i === 0 ? "top" : ""}"><td class="num" style="width:60px">${i + 1}</td><td class="tm" style="text-align:left">${head(r.n, "sm")}${esc(r.n)}</td><td class="num">${r.s ?? "–"}</td></tr>`).join("")}</tbody></table></div>`, cams: [] };
     }
     let h = `<div class="bb-top"><div class="th"><small>THEME</small><b>${esc(theme || "–")}</b></div><div class="ph">${PHASE[phase]}</div><div class="tm num">${fmt(rem)}</div></div>`;
-    h += `<div class="bb-list">${d.list.slice(0, 14).map(p => `<div data-k="b${esc(p.name)}" class="${p.online ? "" : "off"}">${head(p.name, "sm")}<span class="nm">${esc(p.name)}</span>${scores[p.name] != null ? `<b class="num">${scores[p.name]}</b>` : ""}</div>`).join("")}</div>`;
-    if (phase === "judging" && bb.judging) h += `<div class="bb-judge">${head(bb.judging, "big")}<div><small>NOW JUDGING</small><b>${esc(bb.judging)}</b></div><div class="sc"><b class="num">${scores[bb.judging] ?? "–"}</b><small>/ 10</small></div></div>`;
+    h += `<div class="bb-list">${d.list.slice(0, 14).map(p => `<div data-k="b${esc(p.name)}" class="${p.online ? "" : "off"}">${head(p.name, "sm")}<span class="nm">${esc(p.name)}</span>${sc(p.name) != null ? `<b class="num">${sc(p.name)}</b>` : ""}</div>`).join("")}</div>`;
+    if (phase === "judging" && bb.judging) {
+      const x = bbScore(bb, bb.judging), au = bb.audience || {};
+      const chips = x.chips.map(c => `<span class="jc" data-k="j${esc(c.name)}"><small>${esc(c.name)}</small><b class="num">${c.v}</b></span>`).join("")
+        + (au.open || x.count ? `<span class="jc chat" data-k="jchat"><small>CHAT${x.count ? " · " + x.count : ""}</small><b class="num">${x.aud != null ? x.aud : "–"}</b></span>` : "");
+      h += `<div class="bb-judge">${head(bb.judging, "big")}<div><small>NOW JUDGING</small><b>${esc(bb.judging)}</b></div>${chips ? `<div class="jcs">${chips}</div>` : ""}<div class="sc"><b class="num">${x.v ?? "–"}</b><small>/ 10</small></div></div>`;
+    }
+    const pl = (d.ev && d.ev.mc && d.ev.mc.poll) || m.ev.mc.poll;
+    if (pl && pl.show && pl.options.some(Boolean)) {
+      const tot = pl.total || 0;
+      h += `<div class="bb-poll"><small>CHAT POLL${pl.open ? " · VOTE NOW" : ""}</small>${pl.question ? `<b>${esc(pl.question)}</b>` : ""}${pl.options.map((o, i) => o ? `<div class="o" data-k="po${i}"><span class="k num">!${i + 1}</span><span class="t">${esc(o)}</span><span class="bar"><i style="width:${tot ? Math.round((pl.counts[i] || 0) / tot * 100) : 0}%"></i></span><b class="num">${pl.counts[i] || 0}</b></div>` : "").join("")}</div>`;
+    }
     return { html: h, cams: [] };
   }
 
@@ -620,7 +642,7 @@
   // the html a scene draws for an event and a live feed, without a page (used by the tests)
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m).html; }
 
-  const api = { SCENES, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml };
+  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

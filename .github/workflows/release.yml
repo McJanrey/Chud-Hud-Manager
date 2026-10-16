@@ -33,6 +33,7 @@ jobs:
           node test/security-test.js
           node test/minecraft-rcon-test.js
           node test/scenes-test.js
+          node test/twitch-test.js
       - name: Build and publish
         run: npx electron-builder --win nsis --publish always
         env:

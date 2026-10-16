@@ -510,8 +510,10 @@ mc(e){
       <div class="row"><label class="fld" style="max-width:170px"><span>Build time (minutes)</span><input type="number" id="mcBuildMin" min="1" max="180" step="0.5" value="${bb.buildSeconds/60}"></label>
         <span class="row c"><button class="btn" type="button" data-act="bbTimer" data-arg="start">${bb.endsAt?"Pause":"Start"}</button><button class="btn" type="button" data-act="bbTimer" data-arg="reset">Reset</button><b class="mono" data-bbtimer>0:00</b></span></div>
       ${F.sel("mc.bb.judging","Now judging",[["","Nobody"],...names])}
-      <div class="sechead"><div><b>Scores (out of 10)</b><p class="note">Shown beside each name and on the results screen.</p></div><button class="btn sm" type="button" data-act="bbClear">Clear scores</button></div>
-      ${names.length?`<div class="cols" style="--n:3">${names.map(n=>F.num(`mc.bb.scores.${n}`,esc(n),'min="0" max="10"')).join("")}</div>`:`<p class="sub">Add players below first.</p>`}</div>`}
+      <details><summary class="note" style="cursor:pointer">Type a final score by hand (overrides judges and chat)</summary>
+        <div class="sechead" style="margin-top:8px"><span class="note">Leave empty to use the judges' average.</span><button class="btn sm" type="button" data-act="bbClear">Clear typed scores</button></div>
+        ${names.length?`<div class="cols" style="--n:3">${names.map(n=>F.num(`mc.bb.scores.${n}`,esc(n),'min="0" max="10" step="0.1"')).join("")}</div>`:`<p class="sub">Add players below first.</p>`}</details>
+      ${bbJudgesPanel(e,names)}</div>`}
     <div class="sec"><div><h2>Roster</h2><p class="sub">Player names exactly as they appear in Minecraft. They label the HUD and match kills from the server log. Remove players on Players &amp; Teams.</p></div>
       <div class="row nowrap"><label class="fld"><span>Add players (separated by spaces, commas or new lines)</span><textarea id="mcNames" rows="2" style="background:var(--field);border:1px solid var(--line);border-radius:9px;padding:8px 11px;width:100%;font:inherit;color:inherit"></textarea></label><button class="btn" type="button" data-act="mcAddNames">Add</button></div>
       <p class="note">${names.length?`${names.length} player${names.length===1?"":"s"}: ${esc(names.join(", "))}`:"No players yet."}</p></div>
@@ -600,6 +602,35 @@ function camPaint(){
     ${ce.seats.length?`<details><summary class="note" style="cursor:pointer">Caster seat links</summary><div class="tw"><table class="grid"><tbody>${ce.seats.map(r=>row(r,"Seat "+r.n,"")).join("")}</tbody></table></div></details>`:""}`;
 }
 setInterval(()=>{if(ui.view==="camera"&&!document.hidden)camLoad()},2500);
+/* Build Battle: judges (casters, players, guests), the score grid, Twitch chat votes and the chat poll. */
+let CHAT=null;
+async function chatLoad(){try{CHAT=await fetch("/api/chat/status").then(r=>r.json())}catch{CHAT=null}const b=$("#chatStatus");if(b&&ui.view==="mc")b.innerHTML=chatStatusHtml()}
+function chatStatusHtml(){if(!CHAT)return`<span class="pill">Unknown</span>`;
+  const n=CHAT.voters||{},tot=Object.values(n).reduce((a,b)=>a+b,0);
+  return CHAT.connected?`<span class="pill ok">Connected to ${esc(CHAT.channel)}</span> <span class="note">${tot} voter${tot===1?"":"s"} counted</span>`:CHAT.channel?`<span class="pill warn">${CHAT.error?esc(CHAT.error):"Connecting…"}</span>`:`<span class="pill">Not connected</span>`}
+setInterval(()=>{if(ui.view==="mc"&&!document.hidden)chatLoad()},2000);
+function bbJudgesPanel(e,names){
+  const bb=e.mc.bb,jd=bb.judges||[],au=bb.audience||{},pl=e.mc.poll,tw=(DB.settings.twitch&&DB.settings.twitch.channel)||"";
+  const cand=[...e.talent.map(t=>t.name),...names].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const finals=n=>{const x=SaintsHUD.bbScore(bb,n);return x.v==null?"–":x.v};
+  return`<div class="sec"><div><h2>Judges</h2><p class="sub">Casters, players or guests who score each build out of 10. The score on screen is their average. Chat can count for part of it (set its weight below).</p></div>
+    <div class="row c" style="flex-wrap:wrap;gap:6px">${jd.map(j=>`<span class="pill">${esc(j.name)} <span class="note">${esc(j.kind)}</span> <button class="btn icon sm" type="button" data-act="bbJudgeDel" data-arg="${esc(j.id)}" aria-label="Remove ${esc(j.name)}">${ico("x")}</button></span>`).join("")||`<span class="note">No judges yet.</span>`}</div>
+    <div class="row c"><label class="fld" style="max-width:260px"><span>Add a judge</span><input id="bbJudgeName" list="bbJudgeList" placeholder="Name"></label><datalist id="bbJudgeList">${cand.map(c=>`<option value="${esc(c)}">`).join("")}</datalist><button class="btn" type="button" data-act="bbJudgeAdd">Add judge</button></div>
+    ${jd.length&&names.length?`<div class="tw"><table class="grid"><thead><tr><th>Build</th>${jd.map(j=>`<th style="width:90px">${esc(j.name)}</th>`).join("")}<th style="width:80px">Final</th></tr></thead><tbody>${names.map(n=>`<tr><td>${esc(n)}</td>${jd.map(j=>`<td>${F.num(`mc.bb.judgeScores.${j.id}~${n}`,"",'min="0" max="10" step="0.5"')}</td>`).join("")}<td class="mono">${finals(n)}</td></tr>`).join("")}</tbody></table></div>`:""}</div>
+  <div class="sec"><div class="sechead"><div><h2>Twitch chat</h2><p class="sub">Reads your channel's public chat with no login. Viewers vote by typing <b>!7</b> or <b>!vote 7</b> for the build being judged, or <b>!1</b>, <b>!2</b>… on a chat poll. Chat is never written to.</p></div><span id="chatStatus">${chatStatusHtml()}</span></div>
+    <div class="row c"><label class="fld" style="max-width:240px"><span>Twitch channel</span><input id="twChannel" value="${esc(tw)}" placeholder="channel name"></label><button class="btn blue" type="button" data-act="twConnect">${tw?"Reconnect":"Connect"}</button>${tw?`<button class="btn" type="button" data-act="twDisconnect">Disconnect</button>`:""}</div>
+    <div class="row c" style="flex-wrap:wrap"><button class="btn${au.open?" primary":""}" type="button" data-act="bbVote" data-arg="${au.open?"close":"open"}">${au.open?"Close build voting":"Open build voting"}</button>
+      <button class="btn sm" type="button" data-act="bbVoteClear">Clear votes for ${esc(bb.judging||"this build")}</button>
+      <label class="fld" style="max-width:190px"><span>Chat counts for (% of the score)</span><input type="number" min="0" max="100" step="5" data-bind="mc.bb.audience.weight" data-num value="${esc(au.weight||0)}"></label></div>
+    <p class="note">Voting applies to the build under "Now judging". ${bb.judging?`Now judging: <b>${esc(bb.judging)}</b>${(au.scores||{})[bb.judging]?` · chat average ${au.scores[bb.judging].avg} from ${au.scores[bb.judging].count} vote${au.scores[bb.judging].count===1?"":"s"}`:""}.`:"Pick a build to judge first."} One vote per viewer; a later vote replaces the first.</p></div>
+  <div class="sec"><div class="sechead"><div><h2>Chat poll</h2><p class="sub">Ask chat to choose, for example the next theme. Options are voted with <b>!1</b>, <b>!2</b>… The poll shows on the Build Battle overlay.</p></div></div>
+    ${F.text("mc.poll.question","Question","Which theme next?")}
+    <div class="cols" style="--n:2">${pl.options.map((o,i)=>F.text(`mc.poll.options.${i}`,`Option !${i+1}`,"")).join("")}</div>
+    <div class="row c" style="flex-wrap:wrap"><button class="btn sm" type="button" data-act="pollOpt" data-arg="add"${pl.options.length>=6?" disabled":""}>+ Option</button><button class="btn sm" type="button" data-act="pollOpt" data-arg="del"${pl.options.length<=2?" disabled":""}>− Option</button>
+      <button class="btn${pl.open?" primary":""}" type="button" data-act="pollVote" data-arg="${pl.open?"close":"open"}">${pl.open?"Close poll":"Open poll"}</button>
+      <button class="btn" type="button" data-act="pollShow" aria-pressed="${!!pl.show}">${pl.show?"Hide on screen":"Show on screen"}</button><button class="btn sm" type="button" data-act="pollClear">Clear votes</button>
+      <span class="note">${pl.total} vote${pl.total===1?"":"s"}${pl.options.map((o,i)=>o?` · !${i+1} ${esc(o)}: ${pl.counts[i]||0}`:"").join("")}</span></div></div>`;
+}
 function liveBits(){
   railStatus();
   const e=ev();if(!e)return;
@@ -662,6 +693,19 @@ document.addEventListener("click",async ev0=>{
     case "camLan":{const r=await fetch("/api/cam/lan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on:!(CAM&&CAM.on)})}).then(r=>r.json()).catch(()=>({error:"No answer from the server."}));
       if(r.error)toast(r.error);else{CAM=r;camPaint()}return;}
     case "camCopy":{try{await navigator.clipboard.writeText(arg);toast("Player link copied")}catch(err){toast("Copy failed. Open the link instead.")}return;}
+    case "twConnect":{const ch=($("#twChannel")||{}).value||"";const r=await fetch("/api/chat/connect",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({channel:ch})}).then(r=>r.json()).catch(()=>({error:"No answer from the server."}));
+      if(r.error)toast(r.error);else{await put("settings.twitch",{channel:ch.replace(/^#/,"").trim()},false);toast(ch?"Connecting to Twitch chat…":"Disconnected")}break;}
+    case "twDisconnect":{await fetch("/api/chat/connect",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({channel:""})});await put("settings.twitch",{channel:""},false);toast("Disconnected from Twitch chat");break;}
+    case "bbVote":case "pollVote":{const r=await fetch("/api/chat/open",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({event:e.id,mode:a==="bbVote"?"score":"poll",open:arg==="open"})}).then(r=>r.json()).catch(()=>({error:"No answer from the server."}));
+      if(r.error)toast(r.error);else if(arg==="open"&&!(CHAT&&CHAT.connected))toast("Voting is open, but Twitch chat is not connected yet.");return;}
+    case "bbVoteClear":case "pollClear":fetch("/api/chat/clear",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({event:e.id,mode:a==="bbVoteClear"?"score":"poll",build:a==="bbVoteClear"?e.mc.bb.judging:""})});toast("Votes cleared");return;
+    case "pollShow":put("mc.poll.show",!e.mc.poll.show);break;
+    case "pollOpt":{const p=e.mc.poll,o=p.options.slice(),c=p.counts.slice();if(arg==="add"&&o.length<6){o.push("");c.push(0)}else if(arg==="del"&&o.length>2){o.pop();c.pop()}put("mc.poll",Object.assign({},p,{options:o,counts:c}));break;}
+    case "bbJudgeAdd":{const el=$("#bbJudgeName"),nm=((el&&el.value)||"").trim();if(!nm)return toast("Type or pick a name first.");
+      const bb=e.mc.bb,list=(bb.judges||[]).slice();if(list.some(j=>j.name.toLowerCase()===nm.toLowerCase()))return toast("That judge is already added.");
+      const kind=e.talent.some(t=>t.name.toLowerCase()===nm.toLowerCase())?"caster":roster(e).some(r=>String(r).toLowerCase()===nm.toLowerCase())?"player":"guest";
+      list.push({id:uid().slice(0,6),name:nm,kind});put("mc.bb.judges",list);break;}
+    case "bbJudgeDel":put("mc.bb.judges",(e.mc.bb.judges||[]).filter(j=>j.id!==arg));break;
     case "copy":{const v=$("#ovUrl").value;try{await navigator.clipboard.writeText(v);toast("Overlay URL copied")}catch(err){$("#ovUrl").select();toast("Press Ctrl+C to copy")}return;}
     case "full":{const st=b.closest(".stagewrap").querySelector(".stage");try{await st.requestFullscreen()}catch(err){toast("Full screen isn't available.")}return;}
     case "hudColor":put("hud.colorMode",arg);break;

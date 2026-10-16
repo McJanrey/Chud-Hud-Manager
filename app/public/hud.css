@@ -505,3 +505,10 @@
 /* logo tiles scale their tag to the tile; long team names shrink instead of being cut */
 .hud .lg{line-height:1;text-align:center;padding:0 2px}
 .h-team .tn.long{font-size:21px;padding-top:7px}
+
+.bb-judge .jcs{display:flex;gap:8px}.bb-judge .jc{display:flex;flex-direction:column;align-items:center;min-width:64px;padding:2px 10px;background:rgba(255,255,255,.06)}
+.bb-judge .jc small{font-size:11px;letter-spacing:.12em;color:#9db3a8;max-width:90px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.bb-judge .jc b{font-size:28px;color:#fff}.bb-judge .jc.chat b{color:#b89bff}
+.bb-poll{position:absolute;right:16px;bottom:30px;width:420px;background:rgba(5,24,17,.95);padding:12px 16px;border-top:4px solid var(--gold,#FDC82F);display:flex;flex-direction:column;gap:6px}
+.bb-poll>small{font-size:13px;letter-spacing:.2em;color:var(--gold,#FDC82F)}.bb-poll>b{font-size:24px;font-weight:500;line-height:1.1}
+.bb-poll .o{display:grid;grid-template-columns:34px 1fr 90px 40px;align-items:center;gap:8px;font-size:20px}.bb-poll .o .k{color:var(--gold,#FDC82F)}
+.bb-poll .o .t{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.bb-poll .o .bar{height:12px;background:rgba(255,255,255,.12)}.bb-poll .o .bar i{display:block;height:100%;background:var(--gold,#FDC82F);transition:width .4s}.bb-poll .o b{text-align:right}
