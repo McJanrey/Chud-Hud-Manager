@@ -108,7 +108,9 @@ Changes show on every connected screen at once, and the app saves automatically.
 
 ### Player webcams
 
-Tick **Player webcams** in the HUD Editor to put a camera slot for every player down both edges of the Ingame HUD: **3 per team in Rocket League, 5 per team in League**, the left team on the left. A slot appears for each player who has a camera link (VDO.Ninja or any web camera page) in **Players & Teams**, labelled with the player's name and the team colour.
+**Our own cameras (no VDO.Ninja):** on **Camera feed**, press **Let players connect**, then send each player the link next to their name (and each caster seat if you want). The player opens it on the same network, allows the camera and presses **Go live**; their picture shows on the overlay while they are live and disappears when they leave. Video goes straight from the player's browser to the overlay over WebRTC; this PC only relays the setup messages. Their browser will warn that the page is not trusted (the certificate is made on this PC): Advanced, then Continue. Windows may ask to allow Chud Hud on private networks: allow it. It works on a local network only; players at home would need a relay, which is not built. A custom camera link on a player or seat still wins over ours. The network port (7778) is closed until you switch this on, and every link carries a secret code that only this PC can make.
+
+Tick **Player webcams** in the HUD Editor to put a camera slot for every player down both edges of the Ingame HUD: **3 per team in Rocket League, 5 per team in League**, the left team on the left. A slot appears for each player who is live on our camera links, or who has a camera link of their own (VDO.Ninja or any web camera page) in **Players & Teams**, labelled with the player's name and the team colour.
 
 ### Team tracking
 

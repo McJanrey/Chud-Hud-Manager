@@ -41,7 +41,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     talent: [],
     live: { left: "", right: "", swap: false, autoTeams: true, autoScore: true, autoSeries: true, score: [0, 0], bestOf: 5,
       series: [0, 0], seriesTitle: "", eventTitle: "", roundTitle: "", gameSeries: "BEST OF 5" },
-    camera: { layout: "duo", seats: Array.from({ length: 8 }, () => ({ talent: "", url: "", role: "" })) }, // how many seats show is decided by the kit (settings.kits)
+    camera: { own: true, layout: "duo", seats: Array.from({ length: 8 }, () => ({ talent: "", url: "", role: "" })) }, // how many seats show is decided by the kit (settings.kits)
     schedule: [],
     bracket: { rounds: [
       { name: "Quarterfinals", matches: Array.from({ length: 4 }, () => ({ a: "", b: "", sa: "", sb: "" })) },
@@ -63,6 +63,7 @@ function upgrade(ev) {
   const d = newEvent(ev.name);
   for (const k of Object.keys(d)) if (ev[k] === undefined) ev[k] = d[k];
   ev.hud.show = Object.assign({}, d.hud.show, ev.hud.show);
+  if (ev.camera && ev.camera.own === undefined) ev.camera.own = true; // our own camera links are used unless an event opts out
   ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
@@ -832,12 +833,63 @@ function originOk(req) { // our own pages send an Origin that matches the Host; 
   try { return new URL(o).host === req.headers.host; } catch { return false; }
 }
 
+/* ------------------------------------------------ player and caster cameras (WebRTC, our own signalling, see cams.js) */
+// The main server stays on this PC only. When the operator switches "Let players connect" on, a second server listens on the
+// network with HTTPS (browsers only hand out a camera to secure pages) and serves nothing but the camera page and its signalling.
+const os = require("os");
+const selfsigned = require("selfsigned");
+const CAM_PORT = +process.env.CAM_PORT || 7778;
+const cams = require("./cams.js").create({ dataDir: DATA, readBody, originOk });
+let camServer = null;
+function lanIps() {
+  const out = [];
+  Object.values(os.networkInterfaces()).forEach(l => (l || []).forEach(a => { if (a.family === "IPv4" && !a.internal) out.push(a.address); }));
+  return out;
+}
+async function camCert() {
+  const file = path.join(DATA, "cam-cert.json"), ips = lanIps().join(",");
+  try { const c = JSON.parse(fs.readFileSync(file, "utf8")); if (c.key && c.cert && c.ips === ips && c.until > Date.now() + 30 * 864e5) return c; } catch { /* make a new one */ }
+  const until = Date.now() + 825 * 864e5;
+  const alt = [{ type: 2, value: "localhost" }, ...lanIps().map(ip => ({ type: 7, ip }))];
+  const pems = await selfsigned.generate([{ name: "commonName", value: "Chud Hud camera" }],
+    { keySize: 2048, algorithm: "sha256", notAfterDate: new Date(until), extensions: [{ name: "subjectAltName", altNames: alt }] });
+  const c = { key: pems.private, cert: pems.cert, ips, until };
+  fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(file, JSON.stringify(c), { mode: 0o600 });
+  return c;
+}
+async function setCamLan(on) {
+  if (!on) { if (camServer) { const s = camServer; camServer = null; await new Promise(r => { s.close(r); s.closeAllConnections && s.closeAllConnections(); }); } return; }
+  if (camServer) return;
+  const c = await camCert();
+  const srv = https.createServer({ key: c.key, cert: c.cert }, (req, res) => {
+    const url = new URL(req.url, "http://x");
+    if (req.method === "GET" && url.pathname === "/cam") return sendFile(res, path.join(PUB, "cam.html"));
+    if (cams.handle(req, res, url, true)) return;
+    res.writeHead(404, { "content-type": "text/plain" }); res.end("Not found");
+  });
+  await new Promise((resolve, reject) => { srv.once("error", reject); srv.listen(CAM_PORT, "0.0.0.0", () => { srv.removeListener("error", reject); resolve(); }); });
+  camServer = srv;
+  srv.on("error", err => log("Camera server error:", err.message));
+  log(`Player cameras: listening on https://<this PC>:${CAM_PORT}`);
+}
+function camLinks() {
+  const ip = lanIps()[0] || "localhost", base = `https://${ip}:${CAM_PORT}`, mk = room => ({ room, url: `${base}/cam?r=${encodeURIComponent(room)}&t=${cams.tokenFor(room)}`, local: `/cam?r=${encodeURIComponent(room)}` });
+  return { on: !!camServer, port: CAM_PORT, base, status: cams.status(), events: DB.events.map(ev => ({ id: ev.id, name: ev.name,
+    players: ev.teams.flatMap((t, ti) => t.players.map(p => Object.assign({ team: t.tag || t.name, name: p.alias || p.ign || "Player", side: ti }, mk(ev.id + "." + p.id)))),
+    seats: ev.camera.seats.map((s, i) => Object.assign({ n: i + 1 }, mk(ev.id + ".seat" + i))) })) };
+}
+
 const server = http.createServer((req, res) => {
   if (!hostOk(req)) { res.writeHead(421, { "content-type": "text/plain" }); return res.end("Unexpected host name"); }
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
+  if (cams.handle(req, res, url, false)) return;
 
   if (req.method === "GET") {
+    if (p === "/cam") return sendFile(res, path.join(PUB, "cam.html")); // this PC's own camera (127.0.0.1 counts as secure)
+    if (p === "/camview") return sendFile(res, path.join(PUB, "camview.html"));
+    if (p === "/api/cam/status") return json(res, 200, cams.status());
+    if (p === "/api/cam/links") return json(res, 200, camLinks());
     if (p === "/" || p === "/dashboard") return sendFile(res, path.join(PUB, "app.html"));
     if (p === "/overlay") return sendFile(res, path.join(PUB, "overlay.html"));
     if (p === "/launcher") return sendFile(res, path.join(PUB, "launcher.html"));
@@ -951,6 +1003,11 @@ const server = http.createServer((req, res) => {
             if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
             return ocr.start(DB.settings.ocr || {}, ocrIngest).then(() => json(res, 200, { ok: true })).catch(e => json(res, 400, { error: e.message }));
           }
+          case "/api/cam/lan": {
+            const on = !!body.on;
+            return setCamLan(on).then(() => { DB.settings.camLan = on; save(); json(res, 200, camLinks()); })
+              .catch(e => json(res, 500, { error: e.code === "EADDRINUSE" ? `Port ${CAM_PORT} is already in use.` : e.message }));
+          }
           case "/api/ocr/stop": if (ocr) ocr.stop(); return json(res, 200, { ok: true });
           case "/api/mc/config": {
             DB.settings.mc = { host: String(body.host || "127.0.0.1"), port: +body.port || 25575, password: String(body.password || ""), logPath: String(body.logPath || "") };
@@ -1012,4 +1069,5 @@ server.listen(PORT, HOST, () => {
   log(`  Overlay:    http://${shown}:${PORT}/overlay   (add as an OBS Browser Source, 1920x1080)`);
   applyFeeds();
   ensureOfficialIcons();
+  if (DB.settings.camLan) setCamLan(true).catch(e => log("Player cameras could not start:", e.message));
 });

@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>camera view</title>
+<style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}video{width:100%;height:100%;object-fit:cover;display:none}video.on{display:block}</style>
+</head><body><video id="v" autoplay muted playsinline></video>
+<script>
+// Overlay side of a player/caster camera: asks the sender for video and shows it. Transparent until the sender is live.
+const R=new URLSearchParams(location.search).get("r")||"";
+const ID=Array.from(crypto.getRandomValues(new Uint8Array(8)),b=>b.toString(16).padStart(2,"0")).join("");
+const v=document.getElementById("v");let pc=null,retry=0;
+const url=`/api/cam/sig?role=viewer&r=${encodeURIComponent(R)}&id=${ID}`;
+const post=msg=>fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({msg})}).catch(()=>{});
+function reset(){if(pc){pc.close();pc=null}v.srcObject=null;v.classList.remove("on")}
+function ask(){reset();post({type:"hello"});clearTimeout(retry);retry=setTimeout(()=>{if(!v.classList.contains("on"))ask()},4000)}
+const es=new EventSource(url);
+es.addEventListener("msg",async e=>{
+  const m=JSON.parse(e.data);
+  try{
+    if(m.type==="sender-up")ask();
+    else if(m.type==="sender-down")reset();
+    else if(m.type==="offer"){
+      if(pc)pc.close();
+      pc=new RTCPeerConnection({iceServers:[]});
+      pc.ontrack=ev=>{v.srcObject=ev.streams[0];v.classList.add("on");v.play().catch(()=>{})};
+      pc.onicecandidate=ev=>{if(ev.candidate)post({type:"ice",candidate:ev.candidate})};
+      pc.onconnectionstatechange=()=>{if(["failed","disconnected","closed"].includes(pc&&pc.connectionState)){v.classList.remove("on");setTimeout(ask,1500)}};
+      await pc.setRemoteDescription({type:"offer",sdp:m.sdp});
+      await pc.setLocalDescription(await pc.createAnswer());
+      post({type:"answer",sdp:pc.localDescription.sdp});
+    }else if(m.type==="ice"&&pc&&m.candidate)await pc.addIceCandidate(m.candidate).catch(()=>{});
+  }catch(err){console.error(err)}
+});
+</script></body></html>

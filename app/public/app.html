@@ -200,7 +200,7 @@ function render(){
   if(e&&!VIEWS[ui.view])ui.view="overview"; // a view that doesn't exist for this event falls back to Overview
   const key=ui.cur+"|"+ui.view,enter=ui.seen!==key;ui.seen=key;
   $("#app").innerHTML=rail(e)+`<div class="main">${topbar(e)}<div class="srvbanner" id="srvbanner" role="alert"${online?" hidden":""}>${ico("info")}<div class="grow"><b>Overlay server not responding.</b> Overlays and live data are paused. Close and reopen Chud Hud if this stays.</div></div><div class="page${enter?" enter":""}"><div class="pagebox">${pagehead(e)}${e?VIEWS[ui.view](e):home()}</div></div></div>`;
-  railStatus();mountStages();liveBits();
+  railStatus();mountStages();liveBits();if(ui.view==="camera")camLoad();
   if(ui.view==="ocr")ocrMount();
   if(ui.view==="live")rpPoll();
 }
@@ -404,7 +404,8 @@ ocr(e){
 camera(e){
   const n=kitSeats(e);
   const opts=[["","Empty seat"],...e.talent.map(t=>[t.id,`${t.name} · ${t.role}`])];
-  return`<div class="halves"><div class="sec"><div><h2>Caster nameplates</h2><p class="sub">Pick who sits on the desk. Add a camera link (VDO.Ninja, OBS.Ninja or any web camera page) to show live video; otherwise the portrait is used.</p></div>
+  return`<div class="sec" id="camPanel"><p class="sub">Loading cameras…</p></div>
+  <div class="halves"><div class="sec"><div><h2>Caster nameplates</h2><p class="sub">Pick who sits on the desk. Add a camera link (VDO.Ninja, OBS.Ninja or any web camera page) to show live video; otherwise the portrait is used.</p></div>
     <div class="fld"><span>Seats in the ${esc(e.kit)} kit</span><div class="seg">${[[1,"Solo"],[2,"Duo"],[3,"Trio"],[4,"Quad"],[5,"Five"],[6,"Six"],[7,"Seven"],[8,"Eight"]].map(([k,l])=>`<button type="button" data-act="kitSeats" data-arg="${k}" aria-pressed="${n===k}">${l}</button>`).join("")}</div>
       <span class="note">The seat count belongs to the kit, so every event using ${esc(e.kit)} shares it. Who sits in each seat, and their camera link, are set per event below.</span></div>
     ${Array.from({length:n},(_,i)=>`<div class="box"><b>Seat ${i+1}</b>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.url`,"Camera link","https://vdo.ninja/?view=…")}</div>`).join("")}
@@ -581,6 +582,24 @@ async function liveBgTick(){
   $$("[data-bgnote]").forEach(n=>{n.textContent=LIVEBG.ok?"Live picture from the "+e.game+" window.":"Game window not found, so a placeholder backdrop is shown. Open the game in borderless or windowed mode to see it here."});
 }
 setInterval(liveBgTick,700);
+/* Our own cameras: links for every player and caster seat, who is live, and the switch that opens the network port. */
+let CAM=null;
+async function camLoad(){try{CAM=await fetch("/api/cam/links").then(r=>r.json())}catch{CAM=null}camPaint()}
+function camPaint(){
+  const box=$("#camPanel");if(!box||ui.view!=="camera")return;
+  const e=ev();if(!e||!CAM){box.innerHTML=`<p class="sub">Cameras are not available right now.</p>`;return}
+  const ce=CAM.events.find(x=>x.id===e.id)||{players:[],seats:[]},st=CAM.status||{};
+  const pill=r=>st[r.room]&&st[r.room].live?`<span class="pill ok">Live</span>`:`<span class="pill">Offline</span>`;
+  const row=(r,label,sub)=>`<tr><td>${esc(label)}${sub?` <span class="sub">${esc(sub)}</span>`:""}</td><td style="width:90px">${pill(r)}</td><td style="width:210px"><button class="btn sm" type="button" data-act="camCopy" data-arg="${esc(r.url)}">Copy player link</button> <a class="btn sm" href="${esc(r.local)}" target="_blank" rel="noopener">Open here</a></td></tr>`;
+  box.innerHTML=`<div class="sechead"><div><h2>Player cameras</h2><p class="sub">Our own camera system, no VDO.Ninja. Send each player their link. They open it, allow the camera and press Go live, and their picture appears on the overlay while they are live.</p></div>
+    <button class="btn${CAM.on?" primary":""}" type="button" data-act="camLan" aria-pressed="${CAM.on}">${CAM.on?"Players can connect":"Let players connect"}</button></div>
+    ${CAM.on?`<p class="note">Players must be on the same network as this PC. Links start with <b>${esc(CAM.base)}</b>. Their browser warns that the page is not trusted (it uses a certificate made on this PC); they choose Advanced, then Continue. Windows may ask to allow Chud Hud through the firewall: allow it on private networks.</p>`
+      :`<p class="note">Off: nothing outside this PC can reach Chud Hud. Switch it on when players are ready to connect. The link only works while it is on.</p>`}
+    <label class="chk"><input type="checkbox" data-bind="camera.own"${e.camera.own!==false?" checked":""}>Use these links for players and casters that have no camera link of their own</label>
+    <div class="tw"><table class="grid"><tbody>${ce.players.map(r=>row(r,r.name,r.team)).join("")||`<tr><td class="sub">No players on this event yet.</td></tr>`}</tbody></table></div>
+    ${ce.seats.length?`<details><summary class="note" style="cursor:pointer">Caster seat links</summary><div class="tw"><table class="grid"><tbody>${ce.seats.map(r=>row(r,"Seat "+r.n,"")).join("")}</tbody></table></div></details>`:""}`;
+}
+setInterval(()=>{if(ui.view==="camera"&&!document.hidden)camLoad()},2500);
 function liveBits(){
   railStatus();
   const e=ev();if(!e)return;
@@ -640,6 +659,9 @@ document.addEventListener("click",async ev0=>{
     case "copyLink":copyLink();return;
     case "copyText":{try{await navigator.clipboard.writeText(b.dataset.arg);toast("Copied")}catch(err){toast("Select the text and press Ctrl+C")}return}
     case "delEvent":if(!confirmTwice(b))return;await put("events",DB.events.filter(x=>x!==e),false);ui.cur=null;toast("Event deleted");break;
+    case "camLan":{const r=await fetch("/api/cam/lan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on:!(CAM&&CAM.on)})}).then(r=>r.json()).catch(()=>({error:"No answer from the server."}));
+      if(r.error)toast(r.error);else{CAM=r;camPaint()}return;}
+    case "camCopy":{try{await navigator.clipboard.writeText(arg);toast("Player link copied")}catch(err){toast("Copy failed. Open the link instead.")}return;}
     case "copy":{const v=$("#ovUrl").value;try{await navigator.clipboard.writeText(v);toast("Overlay URL copied")}catch(err){$("#ovUrl").select();toast("Press Ctrl+C to copy")}return;}
     case "full":{const st=b.closest(".stagewrap").querySelector(".stage");try{await st.requestFullscreen()}catch(err){toast("Full screen isn't available.")}return;}
     case "hudColor":put("hud.colorMode",arg);break;

@@ -4,6 +4,18 @@
   const fmt = s => { s = Math.max(0, Math.floor(+s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }; // whole seconds: the Minecraft and Riftbound clocks are fractional
   const low = s => String(s || "").toLowerCase().trim();
 
+  /* Our own cameras (cams.js): rooms whose player has their camera page open right now. Polled, because the overlay
+     is a plain web page; a tile only appears while that player is live, so nobody gets an empty box. */
+  const camLive = {};
+  if (typeof location !== "undefined" && /^https?:$/.test(location.protocol) && typeof fetch === "function") {
+    const poll = () => fetch("/api/cam/status").then(r => r.json()).then(st => {
+      Object.keys(camLive).forEach(k => delete camLive[k]);
+      Object.entries(st || {}).forEach(([k, v]) => { if (v && v.live) camLive[k] = 1; });
+    }).catch(() => {});
+    poll(); setInterval(poll, 2000);
+  }
+  const ownCam = (ev, key) => ev.camera && ev.camera.own !== false && camLive[ev.id + "." + key] ? "/camview?r=" + encodeURIComponent(ev.id + "." + key) : "";
+
   const SCENES = {
     ingame: "Ingame HUD", bracket: "Bracket", casters: "Caster Nameplates", lowerthird: "Lower Thirds",
     rankings: "Rankings Screen", replay: "Replay", schedule: "Schedule", starting: "Starting Soon",
@@ -47,7 +59,7 @@
       return list.map(p => {
         const r = roster(t, p.name);
         return Object.assign({}, blank, p, { display: (r && (r.alias || r.ign)) || p.name, side: s, team: t,
-          avatar: r ? r.avatar : "", country: r ? r.country : "", cam: r ? r.cam : "" });
+          avatar: r ? r.avatar : "", country: r ? r.country : "", cam: r ? r.cam : "", pid: r ? r.id : "" });
       });
     });
     const all = players[0].concat(players[1]);
@@ -85,10 +97,11 @@
   function playerCams(m, top) {
     const w = 150, camH = 84, pitch = 111, cams = []; let html = "";
     [0, 1].forEach(s => m.players[s].forEach((p, i) => {
-      if (!p.cam) return;
+      const camUrl = p.cam || (p.pid ? ownCam(m.ev, p.pid) : "");
+      if (!camUrl) return;
       const x = s ? 1280 - 8 - w : 8, y = top + i * pitch;
       html += `<div class="pc ${s ? "r" : "l"}" style="left:${x}px;top:${y}px;--c:${esc(m.colors[s])}"><span>${esc(p.display)}</span></div>`;
-      cams.push({ key: "pc-" + s + "-" + i + p.cam, url: p.cam, x, y, w, h: camH });
+      cams.push({ key: "pc-" + s + "-" + i + camUrl, url: camUrl, x, y, w, h: camH });
     }));
     return { html, cams };
   }
@@ -152,7 +165,8 @@
       const x = s.x != null ? s.x : 150 + (i % 4) * 250, y = s.y != null ? s.y : 560 + Math.floor(i / 4) * 80;
       const sub = [s.role || (t && t.role) || "", social].filter(Boolean).join(" | ");
       html += `<div class="np" data-i="${i}" style="left:${x}px;top:${y}px"><i class="sh"></i><div class="bd"><b>${esc(t ? t.name : "Caster " + (i + 1))}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div></div>`;
-      if (s.url) cams.push({ key: "seat" + i + s.url, url: s.url, x, y: Math.max(0, y - 150), w: 256, h: 144 });
+      const seatUrl = s.url || ownCam(ev, "seat" + i);
+      if (seatUrl) cams.push({ key: "seat" + i + seatUrl, url: seatUrl, x, y: Math.max(0, y - 150), w: 256, h: 144 });
     });
     return { html, cams };
   };
