@@ -175,8 +175,8 @@ function rail(e){
     +grp("Live game",["live",...(e.game==="Minecraft"?["mc"]:[]),...(e.game==="Riftbound"?["rb"]:[]),"ocr"])
     +grp("Broadcast",["hud","camera","graphics","schedule","bracket","standings","outputs"])
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
-  const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/saints-emblem.png";
-  return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="St. Clair Saints emblem"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
+  const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/chud-hud.png";
+  return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
     <button class="evsw" type="button" data-act="palette" title="Switch event (Ctrl+K)"><div class="cover" style="${e?`background-image:${coverCss(e)}`:"background:var(--surface-3)"}"></div><span><b>${e?esc(e.name):"No event open"}</b><small>${e?esc(e.game):"Choose one to begin"}</small></span>${ico("updown")}</button>
     <div class="navscroll">${nav}</div>
     <div class="navfoot"><div id="conn" style="display:flex;flex-direction:column;gap:8px"></div><div class="row">
@@ -283,8 +283,8 @@ overview(e){
       <p class="note" id="screens">${screensText()}</p>
     </div>
     <div class="sec"><h2>Workspace</h2><div class="cols">${F.text("name","Workspace name")}${F.text("organiser","Event organiser")}${F.sel("game","Select game",GAMES,"data-rerender")}${F.sel("kit","Broadcast kit",["Saints Default","Saints Varsity","Saints Gaming"])}</div><div class="row c nowrap" style="margin-top:4px"><div class="dz mini" style="width:auto;min-width:0;border:0;padding:0">${F.dz("cover","Cover image","mini")}</div><p class="note">Cover image for this event's card. Leave it empty to use the game's official art.</p></div></div>
-    <div class="sec"><div><h2>Saints branding</h2><p class="sub">The emblem shows in the app's corner. Team logos are set per team in Players &amp; Teams.</p></div>
-      <div class="row c nowrap">${(()=>{const c=DB.settings.brand&&DB.settings.brand.logo;return`<div class="dz mini" style="width:72px;min-height:72px"><img src="${esc(c||"/brand/saints-emblem.png")}" alt=""><input type="file" accept="image/*" id="brandLogo" data-upload="!settings.brand.logo" aria-label="Replace emblem"></div>${c?`<button class="btn sm" type="button" data-act="clearBrand">Use the St. Clair Saints emblem</button>`:`<span class="note">Using the St. Clair Saints 10 Years emblem. Click it to use a different image.</span>`}`})()}</div></div>
+    <div class="sec"><div><h2>App logo</h2><p class="sub">The logo shows in the app's corner. Team logos are set per team in Players &amp; Teams.</p></div>
+      <div class="row c nowrap">${(()=>{const c=DB.settings.brand&&DB.settings.brand.logo;return`<div class="dz mini" style="width:72px;min-height:72px"><img src="${esc(c||"/brand/chud-hud.png")}" alt=""><input type="file" accept="image/*" id="brandLogo" data-upload="!settings.brand.logo" aria-label="Replace emblem"></div>${c?`<button class="btn sm" type="button" data-act="clearBrand">Use the St. Clair Saints emblem</button>`:`<span class="note">Using the St. Clair Saints 10 Years emblem. Click it to use a different image.</span>`}`})()}</div></div>
     <div class="sec"><div class="row c" style="justify-content:space-between"><p class="sub">Deleting removes this event, its teams, talent and graphics.</p><button class="btn danger" type="button" data-act="delEvent">${ico("trash")}Delete event</button></div></div>
   </div>
   <div class="sec"><h2>Game data</h2>${gameData(e)}</div></div>`;

@@ -80,8 +80,8 @@ function upgrade(ev) {
   if (ev.game === "League of Legends") ev.lol = require("./league.js").merge(require("./league.js").DEFAULTS, ev.lol || {}); // every League setting has a visible value
   // League now follows the in-game layout: the stats board is at the bottom, so the side player lists start switched off (once)
   if (ev.game === "League of Legends" && !ev.hud.lolLayout2) { ev.hud.show.boost = false; ev.hud.lolLayout2 = true; }
-  // the St. Clair Saints team gets the emblem until a team logo is uploaded
-  ev.teams.forEach(t => { if (t.tag === "SCC" && t.logos && !t.logos[0]) t.logos[0] = "/brand/saints-emblem.png"; });
+  // the St. Clair team shows the app's logo until a team logo is uploaded (older saves had the Saints emblem filled in)
+  ev.teams.forEach(t => { if (t.tag === "SCC" && t.logos && (!t.logos[0] || t.logos[0] === "/brand/saints-emblem.png")) t.logos[0] = "/brand/chud-hud.png"; });
   return ev;
 }
 const SQUAD = { "League of Legends": 5, "Rocket League": 3 };

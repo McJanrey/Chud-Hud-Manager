@@ -88,7 +88,7 @@
   const lg = (t, cls = "lgbox") => `<div class="${cls}">${!t ? `<div class="lg" style="background:#2a2b31">?</div>`
     : t.logos && t.logos[0] ? `<img class="lg" src="${esc(t.logos[0])}" alt="">`
     : `<svg class="lg" viewBox="0 0 100 100" style="background:${esc(t.color)}"><text x="50" y="52" text-anchor="middle" dominant-baseline="central" fill="currentColor" font-size="${[0, 60, 54, 46, 36, 30][Math.min(5, Math.max(1, (t.tag || "?").slice(0, 5).length))]}">${esc((t.tag || "?").slice(0, 5))}</text></svg>`}</div>`;
-  const tourLogo = ev => (ev.tournament.logos || []).find(Boolean);
+  const tourLogo = ev => (ev.tournament.logos || []).find(Boolean) || "/brand/chud-hud.png"; // the app's logo until the tournament has its own
   const sideTeam = (ev, id) => ev.teams.find(t => t.id === id);
 
   /* ---------------- scenes: each returns { html, cams } ---------------- */
