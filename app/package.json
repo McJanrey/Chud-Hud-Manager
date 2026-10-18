@@ -12,7 +12,11 @@
     "lan": "node -e \"process.env.HOST='0.0.0.0';require('./server.js')\"",
     "test": "electron test/ocr-selftest.js",
     "dist": "electron-builder --win nsis portable --publish never",
-    "release": "electron-builder --win nsis --publish always"
+    "release": "electron-builder --win nsis --publish always",
+    "start:lotd": "electron . --variant=lotd",
+    "server:lotd": "node server.js --variant=lotd",
+    "dist:lotd": "electron-builder --config electron-builder.lotd.js --win nsis --publish never",
+    "release:lotd": "electron-builder --config electron-builder.lotd.js --win nsis --publish always"
   },
   "engines": {
     "node": ">=18"
@@ -40,6 +44,7 @@
       "ocr.js",
       "cams.js",
       "twitch.js",
+      "variant.js",
       "test/ocr-selftest.js",
       "build/icon.png",
       "public/**/*",

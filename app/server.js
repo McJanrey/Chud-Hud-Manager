@@ -7,7 +7,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const PORT = +process.env.PORT || 7777;
+const V = require("./variant.js"); // the standard app, or a themed edition such as Chud Hud LOTD
+const PORT = +process.env.PORT || V.port || 7777;
 const HOST = process.env.HOST || "127.0.0.1"; // set HOST=0.0.0.0 to reach it from other PCs on your LAN
 const RL_HOST = process.env.RL_HOST || "127.0.0.1";
 const RL_PORT = +process.env.RL_PORT || 49123;
@@ -798,9 +799,14 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml", ".json": "application/json" };
 
 function sendFile(res, file) {
+  const norm = file.replace(/\\/g, "/");
+  if (V.id && norm.endsWith("/public/brand/chud-hud.png")) file = path.join(PUB, "brand", V.id, "chud-hud.png"); // the edition's own logo
   fs.readFile(file, (err, buf) => {
     if (err) { res.writeHead(404, { "content-type": "text/plain" }); return res.end("Not found"); }
-    res.writeHead(200, { "content-type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream", "cache-control": "no-cache" });
+    const ext = path.extname(file).toLowerCase();
+    if (ext === ".html") buf = Buffer.from(V.html(buf.toString("utf8"), norm));
+    else if (V.id && path.basename(file) === "hud.css") buf = Buffer.from(V.hudCss(buf.toString("utf8")));
+    res.writeHead(200, { "content-type": MIME[ext] || "application/octet-stream", "cache-control": "no-cache" });
     res.end(buf);
   });
 }
@@ -843,7 +849,7 @@ function originOk(req) { // our own pages send an Origin that matches the Host; 
 // network with HTTPS (browsers only hand out a camera to secure pages) and serves nothing but the camera page and its signalling.
 const os = require("os");
 const selfsigned = require("selfsigned");
-const CAM_PORT = +process.env.CAM_PORT || 7778;
+const CAM_PORT = +process.env.CAM_PORT || V.camPort || 7778;
 const cams = require("./cams.js").create({ dataDir: DATA, readBody, originOk });
 let camServer = null;
 function lanIps() {
@@ -936,6 +942,11 @@ const server = http.createServer((req, res) => {
   if (cams.handle(req, res, url, false)) return;
 
   if (req.method === "GET") {
+    if (p === "/theme.css") { // the edition's look for the control pages; the standard app has none (never used by the overlay)
+      if (V.id) return sendFile(res, path.join(PUB, "themes", V.id + ".css"));
+      res.writeHead(200, { "content-type": "text/css; charset=utf-8", "cache-control": "no-cache" }); return res.end("");
+    }
+    if (p === "/api/variant") return json(res, 200, { id: V.id, name: V.name, tagline: V.tagline, port: PORT });
     if (p === "/cam") return sendFile(res, path.join(PUB, "cam.html")); // this PC's own camera (127.0.0.1 counts as secure)
     if (p === "/camview") return sendFile(res, path.join(PUB, "camview.html"));
     if (p === "/api/cam/status") return json(res, 200, cams.status());

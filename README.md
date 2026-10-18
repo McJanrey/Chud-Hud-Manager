@@ -235,6 +235,21 @@ Every game provides the common set:
 
 **Rocket League** adds `TIMER`, `OVERTIME`, `REPLAY`, `ARENA`, `SCORE LEFT/RIGHT`, `PLAYERS ALIVE LEFT/RIGHT`, the `FOCUS …` player (name, team, boost, score) and `P1`–`P6` with `NAME`, `SCORE`, `GOALS`, `ASSISTS`, `SAVES`, `SHOTS`, `DEMOS`, `BOOST`. **Minecraft** and **Riftbound** have their own sets (alive count, border, top killer, last elimination, build theme and phase; points, turn, cards in play, spotlight). Other games provide `TIMER` and `SCORE LEFT/RIGHT`.
 
+## Chud Hud LOTD (Lan of the Dead)
+
+A Halloween edition of the same app, built from the same code. It installs next to the standard Chud Hud and never touches its events:
+
+| | Chud Hud | Chud Hud LOTD |
+|---|---|---|
+| Installer | `ChudHud-Setup-<version>.exe` | `ChudHudLOTD-Setup-<version>.exe` |
+| Data folder | `%APPDATA%\Saints HUD` | `%APPDATA%\Chud Hud LOTD` |
+| Overlay port | 7777 | 7787 (cameras 7788), so both can run at once |
+| Updates from | the release's `latest.yml` | the release's `latest-lotd.yml`, so neither app is offered the other's installer |
+
+The look is orange, black, purple, green and white: the control room and launcher get a dark purple theme with a cobweb, drifting fog and an occasional bat, and the overlay's greens and gold become purple-black panels with pumpkin orange. The decorations are never on the overlay, so nothing flies across your stream. Every release builds both installers.
+
+From source: `npm run start:lotd`, `npm run dist:lotd`. To change the logo, run `powershell -File app\tools\make-icons.ps1 -Source <image.png> -Edition lotd`: it rewrites the in-app logo and the window, installer and exe icons.
+
 ## Settings
 
 Environment variables, set before starting the app (or `npm run server`):

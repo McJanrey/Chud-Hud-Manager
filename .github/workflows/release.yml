@@ -34,7 +34,13 @@ jobs:
           node test/minecraft-rcon-test.js
           node test/scenes-test.js
           node test/twitch-test.js
+          node test/variant-test.js
       - name: Build and publish
         run: npx electron-builder --win nsis --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Chud Hud LOTD (Lan of the Dead, the Halloween edition) goes onto the same release, with its own update file
+      - name: Build and publish Chud Hud LOTD
+        run: npx electron-builder --config electron-builder.lotd.js --win nsis --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,15 +3,17 @@
 "use strict";
 const { app, BrowserWindow, Menu, shell, dialog, clipboard, globalShortcut, ipcMain } = require("electron");
 const path = require("path");
+const V = require("./variant.js"); // the standard app, or a themed edition such as Chud Hud LOTD
 const fs = require("fs");
 
 // `Chud Hud.exe --ocr-selftest` checks that screen capture and text reading work on this PC.
 if (process.argv.includes("--ocr-selftest")) { require("./test/ocr-selftest.js"); return; }
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
-if (process.platform === "win32") app.setAppUserModelId("ca.stclair.saintshud"); // same id as the installer's shortcuts, so the taskbar and Start keep the Saints icon
+if (process.platform === "win32") app.setAppUserModelId(V.appId); // same id as the installer's shortcuts, so the taskbar and Start keep the right icon
 
 // The product used to be called "Saints HUD": keep that userData folder so a renamed install still finds its events, settings and backups.
-app.setPath("userData", path.join(app.getPath("appData"), "Saints HUD"));
+// An edition such as Chud Hud LOTD keeps its own folder, so it never touches the standard app's events.
+app.setPath("userData", path.join(app.getPath("appData"), V.dataDir));
 process.env.SAINTS_DATA = process.env.SAINTS_DATA || path.join(app.getPath("userData"), "data");
 let win = null, launcher = null, base = "";
 
@@ -33,8 +35,8 @@ const overlayItems = () => { const l = eventsList(); return l.length ? l.map(e =
 
 function createLauncher() {
   launcher = new BrowserWindow({
-    width: 1100, height: 770, minWidth: 900, minHeight: 640, frame: false, title: "Chud Hud", backgroundColor: "#08110d", show: false,
-    icon: path.join(__dirname, "build", "icon.png"),
+    width: 1100, height: 770, minWidth: 900, minHeight: 640, frame: false, title: V.name, backgroundColor: V.bg, show: false,
+    icon: path.join(__dirname, V.icon),
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, "preload.js") },
   });
   launcher.loadURL(base + "/launcher");
@@ -73,8 +75,8 @@ function setupLauncherIpc() {
 function createWindow(id) {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 980, minHeight: 640,
-    title: "Chud Hud Control Room", backgroundColor: "#08110d", show: false, autoHideMenuBar: true,
-    icon: path.join(__dirname, "build", "icon.png"),
+    title: V.name + " Control Room", backgroundColor: V.bg, show: false, autoHideMenuBar: true,
+    icon: path.join(__dirname, V.icon),
     webPreferences: { contextIsolation: true, sandbox: true },
   });
   win.loadURL(controlUrl(id));
@@ -101,6 +103,7 @@ const BUSY = ["downloading", "ready", "installing"];
 function setupUpdates() {
   if (!app.isPackaged) { setUpdate({ state: "source" }); return; }
   ({ autoUpdater: updater } = require("electron-updater"));
+  if (V.id) updater.channel = V.id; // an edition updates only from its own releases (latest-<id>.yml), never from the standard app's
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = false; // never install behind the user's back, a restart takes the OBS overlay offline
   updater.on("checking-for-update", () => setUpdate({ state: "checking", error: "" }));
@@ -108,14 +111,14 @@ function setupUpdates() {
     if (BUSY.includes(upd.state)) return;
     setUpdate({ state: "available", version: info.version, percent: 0, error: "" });
     if (!launcher && win) dialog.showMessageBox(win, { type: "info", buttons: ["Download", "Later"], defaultId: 0, cancelId: 1,
-      title: "Update available", message: `Chud Hud ${info.version} is available.`, detail: "Downloading does not restart anything. You choose when to install it." })
+      title: "Update available", message: `${V.name} ${info.version} is available.`, detail: "Downloading does not restart anything. You choose when to install it." })
       .then(r => { if (r.response === 0) downloadUpdate(); });
   });
   updater.on("download-progress", p => setUpdate({ state: "downloading", percent: Math.round(p.percent || 0) }));
   updater.on("update-downloaded", info => {
     setUpdate({ state: "ready", version: info.version });
     if (!launcher && win) dialog.showMessageBox(win, { type: "info", buttons: ["Restart now", "Later"], defaultId: 0, cancelId: 1,
-      title: "Update ready", message: `Chud Hud ${info.version} is ready to install.`,
+      title: "Update ready", message: `${V.name} ${info.version} is ready to install.`,
       detail: "Your events and settings are backed up first. Restarting briefly takes the overlay offline in OBS." })
       .then(r => { if (r.response === 0) installUpdate(); });
   });
@@ -200,8 +203,8 @@ app.whenReady().then(() => {
   const start = () => createLauncher(); // the launcher is the only window at start; Open Control Room replaces it
   if (server.listening) start(); else server.once("listening", start);
   server.once("error", err => {
-    dialog.showErrorBox("Chud Hud can't start",
-      err.code === "EADDRINUSE" ? `Port ${PORT} is already in use. Close any other copy of Chud Hud (or START.bat) and try again.` : err.message);
+    dialog.showErrorBox(V.name + " can't start",
+      err.code === "EADDRINUSE" ? `Port ${PORT} is already in use. Close any other copy of ${V.name} (or START.bat) and try again.` : err.message);
     app.quit();
   });
 });

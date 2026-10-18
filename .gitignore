@@ -3,3 +3,4 @@ app/data/
 *.log
 .claude/
 app/dist/
+app/dist-lotd/
