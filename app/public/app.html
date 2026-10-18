@@ -5,15 +5,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chud Hud Control Room</title>
 <link rel="stylesheet" href="/hud.css">
+<link rel="stylesheet" href="/broadcast.css">
 <link rel="stylesheet" href="/tokens.css">
 <link rel="stylesheet" href="/components.css">
 <link rel="stylesheet" href="/app-bridge.css">
+<link rel="stylesheet" href="/polish.css">
 </head>
 <body>
 <div class="app" id="app"></div>
 <div id="ovl"></div>
 <div id="toasts" aria-live="polite"></div>
 <script src="/hud.js"></script>
+<script src="/motion.js" defer></script>
 <script>
 (()=>{
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -32,7 +35,7 @@ const PLATFORMS=["X","Twitch","YouTube","Instagram","TikTok","Kick"];
 const COUNTRIES=[["","—"],["US","United States"],["CA","Canada"],["MX","Mexico"],["BR","Brazil"],["AR","Argentina"],["PE","Peru"],["CL","Chile"],["GB","United Kingdom"],["IE","Ireland"],["FR","France"],["DE","Germany"],["AT","Austria"],["CH","Switzerland"],["NL","Netherlands"],["BE","Belgium"],["ES","Spain"],["PT","Portugal"],["IT","Italy"],["PL","Poland"],["SE","Sweden"],["NO","Norway"],["DK","Denmark"],["FI","Finland"],["CZ","Czechia"],["TR","Turkey"],["SA","Saudi Arabia"],["AE","UAE"],["MA","Morocco"],["ZA","South Africa"],["JP","Japan"],["KR","South Korea"],["AU","Australia"],["NZ","New Zealand"],["IN","India"],["PH","Philippines"]];
 
 let DB=null,FEEDS={},SCREENS={dashboard:0,overlay:0},online=false;
-const ui={cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null,evq:"",evgame:"",evsort:"",seen:""}; // the control room always opens on My Events
+const ui={cur:null,view:"overview",teamq:"",talentq:"",team:null,talent:null,evgame:"",evsort:"",seen:""}; // the control room always opens on My Events
 const saveUi=()=>{}; // nothing is remembered between launches
 const ev=()=>DB&&DB.events.find(e=>e.id===ui.cur);
 const tm=(e,id)=>e.teams.find(t=>t.id===id);
@@ -152,7 +155,7 @@ function sourceState(){
   if(G().source==="rl")return G().connected?(G().inMatch?["ok","Rocket League · in match"]:["warn","Rocket League · no match"]):["bad","Rocket League · not found"];
   return G().connected?["ok",src]:["warn",src+" · no data"];
 }
-/* ---------- shell: rail, top bar, page header, My Events, palette, dialogs (the design: tokens.css, components.css, app-bridge.css) ---------- */
+/* ---------- shell: rail, top bar, page header, My Events, dialogs (the design: tokens.css, components.css, app-bridge.css) ---------- */
 const PREF={theme:"dark",min:false}; // a look the operator picked on this PC, nothing else is remembered between launches
 try{PREF.theme=localStorage.getItem("saints-theme")==="light"?"light":"dark";PREF.min=localStorage.getItem("saints-rail")==="min"}catch(e){}
 const savePref=()=>{try{localStorage.setItem("saints-theme",PREF.theme);localStorage.setItem("saints-rail",PREF.min?"min":"full")}catch(e){}};
@@ -167,32 +170,44 @@ const PAGE_DESC={overview:"Your overlay link, workspace details and where this g
   live:"Where the match data comes from, who is playing and what the score is.",ocr:"Read scores and the clock from the screen for games without a data feed.",mc:"Connect your server, manage the roster and run Hunger Games or Build Battle.",
   rb:"Score the match by hand and put cards on screen.",camera:"Caster seats and the camera link for each one.",graphics:"The lower third and the countdown timer.",schedule:"Matches for the Schedule scene.",
   bracket:"Rounds and results for the Bracket scene.",standings:"Standings for the Rankings scene.",outputs:"Every overlay link and data address for this event."};
-function railStatus(){const sb=$("#srvbanner");if(sb)sb.hidden=online;const el=$("#conn");if(!el)return;const[c,t]=sourceState();el.innerHTML=`<span class="pill ${c==="bad"?"err":c}"><span class="lbl">${esc(t)}</span></span><span class="faint" style="font-size:12px;padding-left:2px">${screensText()}</span>`}
+function railStatus(){const sb=$("#srvbanner");if(sb)sb.hidden=online;const sp=$("#srvpill");if(sp){sp.className="pill "+(online?"ok":"err");sp.firstChild.textContent=online?"Overlay server running":"Overlay server stopped"}const el=$("#conn");if(!el)return;const[c,t]=sourceState();el.innerHTML=`<span class="pill ${c==="bad"?"err":c}"><span class="lbl">${esc(t)}</span></span><span class="faint" style="font-size:12px;padding-left:2px">${screensText()}</span>`}
+const GROUPS={
+  setup:{label:"Setup",desc:"Teams, tournament, talent",icon:"overview",views:["overview","teams","tournament","talent"]},
+  live:{label:"Live",desc:"Data source, score, series",icon:"live",views:["live","mc","rb","ocr"]},
+  show:{label:"Show",desc:"HUD, camera, schedule",icon:"hud",views:["hud","camera","graphics","schedule","bracket","standings"]},
+  outputs:{label:"Outputs",desc:"Overlay and vMix links",icon:"link",views:["outputs"]}};
+const groupViews=(g,e)=>GROUPS[g].views.filter(v=>VIEWS[v]&&(v!=="mc"||e.game==="Minecraft")&&(v!=="rb"||e.game==="Riftbound"));
+const groupOf=v=>Object.keys(GROUPS).find(g=>GROUPS[g].views.includes(v))||"setup";
+const lastIn={}; // the page last open in each group, so the rail returns to it
 function rail(e){
-  const link=v=>`<a class="nl${ui.view===v?" on":""}" href="#" data-act="nav" data-arg="${v}"${ui.view===v?' aria-current="page"':""} title="${META[v][0]}">${ico(META[v][1])}<span class="t">${META[v][0]}</span></a>`;
-  const grp=(t,vs)=>`<div class="navgroup">${t}</div>${vs.map(link).join("")}`;
-  const nav=e?grp("Event setup",["overview","teams","tournament","talent"])
-    +grp("Live game",["live",...(e.game==="Minecraft"?["mc"]:[]),...(e.game==="Riftbound"?["rb"]:[]),"ocr"])
-    +grp("Broadcast",["hud","camera","graphics","schedule","bracket","standings","outputs"])
-    :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
+  const cur=e?groupOf(ui.view):"";
+  const item=g=>`<a class="nl big${cur===g?" on":""}" href="#" data-act="nav" data-arg="${lastIn[g]&&groupViews(g,e).includes(lastIn[g])?lastIn[g]:groupViews(g,e)[0]}"${cur===g?' aria-current="page"':""} title="${GROUPS[g].label}"><span class="ico">${ico(GROUPS[g].icon)}</span><span class="lb"><b>${GROUPS[g].label}</b><small>${GROUPS[g].desc}</small></span></a>`;
+  const nav=e?`<div class="navgroup">Event</div>${Object.keys(GROUPS).map(item).join("")}`
+    :`<div class="navgroup">Workspace</div><a class="nl big on" href="#" data-act="home" aria-current="page" title="My Events"><span class="ico">${ico("events")}</span><span class="lb"><b>My Events</b><small>All your broadcasts</small></span></a>`;
   const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/chud-hud.png";
+  const scene=e?(SCENES[e.hud.scene==="auto"?"ingame":e.hud.scene]||"Ingame HUD"):"";
   return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
-    <button class="evsw" type="button" data-act="palette" title="Switch event (Ctrl+K)"><div class="cover" style="${e?`background-image:${coverCss(e)}`:"background:var(--surface-3)"}"></div><span><b>${e?esc(e.name):"No event open"}</b><small>${e?esc(e.game):"Choose one to begin"}</small></span>${ico("updown")}</button>
+    <button class="evsw" type="button" data-act="home" title="Back to My Events"><div class="cover" style="${e?`background-image:${coverCss(e)}`:"background:var(--surface-3)"}"></div><span><b>${e?esc(e.name):"No event open"}</b><small>${e?esc(e.game):"Choose one to begin"}</small></span>${ico("updown")}</button>
     <div class="navscroll">${nav}</div>
+    ${e?`<div class="onair"><div class="row1"><i></i><span class="lb">ON AIR</span></div><b class="lb" id="onairScene">${esc(scene)}</b><small class="lb">${esc(e.name)}</small></div>`:""}
     <div class="navfoot"><div id="conn" style="display:flex;flex-direction:column;gap:8px"></div><div class="row">
       <button class="btn icon ghost" type="button" data-act="collapse" aria-label="Collapse sidebar" title="Collapse sidebar">${ico("collapse")}</button>
       <button class="btn icon ghost" type="button" data-act="theme" aria-label="Toggle theme" title="Toggle theme">${ico(PREF.theme==="dark"?"sun":"moon")}</button></div></div></aside>`;
 }
+function tabbar(e){
+  if(!e)return"";const g=groupOf(ui.view),vs=groupViews(g,e);
+  if(vs.length<2)return"";
+  return`<div class="tabbar"><nav class="tabs" aria-label="${GROUPS[g].label} sections">${vs.map(v=>`<a href="#" data-act="nav" data-arg="${v}"${ui.view===v?' class="on" aria-current="page"':""}>${META[v][0]}</a>`).join("")}</nav></div>`;
+}
 function topbar(e){
-  const cmd=`<button class="cmdk" type="button" data-act="palette">${ico("search")}<span>Search or jump to...</span><kbd class="kbd">Ctrl K</kbd></button>`;
   const crumbs=e?`<a href="#" data-act="home">My Events</a><i>/</i><a href="#" data-act="nav" data-arg="overview">${esc(e.name)}</a><i>/</i><b>${META[ui.view][0]}</b>`:`<b>My Events</b>`;
   const act=e?`<button class="btn primary" type="button" data-act="copyLink" title="Copy this event's own overlay link for OBS">${ico("copy")}Copy overlay link</button>`:`<button class="btn primary" type="button" data-act="newEvent">${ico("plus")}New event</button>`;
-  return`<header class="top"><nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav>${cmd}${act}</header>`;
+  return`<header class="top"><nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav><div class="status"><span class="pill ${online?"ok":"err"}" id="srvpill"><span class="lbl">${online?"Overlay server running":"Overlay server stopped"}</span></span></div>${act}</header>${tabbar(e)}`;
 }
 function pagehead(e){
-  if(!e)return`<div class="pagehead"><h1>My Events</h1><p>Every broadcast you run, one workspace each. Open one to take control.</p></div>`;
+  if(!e)return`<div class="pagehead"><div class="eyebrow">Events</div><h1>My Events</h1><p>Every broadcast you run, one workspace each. Open one to take control.</p></div>`;
   const pill=ui.view==="hud"?`<span class="pill ok">Synced to overlay</span>`:"";
-  return`<div class="pagehead row"><div><h1>${META[ui.view][0]}</h1><p>${PAGE_DESC[ui.view]||""}</p></div>${pill}</div>`;
+  return`<div class="pagehead row"><div><div class="eyebrow">${GROUPS[groupOf(ui.view)].label} · ${META[ui.view][0]}</div><h1>${META[ui.view][0]}</h1><p>${PAGE_DESC[ui.view]||""}</p></div>${pill}</div>`;
 }
 function render(){
   if(!DB){$("#app").innerHTML=`<div class="muted" style="padding:40px">Starting Chud Hud…</div>`;return}
@@ -207,29 +222,26 @@ function render(){
 
 /* ---------- my events ---------- */
 function evCards(){
-  const q=(ui.evq||"").toLowerCase().trim();
-  let list=DB.events.filter(e=>(!ui.evgame||e.game===ui.evgame)&&(!q||(e.name+" "+e.game).toLowerCase().includes(q)));
+  let list=DB.events.filter(e=>!ui.evgame||e.game===ui.evgame);
   if(ui.evsort==="name")list=list.slice().sort((a,b)=>a.name.localeCompare(b.name));
   const cards=list.map(e=>`<a class="evcard" href="#" data-act="open" data-arg="${e.id}"><div class="art" style="background-image:${coverCss(e)}"></div><div class="evbody"><b>${esc(e.name)}</b><div class="evmeta"><span class="open">Open workspace</span><span class="tag">${esc(e.game)}</span></div></div></a>`).join("");
-  const empty=!DB.events.length?`<div class="box sec" style="grid-column:1/-1;align-items:center;text-align:center;padding:48px"><h2>No events yet</h2><p class="muted">Create your first event. Pick the game and the scenes and data sources follow.</p></div>`:list.length?"":`<div class="box sec" style="grid-column:1/-1;align-items:center;text-align:center;padding:36px"><h2>Nothing matches</h2><p class="muted">Try a different search or game.</p></div>`;
+  const empty=!DB.events.length?`<div class="box sec" style="grid-column:1/-1;align-items:center;text-align:center;padding:48px"><h2>No events yet</h2><p class="muted">Create your first event. Pick the game and the scenes and data sources follow.</p></div>`:list.length?"":`<div class="box sec" style="grid-column:1/-1;align-items:center;text-align:center;padding:36px"><h2>Nothing matches</h2><p class="muted">Try a different game.</p></div>`;
   return cards+empty+`<button class="newcard" type="button" data-act="newEvent">${`<i>${ico("plus")}</i>`}<b>New event</b><span class="faint">Pick a game and name it</span></button>`;
 }
 function home(){
   if(!DB.events.length)return`<div class="empty"><div class="ico">${ico("events")}</div><p>No events yet. Make one for your next broadcast and every overlay link comes with it.</p><button class="btn primary" type="button" data-act="newEvent">${ico("plus")}New event</button></div>`;
   const games=[...new Set(DB.events.map(e=>e.game))];
-  return`<div class="toolbar"><label class="search">${ico("search")}<input id="evq" placeholder="Search events" aria-label="Search events" value="${esc(ui.evq||"")}"></label>
-    <div class="field"><label for="evgame" style="position:absolute;width:1px;height:1px;overflow:hidden">Game</label><select id="evgame"><option value="">All games</option>${games.map(g=>`<option${ui.evgame===g?" selected":""}>${esc(g)}</option>`).join("")}</select></div>
+  return`<div class="toolbar"><div class="field"><label for="evgame" style="position:absolute;width:1px;height:1px;overflow:hidden">Game</label><select id="evgame"><option value="">All games</option>${games.map(g=>`<option${ui.evgame===g?" selected":""}>${esc(g)}</option>`).join("")}</select></div>
     <div class="field"><label for="evsort" style="position:absolute;width:1px;height:1px;overflow:hidden">Sort</label><select id="evsort"><option value="">Recently created</option><option value="name"${ui.evsort==="name"?" selected":""}>Name A to Z</option></select></div>
     <span class="faint" style="margin-left:auto">${DB.events.length} event${DB.events.length===1?"":"s"}</span></div>
     <div class="evgrid" id="evgrid">${evCards()}</div>`;
 }
 
-/* ---------- overlays: the new-event dialog and the command palette ---------- */
-let OVL=null,PAL=[]; // OVL: { type: "new" | "palette", ... }
+/* ---------- overlays: the new-event dialog ---------- */
+let OVL=null; // OVL: { type: "new", ... }
 const NEWGAMES=["Rocket League","League of Legends","Minecraft","Riftbound","Valorant","Overwatch 2","Call of Duty","Deadlock","Fortnite","Counter-Strike 2"];
 function closeOverlay(){OVL=null;$("#ovl").innerHTML=""}
 function openNew(){OVL={type:"new",game:"Rocket League",name:"",tried:false,busy:false};drawOverlay();setTimeout(()=>{const i=$("#neName");i&&i.focus()},30)}
-function openPalette(){OVL={type:"palette",q:"",i:0};drawOverlay();setTimeout(()=>{const i=$("#palQ");i&&i.focus()},30)}
 function newHtml(){
   const bad=OVL.tried&&!OVL.name.trim();
   return`<div class="scrim" data-act="ovlClose" style="padding-top:56px"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="neT" style="width:720px">
@@ -239,24 +251,7 @@ function newHtml(){
       <div class="field${bad?" bad":""}"><label for="neName">Event name</label><input id="neName" type="text" value="${esc(OVL.name)}" placeholder="Spring Showdown" autocomplete="off">${bad?`<span class="msg">${ico("info")}Give the event a name to continue.</span>`:""}</div></section>
     <footer><button class="btn ghost" type="button" data-act="ovlClose">Cancel</button><button class="btn primary" id="neCreate" type="button" data-act="neCreate"${OVL.name.trim()?"":" disabled"}>Create event</button></footer></div></div>`;
 }
-function palItems(){
-  const q=(OVL.q||"").toLowerCase().trim(),e=ev(),m=s=>!q||String(s).toLowerCase().includes(q),out=[];
-  DB.events.filter(x=>m(x.name+" "+x.game)).forEach(x=>out.push({g:"Events",icon:"events",label:x.name,hint:x.game,run:()=>{ui.cur=x.id;ui.view="overview";ui.team=ui.talent=null;render()}}));
-  if(e)Object.keys(META).filter(v=>VIEWS[v]&&(v!=="mc"||e.game==="Minecraft")&&(v!=="rb"||e.game==="Riftbound")&&m(META[v][0])).forEach(v=>out.push({g:"Pages",icon:META[v][1],label:META[v][0],hint:e.name,run:()=>{ui.view=v;render()}}));
-  [["New event","plus","Ctrl N",openNew],...(e?[["Copy overlay link","copy","",copyLink]]:[]),["Toggle theme",PREF.theme==="dark"?"sun":"moon","",toggleTheme],["Collapse sidebar","collapse","",toggleRail],["Go to My Events","events","",()=>{ui.cur=null;render()}]]
-    .filter(a=>m(a[0])).forEach(a=>out.push({g:"Actions",icon:a[1],label:a[0],hint:a[2],run:a[3]}));
-  return out;
-}
-function palList(){
-  PAL=palItems();OVL.i=Math.max(0,Math.min(OVL.i,PAL.length-1));
-  let last="",h="";PAL.forEach((it,i)=>{if(it.g!==last){h+=`<div class="grp">${it.g}</div>`;last=it.g}h+=`<div class="it${i===OVL.i?" on":""}" role="option" aria-selected="${i===OVL.i}" data-act="palRun" data-arg="${i}">${ico(it.icon)}<span class="trunc">${esc(it.label)}</span>${it.hint?(it.hint.startsWith("Ctrl")?`<small class="kbd">${it.hint}</small>`:`<small>${esc(it.hint)}</small>`):""}</div>`});
-  return h||`<div class="it" style="color:var(--text-3)">Nothing matches "${esc(OVL.q)}"</div>`;
-}
-function palHtml(){
-  return`<div class="scrim" data-act="ovlClose" style="padding-top:110px"><div class="pal" role="dialog" aria-modal="true" aria-label="Command palette"><div class="q">${ico("search")}<input id="palQ" placeholder="Search events, pages and actions" aria-label="Search" autocomplete="off" value="${esc(OVL.q)}"><span class="kbd">Esc</span></div>
-    <div class="list" id="palList" role="listbox">${palList()}</div><div class="ft"><span><span class="kbd">Up</span> <span class="kbd">Down</span> move</span><span><span class="kbd">Enter</span> open</span><span><span class="kbd">Esc</span> close</span></div></div></div>`;
-}
-function drawOverlay(){$("#ovl").innerHTML=!OVL?"":OVL.type==="new"?newHtml():palHtml()}
+function drawOverlay(){$("#ovl").innerHTML=!OVL?"":newHtml()}
 function toggleTheme(){PREF.theme=PREF.theme==="dark"?"light":"dark";document.documentElement.dataset.theme=PREF.theme;savePref();render()}
 function toggleRail(){PREF.min=!PREF.min;savePref();render()}
 async function copyLink(){const e=ev();if(!e)return;const v=overlayUrl("auto",e);try{await navigator.clipboard.writeText(v);toast("Overlay link for "+e.name+" copied")}catch(err){toast(v)}}
@@ -311,7 +306,7 @@ hud(e){
 teams(e){
   if(!ui.team||!tm(e,ui.team))ui.team=e.teams[0]?.id||null;
   const t=tm(e,ui.team),i=e.teams.indexOf(t),P=`teams.${i}`;
-  return`<div class="split"><div class="box pane"><div class="list"><div class="lhead"><input id="teamq" value="${esc(ui.teamq)}" placeholder="Search teams" aria-label="Search teams">
+  return`<div class="split"><div class="box pane"><div class="list"><div class="lhead">
     <button class="btn" type="button" data-act="addTeam" style="justify-content:space-between"><span>+ Add team</span><span class="note">${e.teams.length} / 64</span></button></div>
     <div class="items" id="teamlist">${teamList(e)}</div></div></div>
   <div class="box detail">${t?`
@@ -339,7 +334,7 @@ tournament(e){
 talent(e){
   if(!ui.talent||!e.talent.find(t=>t.id===ui.talent))ui.talent=e.talent[0]?.id||null;
   const t=e.talent.find(x=>x.id===ui.talent),i=e.talent.indexOf(t);
-  return`<div class="split"><div class="box pane"><div class="list"><div class="lhead"><input id="talentq" value="${esc(ui.talentq)}" placeholder="Search talent" aria-label="Search talent"><button class="btn" type="button" data-act="addTalent">+ Add talent</button></div><div class="items" id="talentlist">${talentList(e)}</div></div></div>
+  return`<div class="split"><div class="box pane"><div class="list"><div class="lhead"><button class="btn" type="button" data-act="addTalent">+ Add talent</button></div><div class="items" id="talentlist">${talentList(e)}</div></div></div>
   <div class="box detail">${t?`<div class="row" style="align-items:stretch;gap:24px"><div style="width:230px">${F.dz(`talent.${i}.portrait`,"Portrait")}</div>
     <div class="sec" style="flex:1;min-width:220px">${F.text(`talent.${i}.name`,"Display name")}${F.text(`talent.${i}.role`,"Role / title","Caster")}<div class="row" style="justify-content:flex-end"><button class="btn danger" type="button" data-act="delTalent">${ico("trash")}Delete profile</button></div></div></div>
     <div class="sec"><div class="sechead"><h2>Socials</h2><button class="btn" type="button" data-act="addSocial">+ Add social</button></div>
@@ -678,15 +673,13 @@ document.addEventListener("click",async ev0=>{
   switch(a){
     case "home":ui.cur=null;break;
     case "open":ui.cur=arg;ui.view="overview";ui.team=ui.talent=null;break;
-    case "nav":ui.view=arg;break;
+    case "nav":ui.view=arg;lastIn[groupOf(arg)]=arg;break;
     case "newEvent":openNew();return;
-    case "palette":openPalette();return;
     case "collapse":toggleRail();return;
     case "theme":toggleTheme();return;
     case "ovlClose":closeOverlay();return;
     case "neGame":OVL.game=arg;drawOverlay();return;
     case "neCreate":createEvent();return;
-    case "palRun":{const it=PAL[+arg];closeOverlay();if(it)it.run();return}
     case "copyLink":copyLink();return;
     case "copyText":{try{await navigator.clipboard.writeText(b.dataset.arg);toast("Copied")}catch(err){toast("Select the text and press Ctrl+C")}return}
     case "delEvent":if(!confirmTwice(b))return;await put("events",DB.events.filter(x=>x!==e),false);ui.cur=null;toast("Event deleted");break;
@@ -805,9 +798,7 @@ document.addEventListener("click",async ev0=>{
 });
 document.addEventListener("input",ev0=>{
   const el=ev0.target,e=ev();
-  if(el.id==="evq"){ui.evq=el.value;$("#evgrid").innerHTML=evCards();return}
   if(el.id==="neName"&&OVL){OVL.name=el.value;const c=$("#neCreate");if(c)c.disabled=!el.value.trim();return}
-  if(el.id==="palQ"&&OVL){OVL.q=el.value;OVL.i=0;$("#palList").innerHTML=palList();return}
   if(el.id==="teamq"){ui.teamq=el.value;$("#teamlist").innerHTML=teamList(e);return}
   if(el.id==="talentq"){ui.talentq=el.value;$("#talentlist").innerHTML=talentList(e);return}
   if(el.id==="ovScene"){ui.ovScene=el.value;$("#ovUrl").value=overlayUrl(el.value);return}
@@ -894,17 +885,13 @@ function ocrLive(){
   $$("[data-rawof]").forEach(td=>{const r=(o.readings||{})[td.dataset.rawof];td.textContent=r?(r.error?"error":(r.raw||"(blank)")):"—"});
   $$("[data-valof]").forEach(td=>{const r=(o.readings||{})[td.dataset.valof];td.textContent=r&&r.value!=null?(r.key==="clock"?SaintsHUD.fmt(r.value):r.value):"—";td.className="read "+(r&&r.ok?"ok":"bad")});
 }
-/* shortcuts: Ctrl+K palette, Ctrl+N new event, Esc closes, arrows and Enter in the palette */
+/* shortcuts: Ctrl+N new event, Esc closes a dialog */
 document.addEventListener("keydown",k=>{
   const mod=k.ctrlKey||k.metaKey,key=String(k.key).toLowerCase();
-  if(mod&&key==="k"){k.preventDefault();OVL&&OVL.type==="palette"?closeOverlay():openPalette();return}
   if(mod&&key==="n"&&DB){k.preventDefault();openNew();return}
   if(!OVL)return;
   if(k.key==="Escape"){closeOverlay();return}
-  if(OVL.type==="palette"){
-    if(k.key==="ArrowDown"||k.key==="ArrowUp"){k.preventDefault();const n=Math.max(1,PAL.length);OVL.i=(OVL.i+(k.key==="ArrowDown"?1:-1)+n)%n;$("#palList").innerHTML=palList();const on=$("#palList .on");on&&on.scrollIntoView({block:"nearest"});return}
-    if(k.key==="Enter"){k.preventDefault();const it=PAL[OVL.i];if(it){closeOverlay();it.run()}}
-  }else if(OVL.type==="new"&&k.key==="Enter"&&k.target.id==="neName"){k.preventDefault();createEvent()}
+  if(OVL.type==="new"&&k.key==="Enter"&&k.target.id==="neName"){k.preventDefault();createEvent()}
 });
 /* click an element in the Hunger Games preview to edit it */
 document.addEventListener("click",ev0=>{
