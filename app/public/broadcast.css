@@ -1,0 +1,89 @@
+/* Chud Hud broadcast finish: glass panels, chamfered plates, gold rules and glow, layered over hud.css.
+   Pure CSS on the existing scene markup, so overlays, previews and data outputs are unchanged. */
+.hud{--glass:linear-gradient(180deg,rgba(10,44,30,.94),rgba(3,18,12,.92));--glass-h:linear-gradient(90deg,rgba(10,44,30,.94),rgba(3,18,12,.9));--edge:inset 0 1px 0 rgba(255,255,255,.07);--goldg:linear-gradient(180deg,#FFE27A,#FDC82F 55%,#E3A915)}
+
+/* ---------- in-game: Rocket League ---------- */
+.h-tick{background:linear-gradient(180deg,#041a11,#020d09);border-bottom:1px solid rgba(253,200,47,.35);color:#d6d8de}
+.h-team{background:var(--glass);box-shadow:var(--edge),0 10px 24px -12px rgba(0,0,0,.7)}
+.h-team.l{clip-path:polygon(0 0,100% 0,100% 100%,14px 100%,0 calc(100% - 14px))}
+.h-team.r{clip-path:polygon(0 0,100% 0,calc(100% - 0px) calc(100% - 14px),calc(100% - 14px) 100%,0 100%)}
+.h-team .tn{text-shadow:0 2px 6px rgba(0,0,0,.55);letter-spacing:.02em}
+.h-team .gs{text-shadow:0 0 18px color-mix(in srgb,#fff 30%,transparent)}
+.h-mid{background:linear-gradient(180deg,rgba(14,52,36,.96),rgba(3,18,12,.94));box-shadow:var(--edge);border-bottom-color:var(--gold)}
+.h-series .clk{background:var(--goldg);box-shadow:0 8px 20px -8px rgba(253,200,47,.65),inset 0 1px 0 rgba(255,255,255,.6)}
+.h-series .ss{text-shadow:0 2px 0 rgba(0,0,0,.25)}
+.h-series .ss.l{background:linear-gradient(180deg,color-mix(in srgb,var(--L) 82%,#fff),var(--L))}
+.h-series .ss.r{background:linear-gradient(180deg,color-mix(in srgb,var(--R) 82%,#fff),var(--R))}
+.h-row{background:linear-gradient(90deg,rgba(10,44,30,.92),rgba(3,18,12,.82));box-shadow:var(--edge)}
+.h-boost.r .h-row{background:linear-gradient(270deg,rgba(10,44,30,.92),rgba(3,18,12,.82))}
+.h-boost.l .bar{box-shadow:0 0 10px var(--L)}.h-boost.r .bar{box-shadow:0 0 10px var(--R)}
+.h-row.f{background:var(--goldg)}
+.h-card{background:var(--glass);box-shadow:var(--edge),0 14px 30px -14px rgba(0,0,0,.8)}
+.h-card .who b{letter-spacing:.02em;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+.h-gauge{box-shadow:0 12px 30px -12px rgba(0,0,0,.8),inset 0 0 0 1px rgba(255,255,255,.06)}
+.h-gauge b{text-shadow:0 0 22px rgba(253,200,47,.35)}
+.h-stats div{background:linear-gradient(90deg,transparent,rgba(5,24,17,.9) 18%,rgba(5,24,17,.9) 82%,transparent);box-shadow:none}
+.h-feed div{background:var(--glass-h);border-right:3px solid var(--gold);box-shadow:var(--edge)}
+.h-goal b{background:linear-gradient(180deg,color-mix(in srgb,var(--c) 78%,#fff),var(--c));clip-path:polygon(0 0,100% 0,100% calc(100% - 22px),calc(100% - 22px) 100%,0 100%);text-shadow:0 8px 0 rgba(0,0,0,.28);filter:drop-shadow(0 18px 40px color-mix(in srgb,var(--c) 55%,transparent))}
+.h-goal div{background:var(--goldg);box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.h-flag{background:linear-gradient(180deg,#e85a5a,#c03030);box-shadow:0 8px 20px -8px rgba(210,59,59,.7)}
+
+/* ---------- full-screen scenes ---------- */
+.h-full{background:
+  radial-gradient(900px 520px at 50% 28%,rgba(0,105,60,.55),transparent 70%),
+  radial-gradient(700px 420px at 100% 100%,rgba(253,200,47,.10),transparent 65%),
+  linear-gradient(180deg,#06251a,#020e09)}
+.h-full::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(115deg,rgba(255,255,255,.022) 0 2px,transparent 2px 46px)}
+.h-full::after{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,transparent,var(--gold) 20%,var(--gold) 80%,transparent);box-shadow:0 0 28px rgba(253,200,47,.55);pointer-events:none}
+.h-full>*{position:relative;z-index:1}
+.h-eyebrow{display:flex;align-items:center;gap:20px;color:#d6d8de;font-size:26px}
+.h-eyebrow::before,.h-eyebrow::after{content:"";width:70px;height:2px;background:linear-gradient(90deg,transparent,var(--gold))}
+.h-eyebrow::after{background:linear-gradient(270deg,transparent,var(--gold))}
+.h-title{background:linear-gradient(180deg,#fff 30%,#c9d8cf);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 0 rgba(0,0,0,.35)) drop-shadow(0 0 40px rgba(0,105,60,.6))}
+.h-strip{background:var(--goldg);clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%);padding:8px 40px 2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.h-vs .t .lgbox{background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 18px 40px -16px rgba(0,0,0,.8)}
+.h-vs .v{color:var(--gold);text-shadow:0 0 24px rgba(253,200,47,.45)}
+.h-big-logo{filter:drop-shadow(0 18px 36px rgba(0,0,0,.6)) drop-shadow(0 0 30px rgba(253,200,47,.18))}
+.h-timer{background:linear-gradient(180deg,#fff,#cfd9d3);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 8px 0 rgba(0,0,0,.35)) drop-shadow(0 0 50px rgba(253,200,47,.25))}
+
+/* casters, lower third */
+.h-cam .feed{border:0;box-shadow:inset 0 0 0 2px rgba(255,255,255,.08),0 18px 40px -18px rgba(0,0,0,.85)}
+.h-plate{background:var(--goldg);clip-path:polygon(0 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.h-desk .top{display:flex;align-items:center;gap:20px}
+.h-desk .top::before,.h-desk .top::after{content:"";width:60px;height:2px;background:linear-gradient(90deg,transparent,var(--gold))}
+.h-desk .top::after{transform:scaleX(-1)}
+.h-l3 b{background:var(--goldg);clip-path:polygon(0 0,100% 0,calc(100% - 22px) 100%,0 100%);padding-right:48px;box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.h-l3 span{background:var(--glass-h);clip-path:polygon(0 0,100% 0,calc(100% - 16px) 100%,0 100%);padding-right:40px;box-shadow:var(--edge)}
+
+/* tables, rows */
+.h-table td{background:var(--glass-h);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);border-bottom:2px solid rgba(0,0,0,.55)}
+.h-table th{color:var(--gold);opacity:.85;letter-spacing:.12em}
+.h-table tr.top td{background:var(--goldg);color:#111;box-shadow:0 8px 22px -10px rgba(253,200,47,.6)}
+.h-ind .pic{box-shadow:0 24px 50px -20px rgba(0,0,0,.85),inset 0 0 0 1px rgba(255,255,255,.07);clip-path:polygon(0 0,100% 0,100% calc(100% - 28px),calc(100% - 28px) 100%,0 100%)}
+.h-ind .info>b{background:linear-gradient(180deg,#fff,#cfd9d3);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 5px 0 rgba(0,0,0,.35))}
+.h-ind .grid div{background:var(--glass);box-shadow:var(--edge);border-top:2px solid rgba(253,200,47,.55)}
+.h-ind .grid b{background:linear-gradient(180deg,#fff,#d4ddd8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.h-lineup .hd{border-bottom-width:4px;border-image:linear-gradient(90deg,var(--c),transparent) 1}
+.h-lineup .p{background:var(--glass-h);box-shadow:var(--edge);clip-path:polygon(0 0,100% 0,calc(100% - 14px) 100%,0 100%)}
+.h-sched .m{background:var(--glass-h);box-shadow:var(--edge);border-left:4px solid var(--gold)}
+.h-sched .m .time{text-shadow:0 0 14px rgba(255,197,49,.35)}
+.h-bracket .rd h4{color:var(--gold)}
+.h-bracket .tr{background:var(--glass-h);box-shadow:var(--edge)}
+.h-bracket .tr.w{background:var(--goldg)}
+.h-replay{border-width:0;box-shadow:inset 0 0 0 8px var(--c),inset 0 0 120px color-mix(in srgb,var(--c) 40%,transparent)}
+.h-replay .tag{clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%);padding:8px 52px 2px;box-shadow:0 10px 24px -8px rgba(0,0,0,.6)}
+.h-replay .info{background:var(--glass);box-shadow:var(--edge)}
+
+/* ---------- League of Legends, Minecraft, Riftbound ---------- */
+.mc-top,.bb-top{background:var(--glass);box-shadow:var(--edge),0 12px 28px -14px rgba(0,0,0,.8)}
+.mc-kills,.mc-spot,.bb-judge{background:var(--glass);box-shadow:var(--edge),0 14px 30px -16px rgba(0,0,0,.8)}
+.mc-feed div,.bb-list div,.rb-log div{background:var(--glass-h);box-shadow:var(--edge)}
+.bb-top .ph,.rb-spot .cap{background:var(--goldg);box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.rb-p{background:var(--glass);box-shadow:var(--edge),0 12px 26px -14px rgba(0,0,0,.8)}
+.rb-p .pips i.on{box-shadow:0 0 8px var(--c)}
+.rb-top .mid{background:linear-gradient(180deg,rgba(10,44,30,.97),rgba(2,14,10,.97))}
+.rb-card{box-shadow:0 12px 26px -12px rgba(0,0,0,.8)}
+.l2-bar{box-shadow:var(--edge)}
+.l2-bar,.l2-team,.l2-mid{text-shadow:0 2px 6px rgba(0,0,0,.45)}
+
+@media (prefers-reduced-motion:reduce){.hud *{animation:none!important}}

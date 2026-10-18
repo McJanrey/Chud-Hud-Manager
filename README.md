@@ -304,6 +304,9 @@ app/
     overlay.html   the OBS browser source
     hud.js         scene renderer shared by the overlay and the dashboard previews
     hud.css        scene styles
+    broadcast.css  broadcast finish for the scenes: glass panels, chamfered plates, gold rules (loaded after hud.css)
+    polish.css     control-room finish: depth, gradients, motion, grouped rail and tabs
+    motion.js      sliding thumb on segmented controls
     fonts/         Teko and JetBrains Mono (SIL Open Font License)
     brand/         Saints emblem
   test/            self-checks (see above)
