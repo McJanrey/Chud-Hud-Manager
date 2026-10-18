@@ -938,7 +938,7 @@ document.addEventListener("change",ev0=>{
     ocrBoxes();ocrRows();ocrSave();return}
   if(el.id==="rpTime"){lolPost("playback",{time:+el.value});return}
   if(el.dataset.rp){lolPost("render",{[el.dataset.rp]:el.type==="checkbox"?el.checked:el.value});return}
-  if(el.dataset.rerender!==undefined||/(^teams\.\d+\.(color|tag|name)$)|^camera\./.test(el.dataset.bind||""))render();
+  if(el.dataset.rerender!==undefined||el.dataset.bind==="hud.show.playerCam"||/(^teams\.\d+\.(color|tag|name)$)|^camera\./.test(el.dataset.bind||""))render();
 });
 document.addEventListener("dragover",ev0=>{const dz=ev0.target.closest(".dz");if(dz){ev0.preventDefault();dz.classList.add("over")}});
 document.addEventListener("dragleave",ev0=>{const dz=ev0.target.closest(".dz");if(dz)dz.classList.remove("over")});
