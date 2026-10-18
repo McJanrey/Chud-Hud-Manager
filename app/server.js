@@ -44,7 +44,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     talent: [],
     live: { left: "", right: "", swap: false, autoTeams: true, autoScore: true, autoSeries: true, score: [0, 0], bestOf: 5,
       series: [0, 0], seriesTitle: "", eventTitle: "", roundTitle: "", gameSeries: "BEST OF 5" },
-    camera: { own: true, layout: "duo", seats: Array.from({ length: 8 }, () => ({ talent: "", url: "", role: "" })) }, // how many seats show is decided by the kit (settings.kits)
+    camera: { own: true, layout: "duo", director: "all", pin: [0, 0], seats: Array.from({ length: 8 }, () => ({ talent: "", url: "", role: "" })) }, // how many seats show is decided by the kit (settings.kits)
     schedule: [],
     bracket: { rounds: [
       { name: "Quarterfinals", matches: Array.from({ length: 4 }, () => ({ a: "", b: "", sa: "", sb: "" })) },
@@ -63,7 +63,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     // Dead by Daylight: one trial is a killer against survivors; points per kill, per escape and per generator
     dbd: { killPts: 1, escapePts: 1, genPts: 0, trials: [] },
     // Fortnite: points for the placement tier a team lands in plus points per elimination, over a number of matches
-    fn: { elimPts: 1, placePts: [{ to: 1, pts: 10 }, { to: 2, pts: 7 }, { to: 3, pts: 5 }, { to: 5, pts: 3 }, { to: 10, pts: 1 }], matches: [] },
+    fn: { elimPts: 1, spotlight: "", placePts: [{ to: 1, pts: 10 }, { to: 2, pts: 7 }, { to: 3, pts: 5 }, { to: 5, pts: 3 }, { to: 10, pts: 1 }], matches: [] },
     // Riftbound (trading card game): operator-driven scoring
     rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
       limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "", play: [[], []], log: [] },
@@ -77,6 +77,8 @@ function upgrade(ev) {
   { const dm = d.mc; // Build Battle judges, audience scores and the chat poll arrived later than the first Minecraft events
     ev.mc.bb = Object.assign({}, dm.bb, ev.mc.bb); ev.mc.bb.audience = Object.assign({}, dm.bb.audience, ev.mc.bb.audience);
     ev.mc.poll = Object.assign({}, dm.poll, ev.mc.poll); }
+  if (ev.camera && !ev.camera.director) ev.camera.director = "all"; // "all" shows every player's webcam, "action" only the player in the action
+  if (ev.camera && !Array.isArray(ev.camera.pin)) ev.camera.pin = [0, 0];
   if (ev.camera && ev.camera.own === undefined) ev.camera.own = true; // our own camera links are used unless an event opts out
   ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
@@ -964,6 +966,34 @@ function chatClear(evId, mode, build) {
   tally(ev); save(); broadcastDb("chat");
 }
 
+// Stream Deck and Bitfocus Companion: one web address per button (Companion's "Generic HTTP" connection, or anything that opens a link).
+// The key keeps other web pages from pressing your buttons. It lives in its own file, never in the saved workspace the overlay can read.
+let controlKeyV = null;
+function controlKey() {
+  if (controlKeyV) return controlKeyV;
+  const f = path.join(DATA, "control-key.txt");
+  try { controlKeyV = fs.readFileSync(f, "utf8").trim(); } catch { controlKeyV = ""; }
+  if (!/^[0-9a-f]{32}$/.test(controlKeyV)) { controlKeyV = crypto.randomBytes(16).toString("hex"); fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(f, controlKeyV, { mode: 0o600 }); }
+  return controlKeyV;
+}
+const isLoopback = req => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress || "");
+function controlApply(ev, q) {
+  const val = String(q.value == null ? "" : q.value), flag = v => (v === "on" ? true : v === "off" ? false : null);
+  switch (q.action) {
+    case "scene": if (!HUD.SCENES[val]) return { error: "unknown scene" }; ev.hud.scene = val; return { ok: true, scene: val };
+    case "show": case "cams": {
+      const name = q.action === "cams" ? "playerCam" : String(q.name || "");
+      if (!(name in ev.hud.show)) return { error: "unknown element" };
+      const f = flag(val); ev.hud.show[name] = f === null ? !ev.hud.show[name] : f; return { ok: true, [name]: ev.hud.show[name] };
+    }
+    case "director": if (!["all", "action"].includes(val)) return { error: "director is all or action" }; ev.camera.director = val; return { ok: true, director: val };
+    case "pin": { const side = +q.side === 1 ? 1 : 0, n = Math.max(0, Math.min(9, Math.floor(+val) || 0)); ev.camera.pin[side] = n; return { ok: true, pin: ev.camera.pin }; }
+    case "score": { const side = +q.side === 1 ? 1 : 0, d = Math.trunc(+q.delta || 1); ev.live.score[side] = Math.max(0, (ev.live.score[side] || 0) + d); ev.live.autoScore = false; return { ok: true, score: ev.live.score }; }
+    case "hgstate": if (!["main", "final", "winner"].includes(val)) return { error: "state is main, final or winner" }; ev.hud.mcState = val; return { ok: true, state: val };
+    default: return { error: "unknown action" };
+  }
+}
+
 // Licensing: the verdict is cached for a few seconds. Only the launcher, its styles and the license calls work while locked.
 let licCache = { at: 0, s: null };
 const licenseStatus = () => { if (Date.now() - licCache.at > 3000 || !licCache.s) licCache = { at: Date.now(), s: LIC.status(DATA, EDITION) }; return licCache.s; };
@@ -991,6 +1021,19 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { "content-type": "text/css; charset=utf-8", "cache-control": "no-cache" }); return res.end("");
     }
     if (p === "/api/variant") return json(res, 200, { id: V.id, name: V.name, tagline: V.tagline, port: PORT });
+    if (p === "/api/control/info") { // the key, for the Outputs page: only to the PC the app runs on
+      if (!isLoopback(req)) return json(res, 403, { error: "The control key is only shown on the PC running the app." });
+      return json(res, 200, { key: controlKey(), port: PORT });
+    }
+    if (p === "/api/control") {
+      const q = Object.fromEntries(url.searchParams), a = Buffer.from(String(q.key || "")), b = Buffer.from(controlKey());
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return json(res, 403, { error: "wrong or missing key" });
+      const ev = q.event ? DB.events.find(e => e.id === q.event) : DB.events[0];
+      if (!ev) return json(res, 404, { error: "event not found" });
+      const r = controlApply(ev, q);
+      if (r.error) return json(res, 400, r);
+      save(); broadcastDb("control"); return json(res, 200, Object.assign({ event: ev.id }, r));
+    }
     if (p === "/api/license") return json(res, 200, Object.assign({ edition: EDITION, service: !!LIC.service() }, licenseStatus()));
     if (p === "/cam") return sendFile(res, path.join(PUB, "cam.html")); // this PC's own camera (127.0.0.1 counts as secure)
     if (p === "/camview") return sendFile(res, path.join(PUB, "camview.html"));
@@ -1121,6 +1164,16 @@ const server = http.createServer((req, res) => {
             const on = !!body.on;
             return setCamLan(on).then(() => { DB.settings.camLan = on; save(); json(res, 200, camLinks()); })
               .catch(e => json(res, 500, { error: e.code === "EADDRINUSE" ? `Port ${CAM_PORT} is already in use.` : e.message }));
+          }
+          case "/api/ocr/save-frame": { // the picture the reader sees and what it read from it, saved to <data>/ocr-frames
+            if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
+            const c = DB.settings.ocr || {};
+            return ocr.frame(c.sourceId, c.sourceName).then(buf => {
+              const dir = path.join(DATA, "ocr-frames"), stamp = new Date().toISOString().replace(/[:.]/g, "-"); fs.mkdirSync(dir, { recursive: true });
+              fs.writeFileSync(path.join(dir, stamp + ".jpg"), buf);
+              fs.writeFileSync(path.join(dir, stamp + ".json"), JSON.stringify({ at: new Date().toISOString(), config: c, readings: ocr.state().readings }, null, 1));
+              json(res, 200, { ok: true, file: path.join(dir, stamp + ".jpg") });
+            }).catch(e => json(res, 400, { error: e.message }));
           }
           case "/api/ocr/stop": if (ocr) ocr.stop(); return json(res, 200, { ok: true });
           case "/api/mc/config": {

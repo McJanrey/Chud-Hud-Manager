@@ -536,3 +536,7 @@
 .fn-row:nth-child(2){background:rgba(253,200,47,.12)}
 .fn-row .rk{color:var(--gold,#FDC82F)}.fn-row .nm{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .fn-row .lgbox{width:30px;height:30px}
+
+/* the player in the action: a bigger camera in the corner that cross-fades between players */
+.hud .cams iframe{transition:opacity .35s ease}
+.pc.act{height:21px;width:240px}

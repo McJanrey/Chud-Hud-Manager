@@ -264,6 +264,14 @@ LOTD opens with VALORANT 2v2 Skirmish, Fortnite duos and Dead by Daylight events
 
 From source: `npm run start:lotd`, `npm run dist:lotd`. To change the logo, run `powershell -File app\tools\make-icons.ps1 -Source <image.png> -Edition lotd`: it rewrites the in-app logo and the window, installer and exe icons.
 
+## Stream Deck and Companion
+
+The **Outputs** page lists one web address per button for the event you have open: switch scene, webcams on or off, only the player in the action, pin a player, score +1 or −1, show or hide any element, and the Hunger Games HUD state. In Bitfocus Companion add a "Generic HTTP" connection and give a button a GET action with the address; any program that can open a link works. Each address carries a private key (kept in `control-key.txt` in the data folder, never in the saved workspace), so another web page can't press your buttons. The addresses are only shown on the PC running the app.
+
+## Updates, now that the repository is private
+
+The in-app update check reads this repository's releases, which need a token once the code is private. On each PC that should update itself, create a fine-grained token on GitHub (Settings, Developer settings, Personal access tokens, fine-grained: this repository only, Contents: Read-only) and save it as `update-token.txt` in the app's data folder (`%APPDATA%\Saints HUD` for Chud Hud, `%APPDATA%\Chud Hud LOTD` for LOTD), or set `CHUDHUD_UPDATE_TOKEN`. A PC without a token still runs; it just can't check for updates, and you install new versions by downloading the installer from the releases page while signed in to GitHub. Never put the token in the repository.
+
 ## License codes
 
 Release builds can be locked so they only run with a code from you. You make codes, give them out, and switch any of them off and on again at any time.

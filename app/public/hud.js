@@ -3,6 +3,27 @@
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmt = s => { s = Math.max(0, Math.floor(+s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }; // whole seconds: the Minecraft and Riftbound clocks are fractional
   const low = s => String(s || "").toLowerCase().trim();
+  /* Names read from a screen are rarely perfect ("Jazii" as "Jaz1i", a team tag in front). Exact matches always win; this only
+     decides when there isn't one. Digits must agree, and short names must match exactly, so "Player1" never becomes "Player2". */
+  const nrm = s => String(s || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")
+    .replace(/[01|!5$84il]/g, c => ({ "0": "o", "1": "l", "|": "l", "!": "l", "i": "l", "5": "s", "$": "s", "8": "b", "4": "a" }[c]));
+  function sim(a, b) {
+    if (a === b) return 1; const n = a.length, m = b.length; if (!n || !m) return 0;
+    let prev = Array.from({ length: m + 1 }, (_, j) => j);
+    for (let i = 1; i <= n; i++) { const cur = [i]; for (let j = 1; j <= m; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; }
+    return 1 - prev[m] / Math.max(n, m);
+  }
+  function nameMatch(a, b) {
+    if (low(a) === low(b)) return !!low(a);
+    const x = nrm(a), y = nrm(b); if (!x || !y) return false;
+    const da = String(a).replace(/\D/g, ""), db = String(b).replace(/\D/g, ""); if (da && db && da !== db) return false; // Player1 is not Player2
+    if (x === y) return true;
+    const lo = Math.min(x.length, y.length);
+    if (lo >= 3 && (x.endsWith(y) || y.endsWith(x)) && Math.abs(x.length - y.length) <= 4) return true; // a team tag in front: "G2 valyn"
+    return lo >= 5 && sim(x, y) >= 0.85;
+  }
+  const pickName = (list, name) => list.find(p => low(p.ign) === low(name)) || list.find(p => nameMatch(p.ign, name));
+
 
   /* Our own cameras (cams.js): rooms whose player has their camera page open right now. Polled, because the overlay
      is a plain web page; a tile only appears while that player is live, so nobody gets an empty box. */
@@ -42,28 +63,33 @@
       [0, 1].forEach(s => {
         const names = game.players.filter(p => p.team === tn(s)).map(p => low(p.name));
         let best = null, bn = 0;
-        ev.teams.forEach(t => { const n = t.players.filter(p => names.includes(low(p.ign))).length; if (n > bn) { bn = n; best = t; } });
+        ev.teams.forEach(t => { const n = t.players.filter(p => names.some(nm => nameMatch(p.ign, nm))).length; if (n > bn) { bn = n; best = t; } });
         if (best) { sides[s] = best; tracked[s] = true; }
       });
     }
     const kind = GAMEDEF[ev.game] ? GAMEDEF[ev.game].kind : live && game.kind ? game.kind : ev.game === "League of Legends" ? "lol" : ev.game === "Minecraft" ? "mc" : ev.game === "Riftbound" ? "rb" : ev.game === "Rocket League" ? "rl" : "gen";
     const size = kind === "lol" ? 5 : (GAMEDEF[ev.game] && GAMEDEF[ev.game].squad) || 3;
-    const roster = (t, name) => t && t.players.find(p => low(p.ign) === low(name));
+    const roster = (t, name) => t && pickName(t.players, name);
     const blank = { score: 0, goals: 0, shots: 0, assists: 0, saves: 0, demos: 0, touches: 0, boost: 0, kills: 0, deaths: 0, cs: 0, level: 1, ward: 0 };
     const players = [0, 1].map(s => {
       const t = sides[s];
       let list = live
         ? game.players.filter(p => p.team === tn(s)).sort((a, b) => a.shortcut - b.shortcut).slice(0, size === 5 ? 5 : 4)
-        : (t ? t.players.slice(0, size) : []).map((p, i) => Object.assign({ name: p.ign, shortcut: i + 1 + s * size }, blank));
+        : (t ? t.players.slice(0, size) : []).map((p, i) => Object.assign({ name: p.ign, shortcut: i + 1 + s * size, _r: p }, blank));
       while (list.length < size && !live) list.push(Object.assign({ name: `Player ${list.length + 1}`, shortcut: 0 }, blank));
       return list.map(p => {
-        const r = roster(t, p.name);
-        return Object.assign({}, blank, p, { display: (r && (r.alias || r.ign)) || p.name, side: s, team: t,
+        const r = p._r || roster(t, p.name);
+        return Object.assign({}, blank, p, { _r: undefined, display: (r && (r.alias || r.ign)) || p.name, side: s, team: t,
           avatar: r ? r.avatar : "", country: r ? r.country : "", cam: r ? r.cam : "", pid: r ? r.id : "" });
       });
     });
     const all = players[0].concat(players[1]);
     const find = w => w && all.find(p => (w.shortcut && p.shortcut === w.shortcut) || low(p.name) === low(w.name));
+    // who is in the action on each side: the player in the latest kill, goal or demolition of the last 12 seconds (null when none)
+    const nowT = Date.now(), action = [0, 1].map(s => {
+      const it = (game && game.feed || []).slice().reverse().find(f => nowT - f.t < 12000 && f.main && f.main.team >= 0 && sideOfTeam(f.main.team) === s && /^(kill|multi|goal|demo|fb|ace)/.test(f.type));
+      const p = it && find(it.main); const i = p ? players[s].indexOf(p) : -1; return i >= 0 ? i : null;
+    });
     const score = kind === "dbd" ? dbdScore(ev).total : l.autoScore && (live || hasScore) ? [game.teams[tn(0)].score, game.teams[tn(1)].score] : l.score;
     const colors = ev.hud.colorMode === "custom" ? ev.hud.custom : [sides[0] ? sides[0].color : "#2f7dff", sides[1] ? sides[1].color : "#ff9b1a"];
     const feed = (game && game.feed || []).filter(f => Date.now() - f.t < 9000).slice(-4).map(f => ({
@@ -79,7 +105,7 @@
     const mvp = all.slice().sort((a, b) => b.score - a.score)[0];
     return {
       ev, live, kind, lol: game && game.lol, mc: game && game.mc, mcOcr: game && game.mcOcr, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
-      series: l.series, focus: live ? find(game.target) : null,
+      series: l.series, focus: live ? find(game.target) : null, action,
       clock: live || hasClock ? game.time : 300, clockLive: live || hasClock, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
       connected: !!(game && game.connected), source: game ? game.source : "",
     };
@@ -92,17 +118,51 @@
   const sideTeam = (ev, id) => ev.teams.find(t => t.id === id);
 
   /* ---------------- scenes: each returns { html, cams } ---------------- */
-  /* Player webcams: one slot per player (3 a side in Rocket League, 5 in League) down both edges of the screen. A slot shows when
-     that player has a camera link on the roster; the left team's players are on the left. */
+  const camUrlOf = (ev, p) => (p && (p.cam || (p.pid ? ownCam(ev, p.pid) : ""))) || "";
+  /* Player webcams. "all": one slot per player down both edges (3 a side in Rocket League, 5 in League). "action": only the player
+     in the action shows, big, in the bottom corner of their team's side, and every camera stays loaded so a switch is instant.
+     A slot only shows when that player has a camera link or a live camera page. */
   function playerCams(m, top) {
+    if ((m.ev.camera || {}).director === "action") return actionCams(m);
     const w = 150, camH = 84, pitch = 111, cams = []; let html = "";
     [0, 1].forEach(s => m.players[s].forEach((p, i) => {
-      const camUrl = p.cam || (p.pid ? ownCam(m.ev, p.pid) : "");
+      const camUrl = camUrlOf(m.ev, p);
       if (!camUrl) return;
       const x = s ? 1280 - 8 - w : 8, y = top + i * pitch;
       html += `<div class="pc ${s ? "r" : "l"}" style="left:${x}px;top:${y}px;--c:${esc(m.colors[s])}"><span>${esc(p.display)}</span></div>`;
       cams.push({ key: "pc-" + s + "-" + i + camUrl, url: camUrl, x, y, w, h: camH });
     }));
+    return { html, cams };
+  }
+  /* who is in the action for a side: the player you pinned, else the player in the latest kill or goal of the last 12 seconds,
+     else the spectated player, else the first with a camera. The same data gives the same answer on every screen. */
+  function actionIndex(m, s) {
+    const list = m.players[s], pin = +(((m.ev.camera || {}).pin || [])[s]) || 0;
+    if (pin >= 1 && camUrlOf(m.ev, list[pin - 1])) return pin - 1;
+    const a = m.action && m.action[s]; if (a != null && a >= 0 && camUrlOf(m.ev, list[a])) return a;
+    if (m.focus && m.focus.side === s) { const i = list.indexOf(m.focus); if (i >= 0 && camUrlOf(m.ev, list[i])) return i; }
+    return list.findIndex(p => camUrlOf(m.ev, p));
+  }
+  function actionCams(m) {
+    const w = 240, h = 135, y = 455, cams = []; let html = "";
+    [0, 1].forEach(s => {
+      const x = s ? 1280 - 8 - w : 8, act = actionIndex(m, s);
+      m.players[s].forEach((p, i) => { const u = camUrlOf(m.ev, p); if (u) cams.push({ key: "ac-" + s + "-" + i + u, url: u, x, y, w, h, show: i === act }); });
+      const p = act >= 0 ? m.players[s][act] : null;
+      if (p) html += `<div class="pc act ${s ? "r" : "l"}" data-k="ac-${s}" style="left:${x}px;top:${y + h}px;width:${w}px;--c:${esc(m.colors[s])}"><span>${esc(p.display)}</span></div>`;
+    });
+    return { html, cams };
+  }
+  /* Fortnite has a field of teams, not two sides: the cameras of one team (the one you pick, else the leader) down the left edge */
+  function fnCams(ev, rows) {
+    const f = ev.fn || {}, team = ev.teams.find(t => t.id === f.spotlight) || (rows[0] && rows[0].team), cams = []; let html = "";
+    if (!team) return { html, cams };
+    team.players.forEach((p, i) => {
+      const u = p.cam || ownCam(ev, p.id); if (!u) return;
+      const x = 8, y = 330 + i * 111;
+      html += `<div class="pc l" style="left:${x}px;top:${y}px;--c:${esc(team.color)}"><span>${esc(p.alias || p.ign || team.name)}</span></div>`;
+      cams.push({ key: "pc-fn-" + i + u, url: u, x, y, w: 150, h: 84 });
+    });
     return { html, cams };
   }
 
@@ -618,6 +678,11 @@
     return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}</div><div class="h-title">STARTING SOON</div><div class="h-strip">${esc([vs, ev.live.roundTitle].filter(Boolean).join("  ·  ") || ev.game.toUpperCase())}</div></div>`, cams: [] };
   }
 
+  const withCams = (scene, camFn) => m => { const r = scene(m); if (!m.ev.hud.show.playerCam) return r; const pc = camFn(m); return { html: r.html + pc.html, cams: r.cams.concat(pc.cams) }; };
+  S.valingame = withCams(S.valingame, m => playerCams(m, 100));
+  S.dbdingame = withCams(S.dbdingame, m => playerCams(m, 100));
+  S.fningame = withCams(S.fningame, m => fnCams(m.ev, fnTable(m.ev)));
+
   /* each of these scenes keeps its Rocket League / League version and swaps in the game's own for the others */
   const BASE = { statsteam: S.statsteam, statsplayer: S.statsplayer, lineup: S.lineup, starting: S.starting };
   const SWAP = {
@@ -654,7 +719,7 @@
     want.forEach((c, key) => {
       let f = [...layer.children].find(x => x.dataset.key === key);
       if (!f) { f = document.createElement("iframe"); f.dataset.key = key; f.allow = "autoplay;camera;microphone;fullscreen"; f.src = c.url; layer.appendChild(f); }
-      Object.assign(f.style, { left: c.x + "px", top: c.y + "px", width: c.w + "px", height: c.h + "px" });
+      Object.assign(f.style, { left: c.x + "px", top: c.y + "px", width: c.w + "px", height: c.h + "px", opacity: c.show === false ? "0" : "1", pointerEvents: c.show === false ? "none" : "" });
     });
   }
 
@@ -802,8 +867,9 @@
 
   // the html a scene draws for an event and a live feed, without a page (used by the tests)
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m).html; }
+  function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, GAMEDEF, fnPoints, fnTable, dbdScore };
+  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

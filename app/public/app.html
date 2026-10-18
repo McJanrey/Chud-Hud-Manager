@@ -41,6 +41,7 @@ const HG_EL=[["top","Title bar","mcTop"],["kills","Kill leaderboard","mcKills"],
 let HGEL=null; // the Hunger Games element being edited // DRAG: a nameplate is being dragged, so the preview must not redraw under the pointer
 function G(){const e=ev();return e?FEEDS[SaintsHUD.feedKey(e)]||null:null} // the live feed this event reads
 let HGCARD="";
+let CTRL=null;fetch("/api/control/info").then(r=>r.ok?r.json():null).then(j=>{CTRL=j;if(ui.view==="outputs")render()}).catch(()=>{});
 let OUTS=null;fetch("/api/outputs").then(r=>r.json()).then(j=>{OUTS=j;if(ui.view==="outputs")render()}).catch(()=>{});
 
 /* ---------- server sync ---------- */
@@ -302,7 +303,8 @@ hud(e){
     ${inGame?`<div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>`:""}
     ${inGame&&h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div></div>
-  ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="sec"><div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div></div>
+  ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="sec"><div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div>${camControls(e)}</div>
+  ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="sec"><div class="chks">${F.chk("hud.show.playerCam","Player webcams")}</div>${camControls(e)}</div>`:""}
   ${e.game==="League of Legends"?lolSettings(e):""}`:""}
   ${e.game==="Minecraft"&&h.scene==="ingame"&&e.mc.mode!=="buildbattle"?hgEditor(e):""}
   ${h.scene==="casters"?castersPanel(e):""}
@@ -382,7 +384,7 @@ ocr(e){
   const c=ocrCfg(),on=!!(G()&&G().ocr&&G().ocr.running);
   if(!OCR.available)return`<div class="sec"><h2>Screen OCR</h2><div class="banner">Screen OCR only works in the Chud Hud desktop app, because it needs permission to capture your screen. Open this page in the installed app.</div></div>`;
   return`<div class="halves" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)"><div class="sec">
-    <div class="sechead"><div><h2>Screen OCR</h2><p class="sub">For games without a live data feed. Pick the screen or window showing the game, then drag boxes over the score, clock and team names.</p></div><span class="pill" id="ocrPill">…</span></div>
+    <div class="sechead"><div><h2>Screen OCR</h2><p class="sub">For games without a live data feed. Pick the screen or window showing the game, then drag boxes over the score, clock and team names.</p></div><span class="row c"><button class="btn sm" type="button" data-act="ocrSaveFrame" title="Save what the reader sees and what it read, to find out why a box misreads">Save frame</button><span class="pill" id="ocrPill">…</span></span></div>
     <div class="row c"><b style="font:700 13px var(--f-head)">1. Pick what to read</b><button class="btn sm" type="button" data-act="ocrSources">Refresh list</button></div>
     <div class="srcgrid" id="ocrSources"><span class="note">Loading…</span></div>
     <div class="note">Capture needs the game in <b>borderless windowed</b> mode. Exclusive fullscreen can't be captured.</div>
@@ -497,6 +499,14 @@ outputs(e){
   <div class="sec"><div><h2>Data for vMix and GT Title Designer</h2><p class="sub">The same fields for this event, as a web address or as files that are rewritten every second.</p></div>
     ${["json","xml","csv"].map(t=>row(t.toUpperCase()+" address",`${location.origin}/hud.${t}?event=${e.id}`)).join("")}
     ${row("Files (hud.csv, .json, .xml)",((OUTS&&OUTS.eventsDir)||"output/events").replace(/\\/g,"/")+"/"+e.id+"/")}</div>
+  <div class="sec"><div><h2>Stream Deck and Companion</h2><p class="sub">One web address per button. In Bitfocus Companion add a "Generic HTTP" connection and give a button a GET action with the address; anything that can open a link works. The key in each address stops other web pages from pressing your buttons, so keep these private.</p></div>
+    ${CTRL?(()=>{const u=(q)=>`${location.origin}/api/control?key=${CTRL.key}&event=${e.id}&${q}`,g=(t,rows)=>`<details><summary class="note" style="cursor:pointer">${t}</summary><div class="sec" style="gap:8px;margin-top:10px">${rows.map(([l,q])=>row(l,u(q))).join("")}</div></details>`;
+      return g("Scenes",Object.entries(SCENES).map(([k,v])=>[v,`action=scene&value=${k}`]))
+        +g("Webcams",[["Webcams on","action=cams&value=on"],["Webcams off","action=cams&value=off"],["Webcams on or off","action=cams&value=toggle"],["Every player's webcam","action=director&value=all"],["Only the player in the action","action=director&value=action"],["Left team: auto","action=pin&side=0&value=0"],["Left team: player 1","action=pin&side=0&value=1"],["Left team: player 2","action=pin&side=0&value=2"],["Right team: auto","action=pin&side=1&value=0"],["Right team: player 1","action=pin&side=1&value=1"],["Right team: player 2","action=pin&side=1&value=2"]])
+        +g("Score",[["Left +1","action=score&side=0&delta=1"],["Left −1","action=score&side=0&delta=-1"],["Right +1","action=score&side=1&delta=1"],["Right −1","action=score&side=1&delta=-1"]])
+        +g("Show or hide an element",Object.keys(e.hud.show).map(k=>[k,`action=show&name=${k}&value=toggle`]))
+        +(e.game==="Minecraft"?g("Hunger Games HUD state",[["Main","action=hgstate&value=main"],["Final","action=hgstate&value=final"],["Winner","action=hgstate&value=winner"]]):"")})()
+      :`<p class="sub">The addresses are shown on the PC that runs the app.</p>`}</div>
   <div class="sec"><div><h2>Other events</h2><p class="sub">Each one has its own link too.</p></div>${others.map(x=>row(x.name+" · "+x.game,overlayUrl("auto",x))).join("")||`<p class="sub">No other events.</p>`}</div>`;
 },
 mc(e){
@@ -563,6 +573,11 @@ function gameOcrHtml(e){
     <label class="fld" style="max-width:180px"><span>Match</span><select id="fnOcrMatch">${ms.map((m,j)=>`<option value="${j}"${j===ms.length-1?" selected":""}>Match ${j+1}</option>`).join("")}<option value="new"${ms.length?"":" selected"}>New match</option></select></label>
     <button class="btn primary" type="button" data-act="fnFromOcr">Apply</button>${go}</div>`;
 }
+function camControls(e){
+  if(!e.hud.show.playerCam)return"";
+  const c=e.camera,act=c.director==="action",pinOpts=s=>{const t=sideTeam(e,s);return[[0,"Whoever is in the action"],...((t?t.players:[]).map((p,i)=>[i+1,p.alias||p.ign||"Player "+(i+1)]))]};
+  return`<div class="cols" style="--n:3;margin-top:12px">${F.sel("camera.director","Webcams show",[["all","Every player's webcam"],["action","Only the player in the action"]],"data-rerender")}${act?F.sel("camera.pin.0","Left team stays on",pinOpts(0),"data-num"):""}${act?F.sel("camera.pin.1","Right team stays on",pinOpts(1),"data-num"):""}</div>${act?`<p class="note">The camera follows the latest kill or goal for 12 seconds, then the player you're spectating. Pick a player to keep a team's camera on them.</p>`:""}`;
+}
 const sideTeam=(e,s)=>e.teams.find(x=>x.id===(s?e.live.right:e.live.left));
 const sideName=(e,s)=>{const t=sideTeam(e,s);return t?t.name:(s?"Right team":"Left team")};
 Object.assign(VIEWS,{
@@ -595,7 +610,7 @@ fn(e){
   const f=e.fn,rows=SaintsHUD.fnTable(e);
   return`<div class="halves"><div class="sec" style="gap:24px">
     <div class="sec"><div class="sechead"><div><h2>Fortnite scoring</h2><p class="sub">Enter each team's placement and eliminations for every match below. Points are the placement tier a team lands in plus points per elimination. There is no live data feed for a caster, so you score it here.</p></div></div>
-      <div class="cols" style="--n:3">${F.num("fn.elimPts","Points per elimination",'min="0" step="0.5" data-rerender')}</div>
+      <div class="cols" style="--n:3">${F.num("fn.elimPts","Points per elimination",'min="0" step="0.5" data-rerender')}${F.sel("fn.spotlight","Team on camera (webcams)",[["","The leader (automatic)"],...e.teams.map(t=>[t.id,t.name])])}</div>
       <div><b style="font-size:13px">Placement tiers</b>
         <div class="tw" style="margin-top:8px"><table class="grid"><thead><tr><th>Placed up to</th><th>Points</th><th style="width:44px"></th></tr></thead><tbody>
         ${f.placePts.map((t,i)=>`<tr><td>${F.num(`fn.placePts.${i}.to`,"",'min="1" max="100" data-rerender')}</td><td>${F.num(`fn.placePts.${i}.pts`,"",'min="0" data-rerender')}</td><td><button class="btn icon" type="button" data-act="fnTierDel" data-arg="${i}" aria-label="Remove tier">${ico("trash")}</button></td></tr>`).join("")}
@@ -876,6 +891,7 @@ document.addEventListener("click",async ev0=>{
     case "rbUnplay":{const[s,j]=arg.split("|").map(Number),play=(e.rb.play||[[],[]]).map(a=>[...a]);play[s].splice(j,1);put("rb.play",play);break}
     case "rbClearPlay":{const play=(e.rb.play||[[],[]]).map(a=>[...a]);play[+arg]=[];put("rb.play",play);break}
     case "rbSpot":put("rb.spotlight",{cardId:e.rb.cards[+arg].id,show:true});break;
+    case "ocrSaveFrame":{const r=await fetch("/api/ocr/save-frame",{method:"POST",headers:{"content-type":"application/json"},body:"{}"}).then(x=>x.json()).catch(()=>null);toast(r&&r.ok?"Saved to "+r.file:(r&&r.error)||"Couldn't save the frame.");return}
     case "valRound":{const i=+arg,sc=[...e.live.score];sc[i]=(sc[i]||0)+1;put("live.score",sc);put("live.autoScore",false);put("val.rounds",[...(e.val.rounds||[]),i]);break}
     case "valUndo":{const r=[...(e.val.rounds||[])],i=r.pop();if(i===undefined)break;const sc=[...e.live.score];sc[i]=Math.max(0,(sc[i]||0)-1);put("live.score",sc);put("val.rounds",r);break}
     case "valReset":put("live.score",[0,0]);put("val.rounds",[]);break;
