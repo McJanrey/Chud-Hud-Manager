@@ -235,6 +235,20 @@ Every game provides the common set:
 
 **Rocket League** adds `TIMER`, `OVERTIME`, `REPLAY`, `ARENA`, `SCORE LEFT/RIGHT`, `PLAYERS ALIVE LEFT/RIGHT`, the `FOCUS …` player (name, team, boost, score) and `P1`–`P6` with `NAME`, `SCORE`, `GOALS`, `ASSISTS`, `SAVES`, `SHOTS`, `DEMOS`, `BOOST`. **Minecraft** and **Riftbound** have their own sets (alive count, border, top killer, last elimination, build theme and phase; points, turn, cards in play, spotlight). Other games provide `TIMER` and `SCORE LEFT/RIGHT`.
 
+## League champion select
+
+The **Champion Select** scene is laid out like the Worlds broadcast: ten tall cards along the bottom (blue side on the left) with each champion's loading art once it is locked (dimmed while only hovered), the player's name up the side and their role; the teams, series score, phase, timer and patch in the middle; each team's bans above; and **series bans** for fearless draft, the champions used in earlier games of the series. The top of the screen stays clear for the camera.
+
+It is read from the League client's own local API on the PC that is in the lobby (a player's, a coach's or an observer's in a custom or tournament lobby), so run Chud Hud on that PC or on the same PC as the client. On League's **Live Game** page:
+
+- **Stream delay**: shows champion select as it was that many seconds ago, so the graphics match a delayed stream.
+- **Show champion select by itself**: the overlay's in-game scene switches to it while it is on and back when the game loads.
+- **Test with a demo draft**: a simulated champion select, for setting the scene up without a client.
+- **New series**: clears the series bans. A finished champion select (all ten locked) is added to them by itself; demos never are.
+- **League lockfile**: only if League is installed somewhere other than `C:\Riot Games` or `D:\Riot Games`.
+
+The spectator data has no HP, mana or experience for other players (Riot's broadcasts get those from a private esports feed), so the in-game board shows levels, KDA, CS and items for everyone, and no bars that would have to be made up.
+
 ## Dead by Daylight, Fortnite and VALORANT 2v2 Skirmish
 
 None of these gives a caster a live data feed, so each is scored by hand on its own page (they sit under **Live game** in the sidebar), and Screen OCR can read the result screens for you.

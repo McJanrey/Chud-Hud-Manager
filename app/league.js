@@ -36,8 +36,8 @@ const fmtClock = s => { s = Math.max(0, Math.floor(s)); return `${String(Math.fl
 
 /* ------------------------------------------------- Data Dragon (item prices) */
 function createDDragon(cacheFile, log = () => {}) {
-  const dd = { version: "", items: {}, runes: {} }; // runes: rune id -> icon path (keystones on the scoreboard)
-  try { const c = JSON.parse(fs.readFileSync(cacheFile, "utf8")); dd.version = c.version; dd.items = c.items; dd.runes = c.runes || {}; } catch { /* first run */ }
+  const dd = { version: "", items: {}, runes: {}, champs: {} }; // runes: rune id -> icon path (keystones); champs: champion id -> { key, name } (champion select)
+  try { const c = JSON.parse(fs.readFileSync(cacheFile, "utf8")); dd.version = c.version; dd.items = c.items; dd.runes = c.runes || {}; dd.champs = c.champs || {}; } catch { /* first run */ }
   const get = url => new Promise((resolve, reject) => {
     https.get(url, { timeout: 10000 }, r => { let s = ""; r.on("data", c => (s += c)); r.on("end", () => { try { resolve(JSON.parse(s)); } catch (e) { reject(e); } }); }).on("error", reject);
   });
@@ -52,7 +52,12 @@ function createDDragon(cacheFile, log = () => {}) {
         for (const t of trees) for (const slot of t.slots) for (const r of slot.runes) runes[r.id] = r.icon;
         dd.runes = runes;
       } catch { /* the rune icons are optional */ }
-      fs.mkdirSync(path.dirname(cacheFile), { recursive: true }); fs.writeFileSync(cacheFile, JSON.stringify({ version, items, runes: dd.runes }));
+      try { // champion ids to names and image keys, for champion select
+        const list = (await get(`https://ddragon.leagueoflegends.com/cdn/${version}/data/en_US/champion.json`)).data, champs = {};
+        for (const v of Object.values(list)) champs[v.key] = { key: v.id, name: v.name };
+        dd.champs = champs;
+      } catch { /* the names are optional: champion select then shows icons only */ }
+      fs.mkdirSync(path.dirname(cacheFile), { recursive: true }); fs.writeFileSync(cacheFile, JSON.stringify({ version, items, runes: dd.runes, champs: dd.champs }));
     } catch { log("Couldn't reach Data Dragon: champion icons and exact item prices use the last saved copy."); }
   })();
   return dd;

@@ -40,7 +40,7 @@ let E=null,DRAG=false;
 const HG_EL=[["top","Title bar","mcTop"],["kills","Kill leaderboard","mcKills"],["feed","Elimination feed","mcFeed"],["elim","Elimination banner","mcElim"],["spot","Spotlight player","mcSpot"],["grid","Player grid","mcGrid"],["sponsors","Sponsors","mcSponsors"],["cam","Spotlight webcam","mcCam"]];
 let HGEL=null; // the Hunger Games element being edited // DRAG: a nameplate is being dragged, so the preview must not redraw under the pointer
 function G(){const e=ev();return e?FEEDS[SaintsHUD.feedKey(e)]||null:null} // the live feed this event reads
-let HGCARD="";
+let HGCARD="",DRAFT=null;
 let CTRL=null;fetch("/api/control/info").then(r=>r.ok?r.json():null).then(j=>{CTRL=j;if(ui.view==="outputs")render()}).catch(()=>{});
 let OUTS=null;fetch("/api/outputs").then(r=>r.json()).then(j=>{OUTS=j;if(ui.view==="outputs")render()}).catch(()=>{});
 
@@ -66,6 +66,7 @@ function connect(){
     const a=document.activeElement;
     if(a&&a.closest(".page")&&/INPUT|SELECT|TEXTAREA/.test(a.tagName))mirrors();else render();
   });
+  es.addEventListener("draft",m=>{DRAFT=JSON.parse(m.data);updateStages();const b=$("#draftBox");if(b)b.innerHTML=draftBoxHtml()});
   es.addEventListener("game",m=>{const j=JSON.parse(m.data),prev=FEEDS[j.key]&&FEEDS[j.key].source;FEEDS[j.key]=j.game;if(!DB)return;const e=ev();if(!e||SaintsHUD.feedKey(e)!==j.key)return;if(prev&&prev!==j.game.source&&ui.view==="live")render();else{updateStages();liveBits()}});
   es.addEventListener("notice",m=>toast(JSON.parse(m.data).text));
   es.onopen=()=>{online=true;railStatus()};
@@ -371,6 +372,7 @@ live(e){
     <div class="sec"><div class="sechead"><h2>Scoreline</h2>${F.sw("live.autoScore","Auto")}</div>
       <p class="note">With Auto on, the score comes from the game. Turn it off to set the score by hand.</p>
       <div class="row c" style="justify-content:space-between">${F.step("live.score.0")}<b>VS</b>${F.step("live.score.1")}</div></div>`:""}
+    ${e.game==="League of Legends"?draftSec(e):""}
     <div class="sec"><h2>Information</h2><div class="cols">${F.text("live.seriesTitle","Series title","NACE VARSITY")}${F.text("live.eventTitle","Event title","SCC vs WVWC")}${F.text("live.roundTitle","Round title","e.g. Lower finals")}${F.text("live.gameSeries","Game series","BEST OF 5")}</div></div>
   </div>
   <div class="sec" style="gap:24px">
@@ -578,6 +580,21 @@ function camControls(e){
   const c=e.camera,act=c.director==="action",pinOpts=s=>{const t=sideTeam(e,s);return[[0,"Whoever is in the action"],...((t?t.players:[]).map((p,i)=>[i+1,p.alias||p.ign||"Player "+(i+1)]))]};
   return`<div class="cols" style="--n:3;margin-top:12px">${F.sel("camera.director","Webcams show",[["all","Every player's webcam"],["action","Only the player in the action"]],"data-rerender")}${act?F.sel("camera.pin.0","Left team stays on",pinOpts(0),"data-num"):""}${act?F.sel("camera.pin.1","Right team stays on",pinOpts(1),"data-num"):""}</div>${act?`<p class="note">The camera follows the latest kill or goal for 12 seconds, then the player you're spectating. Pick a player to keep a team's camera on them.</p>`:""}`;
 }
+/* League champion select: status, the stream delay, the client's lockfile if it is installed elsewhere, a demo, and the series bans */
+let DRAFTST=null;setInterval(()=>{if(ui.view!=="live"||!DB||!ev()||ev().game!=="League of Legends")return;fetch("/api/draft/state").then(r=>r.json()).then(j=>{DRAFTST=j;const b=$("#draftBox");if(b)b.innerHTML=draftBoxHtml()}).catch(()=>{})},2000);
+function draftBoxHtml(){
+  const st=DRAFTST||{},d=DRAFT&&DRAFT.snap,live=d&&d.active,n=(DRAFT&&DRAFT.series||[]).length;
+  return`<div class="row c" style="justify-content:space-between"><span class="pill ${live?"ok":st.connected?"":"warn"}">${esc(live?(st.demo?"Demo champion select":"In champion select"):(st.reason||"Waiting for the League client"))}</span>
+    <span class="row c"><button class="btn sm" type="button" data-act="draftDemo">${st.demo?"Stop the demo":"Test with a demo draft"}</button><button class="btn sm" type="button" data-act="draftSeriesReset"${n?"":" disabled"}>New series (clear ${n} game${n===1?"":"s"})</button></span></div>`;
+}
+function draftSec(e){
+  const c=DB.settings.draft||{};
+  return`<div class="sec"><div class="sechead"><div><h2>Champion select</h2><p class="sub">Read from the League client on this PC while it is in the lobby (a player's, a coach's or an observer's in a custom or tournament lobby). Bans, picks, hovers, the phase and the timer show on the Champion Select scene, laid out like the Worlds broadcast. Champions used in earlier games of the series show as series bans for fearless draft.</p></div></div>
+    <div id="draftBox">${draftBoxHtml()}</div>
+    <div class="cols" style="--n:2"><label class="fld"><span>Stream delay (seconds)</span><input type="number" min="0" max="600" id="draftDelay" value="${+c.delay||0}"></label><label class="fld"><span>League lockfile (only if League is installed somewhere unusual)</span><input id="draftLock" placeholder="C:\\Riot Games\\League of Legends\\lockfile" value="${esc(c.lockfile||"")}"></label></div>
+    ${F.chk("hud.draftAuto","Show champion select by itself while it is on (the overlay's in-game scene)")}
+    ${stage("draft")}</div>`;
+}
 const sideTeam=(e,s)=>e.teams.find(x=>x.id===(s?e.live.right:e.live.left));
 const sideName=(e,s)=>{const t=sideTeam(e,s);return t?t.name:(s?"Right team":"Left team")};
 Object.assign(VIEWS,{
@@ -656,7 +673,7 @@ function updateStages(redraw){
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
     const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
     if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SaintsHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
-    SaintsHUD.render(h,e,G(),st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons),kits:DB.settings&&DB.settings.kits,sel:ui.view==="hud"?HGEL:null});h.style.transform=`scale(${st.clientWidth/1280})`});
+    SaintsHUD.render(h,e,G(),st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons),kits:DB.settings&&DB.settings.kits,sel:ui.view==="hud"?HGEL:null,draft:DRAFT});h.style.transform=`scale(${st.clientWidth/1280})`});
 }
 /* Preview background "Game": a live picture of the game's own window, when the desktop app can find it */
 const LIVEBG={ok:false,busy:false};
@@ -892,6 +909,8 @@ document.addEventListener("click",async ev0=>{
     case "rbClearPlay":{const play=(e.rb.play||[[],[]]).map(a=>[...a]);play[+arg]=[];put("rb.play",play);break}
     case "rbSpot":put("rb.spotlight",{cardId:e.rb.cards[+arg].id,show:true});break;
     case "ocrSaveFrame":{const r=await fetch("/api/ocr/save-frame",{method:"POST",headers:{"content-type":"application/json"},body:"{}"}).then(x=>x.json()).catch(()=>null);toast(r&&r.ok?"Saved to "+r.file:(r&&r.error)||"Couldn't save the frame.");return}
+    case "draftDemo":{const on=!(DRAFTST&&DRAFTST.demo);await fetch("/api/draft/demo",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on})});DRAFTST=Object.assign({},DRAFTST,{demo:on});const b=$("#draftBox");if(b)b.innerHTML=draftBoxHtml();return}
+    case "draftSeriesReset":await fetch("/api/draft/series-reset",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});toast("Series bans cleared.");return;
     case "valRound":{const i=+arg,sc=[...e.live.score];sc[i]=(sc[i]||0)+1;put("live.score",sc);put("live.autoScore",false);put("val.rounds",[...(e.val.rounds||[]),i]);break}
     case "valUndo":{const r=[...(e.val.rounds||[])],i=r.pop();if(i===undefined)break;const sc=[...e.live.score];sc[i]=Math.max(0,(sc[i]||0)-1);put("live.score",sc);put("val.rounds",r);break}
     case "valReset":put("live.score",[0,0]);put("val.rounds",[]);break;
@@ -920,6 +939,8 @@ document.addEventListener("input",ev0=>{
   if(el.id==="ovScene"){ui.ovScene=el.value;$("#ovUrl").value=overlayUrl(el.value);return}
   if(el.id==="ocrInterval"){ocrCfg().interval=Math.max(250,+el.value||800);ocrSave();return}
   if(el.id==="mcBuildMin"){const s=Math.max(60,Math.round((+el.value||15)*60)),bb=e.mc.bb;put("mc.bb",Object.assign({},bb,{buildSeconds:s,remaining:bb.endsAt?bb.remaining:s}));return}
+  if(el.id==="draftDelay"){put("settings.draft.delay",Math.max(0,Math.min(600,+el.value||0)),false);return}
+  if(el.id==="draftLock"){put("settings.draft.lockfile",el.value.trim(),false);return}
   if(el.id==="rbLimit"){put("rb.limitMinutes",Math.max(0,+el.value||0));return}
   if(el.id==="timerMin"){const s=Math.max(0,Math.round((+el.value||0)*60));put("timer",Object.assign({},e.timer,{seconds:s,remaining:e.timer.endsAt?e.timer.remaining:s}));return}
   const p=el.dataset.bind;if(!p||!e)return;

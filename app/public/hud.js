@@ -40,7 +40,7 @@
   const SCENES = {
     ingame: "Ingame HUD", bracket: "Bracket", casters: "Caster Nameplates", lowerthird: "Lower Thirds",
     rankings: "Rankings Screen", replay: "Replay", schedule: "Schedule", starting: "Starting Soon",
-    statsplayer: "Stats Page Individual", statsteam: "Stats Page Team", lineup: "Team Lineup", timer: "Timer", title: "Title Screen",
+    statsplayer: "Stats Page Individual", statsteam: "Stats Page Team", lineup: "Team Lineup", timer: "Timer", title: "Title Screen", draft: "Champion Select",
   };
 
   /* Combine event config with the live game feed into one view model. */
@@ -683,6 +683,52 @@
   S.dbdingame = withCams(S.dbdingame, m => playerCams(m, 100));
   S.fningame = withCams(S.fningame, m => fnCams(m.ev, fnTable(m.ev)));
 
+  /* ---------------- League of Legends: champion select (laid out like the Worlds broadcast) ----------------
+     Fed by draft.js through CTX.draft: { snap, delayMs, champs: id -> { key, name }, ddVersion, series }. Along the bottom: ten tall cards,
+     blue side on the left, with the champion's loading art once picked (dimmed while only hovered), the player's name up the side and
+     their role; the teams, series score, phase, timer and patch in the middle. Above: each team's bans, and the champions already used
+     earlier in the series (fearless draft). The top of the screen stays clear for the camera. */
+  const ROLE_SVG = {
+    TOP: '<path d="M3 3h14v4H7v10H3z"/><path d="M10 10h7v7h-7z" opacity=".5"/>',
+    JUNGLE: '<path d="M10 2c1 4 4 6 4 10a4 4 0 01-8 0c0-4 3-6 4-10zM4 6c0 4 2 6 3 8M16 6c0 4-2 6-3 8"/>',
+    MIDDLE: '<path d="M14 3h3v3L6 17H3v-3z"/><path d="M3 3h5L3 8zM17 17h-5l5-5z" opacity=".5"/>',
+    BOTTOM: '<path d="M17 17H3v-4h10V3h4z"/><path d="M3 3h7v7H3z" opacity=".5"/>',
+    UTILITY: '<path d="M10 3l2 4 4-1-2 4 3 3h-5l-2 4-2-4H3l3-3-2-4 4 1z"/>',
+  };
+  const roleIcon = p => ROLE_SVG[p] ? `<svg viewBox="0 0 20 20" class="dr-role">${ROLE_SVG[p]}</svg>` : "";
+  S.draft = (m) => {
+    const ev = m.ev, D = CTX.draft || {}, d = D.snap, l = ev.live, [L, R] = m.sides;
+    if (m.kind !== "lol") return { html: `<div class="h-full"><div class="h-eyebrow">CHAMPION SELECT</div><div class="h-title" style="font-size:70px">LEAGUE OF LEGENDS ONLY</div></div>`, cams: [] };
+    const title = esc(l.seriesTitle || ev.tournament.name || ev.name);
+    if (!d || !d.active) return { html: `<div class="h-full"><div class="h-eyebrow">${title}</div><div class="h-title" style="font-size:80px">CHAMPION SELECT</div><div class="h-strip">WAITING FOR THE LOBBY</div></div>`, cams: [] };
+    const champ = id => (id && D.champs && D.champs[id]) || null, v = D.ddVersion;
+    const art = id => { const c = champ(id); return c ? `/ddragon/cdn/img/champion/loading/${encodeURIComponent(c.key)}_0.jpg` : ""; };
+    const icon = id => { const c = champ(id); return c && v ? `/ddragon/cdn/${esc(v)}/img/champion/${encodeURIComponent(c.key)}.png` : ""; };
+    const secs = Math.max(0, Math.ceil(((d.endsAt || 0) - (Date.now() - (D.delayMs || 0))) / 1000));
+    const col = side => esc(m.colors[side === "left" ? 0 : 1]);
+    const card = (p, side, i) => {
+      const shown = p.champ || p.intent, img = art(shown), x = side === "left" ? i * 107 : 747 + i * 107;
+      const cls = ["dr-card", side, p.locked ? "locked" : shown ? "hover" : "empty", p.active ? "now" : ""].join(" ");
+      return `<div class="${cls}" data-k="dr-${side}-${i}" style="left:${x}px;--c:${col(side)}">${img ? `<div class="art" style="background-image:url('${esc(img)}'),url('${esc(icon(shown))}')"></div>` : ""}
+        <i class="slot">[${side === "left" ? "B" : "R"}${i + 1}]</i><b class="nm">${esc(p.name || (champ(shown) || {}).name || "")}</b>${roleIcon(p.pos)}</div>`;
+    };
+    const banRow = (list, side) => `<div class="dr-banbox ${side}" style="--c:${col(side)}"><small>${esc(((side === "left" ? L : R) || {}).tag || (side === "left" ? "BLUE" : "RED"))} BANS</small><div class="row">${[0, 1, 2, 3, 4].map(i => {
+      const b = list[i] || {}, id = b.champ || b.hover, ic = icon(id);
+      return `<div class="b${b.active ? " now" : ""}${b.done ? " done" : ""}${!id ? " open" : ""}" data-k="dr-b-${side}-${i}">${ic ? `<img src="${esc(ic)}" alt="">` : ""}</div>`; }).join("")}</div></div>`;
+    const series = (D.series || []).slice(-5), past = series.length ? `<div class="dr-series"><small>SERIES BAN</small><div class="games">${series.map(g => `<div class="g">${[...(g.left || []), ...(g.right || [])].map(id => icon(id) ? `<img src="${esc(icon(id))}" alt="">` : "").join("")}</div>`).join("")}</div></div>` : "";
+    const pips = (s) => { const n = Math.max(1, Math.ceil((+l.bestOf || 1) / 2)); return `<div class="pips">${Array.from({ length: n }, (_, k) => `<i class="${k < (m.series[s] || 0) ? "on" : ""}"></i>`).join("")}</div>`; };
+    const phase = { BANS: "BAN PHASE", PICKS: "PICK PHASE", PLANNING: "DECLARE", FINALIZATION: "FINAL ADJUSTMENTS", STARTING: "GAME STARTING" }[d.phase] || d.phase;
+    const turn = d.activeSide ? col(d.activeSide) : "#9db3a8";
+    const patch = v ? "PATCH " + String(v).split(".").slice(0, 2).join(".") : "";
+    return { html: `${banRow(d.left.bans, "left")}${past}${banRow(d.right.bans, "right")}<div class="dr-line" style="--l:${col("left")};--r:${col("right")}"></div>
+      ${d.left.picks.map((p, i) => card(p, "left", i)).join("")}${d.right.picks.map((p, i) => card(p, "right", i)).join("")}
+      <div class="dr-mid"><div class="tops">${pips(0)}${pips(1)}</div>
+        <div class="logos">${lg(L)}${tourLogo(ev) ? `<div class="lgbox"><img class="lg" src="${esc(tourLogo(ev))}" alt=""></div>` : "<span></span>"}${lg(R)}</div>
+        <div class="tags"><b>${esc(L ? L.tag : "BLUE")}</b><b>${esc(R ? R.tag : "RED")}</b></div>
+        <div class="ph" style="color:${turn}"><span>${esc(phase)}</span>${d.endsAt ? `<b class="num">${secs}</b>` : ""}</div>
+        <small class="patch">${esc(patch)}</small></div>`, cams: [] };
+  };
+
   /* each of these scenes keeps its Rocket League / League version and swaps in the game's own for the others */
   const BASE = { statsteam: S.statsteam, statsplayer: S.statsplayer, lineup: S.lineup, starting: S.starting };
   const SWAP = {
@@ -701,6 +747,8 @@
      switches itself to Replay during goal replays and Team Stats on the podium */
   function resolveScene(ev, m, scene) {
     let s = scene === "auto" || !scene ? ev.hud.scene : scene;
+    // League: while champion select is on, the in-game scene shows it (the HUD Editor can switch this off)
+    if (s === "ingame" && m.kind === "lol" && ev.hud.draftAuto !== false && CTX.draft && CTX.draft.snap && CTX.draft.snap.active) return "draft";
     if (s === "ingame" && m.kind === "lol") return "lolingame";
     if (s === "ingame" && m.kind === "gen") return "geningame";
     if (s === "ingame" && m.kind === "val") return "valingame";

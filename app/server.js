@@ -77,6 +77,7 @@ function upgrade(ev) {
   { const dm = d.mc; // Build Battle judges, audience scores and the chat poll arrived later than the first Minecraft events
     ev.mc.bb = Object.assign({}, dm.bb, ev.mc.bb); ev.mc.bb.audience = Object.assign({}, dm.bb.audience, ev.mc.bb.audience);
     ev.mc.poll = Object.assign({}, dm.poll, ev.mc.poll); }
+  if (ev.hud.draftAuto === undefined) ev.hud.draftAuto = true; // League: the in-game scene shows champion select while it is on
   if (ev.camera && !ev.camera.director) ev.camera.director = "all"; // "all" shows every player's webcam, "action" only the player in the action
   if (ev.camera && !Array.isArray(ev.camera.pin)) ev.camera.pin = [0, 0];
   if (ev.camera && ev.camera.own === undefined) ev.camera.own = true; // our own camera links are used unless an event opts out
@@ -170,6 +171,7 @@ if (!DB.settings.perEventSource) {
   if (first && ["demo", "ocr", "push"].includes(DB.settings.source)) first.source = DB.settings.source;
   DB.settings.source = "auto";
 }
+if (!DB.settings.draft) DB.settings.draft = { delay: 0, lockfile: "" }; // champion select: stream delay in seconds, and a lockfile path if the client is installed elsewhere
 // Chud Hud LOTD (Lan of the Dead) starts with its own three games, put at the front once. Everything else stays available.
 if (V.id === "lotd" && !DB.settings.lotdEvents) {
   DB.settings.lotdEvents = true;
@@ -393,6 +395,36 @@ const https = require("https");
 const LOL_HOST = process.env.LOL_HOST || "127.0.0.1";
 const league = require("./league.js");
 const dd = league.createDDragon(path.join(DATA, "ddragon_cache.json"), log); // item prices and the patch version for icons
+// League champion select (draft.js): read from the League client in the lobby; the scene shows it as it was "delay" seconds ago
+const draft = require("./draft.js").create({
+  lockfile: () => (DB.settings.draft || {}).lockfile,
+  enabled: () => DB.events.some(e => e.game === "League of Legends"),
+  onChange: () => { draftSeriesTrack(); draftPush(); },
+});
+let draftFull = null;
+function draftSeriesTrack() { // when a champion select with all ten champions locked ends, its picks join the series bans
+  const s = draft.at(0);
+  if (s && s.active) { const all = [...s.left.picks, ...s.right.picks]; if (all.length >= 10 && all.every(p => p.locked && p.champ)) draftFull = s; return; }
+  if (!draftFull) return;
+  const g = { left: draftFull.left.picks.map(p => p.champ), right: draftFull.right.picks.map(p => p.champ), at: Date.now() }, demo = draftFull.demo; draftFull = null;
+  if (demo) return;
+  const list = DB.settings.draftSeries || (DB.settings.draftSeries = []), last = list[list.length - 1];
+  if (!last || JSON.stringify([last.left, last.right]) !== JSON.stringify([g.left, g.right])) { list.push(g); while (list.length > 9) list.shift(); save(); }
+}
+let draftLast = "";
+function draftNow() {
+  const cfg = DB.settings.draft || {}, delayMs = Math.max(0, Math.min(600, +cfg.delay || 0)) * 1000;
+  const snap = draft.at(delayMs), champs = {};
+  if (snap && snap.active) for (const side of ["left", "right"]) for (const x of [...snap[side].picks, ...snap[side].bans]) for (const id of [x.champ, x.intent, x.hover]) if (id && dd.champs[id]) champs[id] = dd.champs[id];
+  const series = DB.settings.draftSeries || [];
+  for (const g of series) for (const id of [...(g.left || []), ...(g.right || [])]) if (id && dd.champs[id]) champs[id] = dd.champs[id];
+  return { snap: snap || { active: false }, delayMs, champs, ddVersion: dd.version, series };
+}
+function draftPush(force) { // called on every change and four times a second, so a delayed state comes out on time
+  const d = draftNow(), k = JSON.stringify([d.snap, d.delayMs, Object.keys(d.champs).length]);
+  if (!force && k === draftLast) return; draftLast = k;
+  const msg = frame("draft", d); clients.forEach(c => c.res.write(msg));
+}
 
 let lolTimer = null, lolWarned = false, lolOn = false;
 const lolName = p => p.riotIdGameName || (p.riotId || "").split("#")[0] || p.summonerName || "";
@@ -641,7 +673,7 @@ async function coverFor(slug) {
   return got;
 }
 
-const DD_OK = /^cdn\/(?:[\w.-]+\/img\/(?:champion|item|spell)\/[\w.-]+|img\/[\w\/.-]+)\.png$/; // the only paths the cache will fetch
+const DD_OK = /^cdn\/(?:(?:[\w.-]+\/img\/(?:champion|item|spell)\/[\w.-]+|img\/[\w\/.-]+)\.png|img\/champion\/loading\/[\w.-]+\.jpg)$/; // the only paths the cache will fetch (icons, and champion select's loading art)
 
 /* ------------------------------------------------ official League objective icons */
 // Riot's own in-game minimap icons, published by Community Dragon. They are downloaded on the user's click and kept in the
@@ -1034,6 +1066,7 @@ const server = http.createServer((req, res) => {
       if (r.error) return json(res, 400, r);
       save(); broadcastDb("control"); return json(res, 200, Object.assign({ event: ev.id }, r));
     }
+    if (p === "/api/draft/state") return json(res, 200, Object.assign(draft.state(), { delay: +(DB.settings.draft || {}).delay || 0, champsKnown: Object.keys(dd.champs).length }, draftNow()));
     if (p === "/api/license") return json(res, 200, Object.assign({ edition: EDITION, service: !!LIC.service() }, licenseStatus()));
     if (p === "/cam") return sendFile(res, path.join(PUB, "cam.html")); // this PC's own camera (127.0.0.1 counts as secure)
     if (p === "/camview") return sendFile(res, path.join(PUB, "camview.html"));
@@ -1049,6 +1082,7 @@ const server = http.createServer((req, res) => {
       clients.add(c);
       sse(res, "db", { db: DB, by: "init", screens: screens() });
       feeds.forEach((f, key) => sse(res, "game", { key, game: f.game }));
+      sse(res, "draft", draftNow());
       broadcastDb("screens");
       req.on("close", () => { clients.delete(c); broadcastDb("screens"); });
       return;
@@ -1099,7 +1133,7 @@ const server = http.createServer((req, res) => {
       if (fs.existsSync(f)) return sendFile(res, f);
       return fetchPng("https://ddragon.leagueoflegends.com/" + rel).then(buf => {
         fs.mkdirSync(DD_DIR, { recursive: true }); fs.writeFile(f, buf, () => {});
-        res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" }); res.end(buf);
+        res.writeHead(200, { "content-type": rel.endsWith(".jpg") ? "image/jpeg" : "image/png", "cache-control": "max-age=86400" }); res.end(buf);
       }).catch(e => json(res, 502, { error: e.message }));
     }
     if (p.startsWith("/covers/")) { // official key art for the event cards; 404 means "use the gradient"
@@ -1164,6 +1198,10 @@ const server = http.createServer((req, res) => {
             const on = !!body.on;
             return setCamLan(on).then(() => { DB.settings.camLan = on; save(); json(res, 200, camLinks()); })
               .catch(e => json(res, 500, { error: e.code === "EADDRINUSE" ? `Port ${CAM_PORT} is already in use.` : e.message }));
+          }
+          case "/api/draft/series-reset": DB.settings.draftSeries = []; save(); draftPush(true); return json(res, 200, { ok: true });
+          case "/api/draft/demo": { // { on }: a simulated champion select for setting the scene up
+            const on = draft.demo(!!body.on); draftPush(true); return json(res, 200, { ok: true, demo: on });
           }
           case "/api/ocr/save-frame": { // the picture the reader sees and what it read from it, saved to <data>/ocr-frames
             if (!ocr) return json(res, 501, { error: "Screen OCR only works in the Chud Hud desktop app." });
@@ -1234,6 +1272,7 @@ module.exports = { server, PORT, DATA, setOcrProvider, getDb: () => DB };
 
 server.listen(PORT, HOST, () => {
   if (LIC.enforced()) licenseWatch();
+  draft.start(); setInterval(() => draftPush(), 250).unref();
   const shown = HOST === "0.0.0.0" ? "localhost" : HOST;
   log(`Chud Hud running`);
   log(`  Dashboard:  http://${shown}:${PORT}/`);
