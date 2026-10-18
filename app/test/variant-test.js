@@ -32,7 +32,7 @@ const lotd = V.forId("lotd"), std = V.forId("");
     const base0 = "http://127.0.0.1:" + port;
     for (let i = 0; i < 60; i++) { try { if ((await fetch(base0 + "/api/variant")).ok) break; } catch { /* not up yet */ } await new Promise(r => setTimeout(r, 250)); }
     const base = "http://127.0.0.1:" + port, get = async p => { const r = await fetch(base + p); return { status: r.status, text: await r.text(), len: Number(r.headers.get("content-length")) || 0 }; };
-    try { return { v: await (await fetch(base + "/api/variant")).json(), app: await get("/"), overlay: await get("/overlay"), theme: await get("/theme.css"), hud: await get("/hud.css"), logo: Buffer.from(await (await fetch(base + "/brand/chud-hud.png")).arrayBuffer()) }; }
+    try { return { v: await (await fetch(base + "/api/variant")).json(), app: await get("/"), overlay: await get("/overlay"), theme: await get("/theme.css"), hud: await get("/hud.css"), logo: Buffer.from(await (await fetch(base + "/brand/chud-hud.png")).arrayBuffer()), games: (await (await fetch(base + "/api/state")).json()).db.events.map(e => e.game) }; }
     finally { srv.kill(); }
   };
   try {
@@ -44,6 +44,8 @@ const lotd = V.forId("lotd"), std = V.forId("");
     check("LOTD serves a recoloured overlay stylesheet", !/#fdc82f/i.test(L.hud.text));
     check("the standard server has no theme and its normal overlay colours", S.theme.text === "" && /#fdc82f/i.test(S.hud.text) && S.v.id === "");
     check("LOTD serves its own logo", !L.logo.equals(S.logo));
+    check("LOTD opens with Valorant, Fortnite and Dead by Daylight first", L.games.slice(0, 3).join() === "Valorant,Fortnite,Dead by Daylight", L.games.join());
+    check("the standard app does not get the LOTD games", !S.games.includes("Dead by Daylight") && !S.games.includes("Fortnite"), S.games.join());
   } catch (e) { check("server run", false, String(e && e.stack || e)); }
   console.log(failures ? "\n" + failures + " CHECK(S) FAILED" : "\nVARIANT TEST PASS");
   process.exit(failures ? 1 : 0);

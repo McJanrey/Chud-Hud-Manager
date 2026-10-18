@@ -56,6 +56,12 @@ function newEvent(name, game = "Rocket League", organiser = "") {
       bb: { theme: "", phase: "waiting", buildSeconds: 900, endsAt: 0, remaining: 900, judging: "", scores: {},
         judges: [], judgeScores: {}, audience: { open: false, weight: 0, scores: {} } },
       poll: { question: "", options: ["", ""], open: false, show: false, counts: [0, 0], total: 0 } },
+    // VALORANT 2v2 Skirmish: first to "target" rounds, scored by hand
+    val: { target: 10 },
+    // Dead by Daylight: one trial is a killer against survivors; points per kill, per escape and per generator
+    dbd: { killPts: 1, escapePts: 1, genPts: 0, trials: [] },
+    // Fortnite: points for the placement tier a team lands in plus points per elimination, over a number of matches
+    fn: { elimPts: 1, placePts: [{ to: 1, pts: 10 }, { to: 2, pts: 7 }, { to: 3, pts: 5 }, { to: 5, pts: 3 }, { to: 10, pts: 1 }], matches: [] },
     // Riftbound (trading card game): operator-driven scoring
     rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
       limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "", play: [[], []], log: [] },
@@ -73,6 +79,8 @@ function upgrade(ev) {
   ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
+  ev.val = Object.assign({}, d.val, ev.val); ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn);
+  ev.fn.matches.forEach(m => { m.place = m.place || []; m.elims = m.elims || []; });
   ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
   if (!ev.source) ev.source = "auto";
   if (ev.cover === undefined) ev.cover = "";
@@ -85,7 +93,7 @@ function upgrade(ev) {
   ev.teams.forEach(t => { if (t.tag === "SCC" && t.logos && (!t.logos[0] || t.logos[0] === "/brand/saints-emblem.png")) t.logos[0] = "/brand/chud-hud.png"; });
   return ev;
 }
-const SQUAD = { "League of Legends": 5, "Rocket League": 3 };
+const SQUAD = { "League of Legends": 5, "Rocket League": 3, "Dead by Daylight": 5, "Fortnite": 2, "Valorant": 2 };
 const seatPlayers = (ev, n) => ev.teams.forEach(t => { while (t.players.length < n) t.players.push({ id: uid(), ign: "", alias: "", country: "", avatar: "", cam: "" }); });
 function freshEvent(game, name = "New Event") {
   const ev = newEvent(name, game);
@@ -96,6 +104,11 @@ function freshEvent(game, name = "New Event") {
   ev.teams = game === "Minecraft" ? [blankTeam("Players", "PLR", "#1d8a4a", "#f2b51c")] : [A, B]; // Minecraft has players, not two sides
   Object.assign(ev.live, { left: ev.teams[0].id, right: ev.teams[1] ? ev.teams[1].id : "" });
   if (game === "League of Legends") { B.name = "Red Side"; B.tag = "RED"; B.color = "#e84057"; ev.hud.colorMode = "custom"; ev.hud.custom = ["#3a8dff", "#e84057"]; }
+  if (game === "Fortnite") { // a field of duos rather than two sides
+    const cols = ["#2f7dff", "#ff9b1a", "#1d8a4a", "#e84057", "#b48cff", "#2fd4c4", "#f2b51c", "#ff6ba8"];
+    ev.teams = Array.from({ length: 8 }, (_, i) => blankTeam("Duo " + (i + 1), "D" + (i + 1), cols[i]));
+    Object.assign(ev.live, { left: ev.teams[0].id, right: ev.teams[1].id });
+  }
   if (SQUAD[game]) seatPlayers(ev, SQUAD[game]);
   return upgrade(ev);
 }
@@ -152,6 +165,15 @@ if (!DB.settings.perEventSource) {
   const first = DB.events.find(e => e.id === DB.onAir) || DB.events[0];
   if (first && ["demo", "ocr", "push"].includes(DB.settings.source)) first.source = DB.settings.source;
   DB.settings.source = "auto";
+}
+// Chud Hud LOTD (Lan of the Dead) starts with its own three games, put at the front once. Everything else stays available.
+if (V.id === "lotd" && !DB.settings.lotdEvents) {
+  DB.settings.lotdEvents = true;
+  const mk = (game, name, series) => { const ev = freshEvent(game, name); ev.tournament.name = "LAN OF THE DEAD"; ev.live.seriesTitle = series; return ev; };
+  const dbd = mk("Dead by Daylight", "DBD - TRIALS", "LAN OF THE DEAD"), fn = mk("Fortnite", "FN - DUOS", "LAN OF THE DEAD"), vl = mk("Valorant", "VAL - 2V2 SKIRMISH", "LAN OF THE DEAD");
+  dbd.live.gameSeries = "TRIALS"; fn.live.gameSeries = "DUOS"; vl.live.gameSeries = "2V2 SKIRMISH";
+  DB.events.unshift(vl, fn, dbd);
+  setImmediate(save);
 }
 // Ready-made events for Minecraft (Hunger Games and Build Battle) and Riftbound, added once to a saved workspace that has none.
 if (!DB.settings.extraEvents) {
@@ -215,7 +237,8 @@ const feedOf = key => { let f = feeds.get(key); if (!f) { f = { game: blankGame(
 function inFeed(key, fn) { const pg = game, pk = curKey, f = feedOf(key); game = f.game; curKey = key; try { return fn(f); } finally { game = pg; curKey = pk; } }
 const touch = () => { const f = feeds.get(curKey); if (f) f.dirty = true; };
 const feedKeyOf = ev => HUD.feedKey(ev);
-const usedKeys = () => new Set(DB.events.map(feedKeyOf));
+// the screen-reading feed stays alive while Screen OCR runs, even if no event reads from it: the scoring pages use its result-screen values
+const usedKeys = () => { const k = new Set(DB.events.map(feedKeyOf)); if (ocr && ocr.state().running) k.add("ocr"); return k; };
 const eventForFeed = key => DB.events.find(e => feedKeyOf(e) === key);
 const low = s => String(s || "").toLowerCase().trim();
 
@@ -272,6 +295,10 @@ function handleMessage(msg) {
       game.clockLive = g.TimeSeconds != null;
       game.hasWinner = !!g.bHasWinner;
       game.target = g.bHasTarget && g.Target && g.Target.Name ? who(g.Target) : null;
+      break;
+    }
+    case "GameOcr": { // values read from a result screen: Fortnite placement and eliminations, Dead by Daylight survivors and generators
+      game.gameOcr = Object.assign({}, d.values || {}, { t: Date.now() });
       break;
     }
     case "McOcr": { // values read from a Minecraft screen: alive, total, kills, border, clock, theme, phase
@@ -567,7 +594,7 @@ setInterval(() => { for (const ev of DB.events) if (ev.source === "demo") inFeed
 
 // Part of each game's window title, used to find the game on screen for the live preview background.
 const GAME_WINDOWS = { "League of Legends": ["League of Legends (TM) Client"], "Rocket League": ["Rocket League"], "Minecraft": ["Minecraft"], "Overwatch 2": ["Overwatch"],
-  "Call of Duty": ["Call of Duty", "Warzone", "Black Ops", "Modern Warfare"], "Deadlock": ["Deadlock"], "Fortnite": ["Fortnite"], "Valorant": ["VALORANT"], "Counter-Strike 2": ["Counter-Strike 2"], "Riftbound": ["Riftbound"] };
+  "Call of Duty": ["Call of Duty", "Warzone", "Black Ops", "Modern Warfare"], "Deadlock": ["Deadlock"], "Fortnite": ["Fortnite"], "Valorant": ["VALORANT"], "Dead by Daylight": ["DeadByDaylight", "Dead by Daylight"], "Counter-Strike 2": ["Counter-Strike 2"], "Riftbound": ["Riftbound"] };
 
 /* ------------------------------------------------ Data Dragon image cache */
 const DD_DIR = path.join(DATA, "ddragon-img");

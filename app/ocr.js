@@ -177,6 +177,8 @@ async function readAll(img) {
   return { readings, vals };
 }
 const MC_KEYS = ["alive", "total", "kills", "border", "clock", "theme", "phase"];
+// result screens: Fortnite's match results (placement, eliminations) and Dead by Daylight's trial tally (what happened to each survivor, generators done)
+const GAME_KEYS = ["fnPlace", "fnElims", "dbdGens", "dbdS1", "dbdS2", "dbdS3", "dbdS4"];
 function toMessage(v) {
   const out = [];
   const teams = [0, 1].map(i => ({ TeamNum: i, Score: v["score" + i], Name: v["name" + i] })).filter(t => t.Score != null || t.Name);
@@ -186,6 +188,8 @@ function toMessage(v) {
   if (Object.keys(game).length) out.push({ Event: "UpdateState", Data: { Players: [], Game: game } });
   const mc = {}; for (const k of MC_KEYS) if (v[k] != null) mc[k] = v[k];
   if (Object.keys(mc).length) out.push({ Event: "McOcr", Data: { values: mc } }); // Minecraft sidebar and build battle values
+  const gk = {}; for (const k of GAME_KEYS) if (v[k] != null) gk[k] = v[k];
+  if (Object.keys(gk).length) out.push({ Event: "GameOcr", Data: { values: gk } }); // result screens of the scored-by-hand games
   return out.length ? out : null;
 }
 async function loop() {

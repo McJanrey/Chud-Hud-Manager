@@ -527,3 +527,12 @@
 @keyframes hbump{0%{transform:scale(1.4);filter:brightness(1.7)}100%{transform:scale(1);filter:brightness(1)}}
 @keyframes hbumpf{0%{filter:brightness(1.8)}100%{filter:brightness(1)}}
 .hud .bar,.hud .fill,.hud .hp i{transition:width .5s cubic-bezier(.2,.8,.2,1),height .5s cubic-bezier(.2,.8,.2,1)}
+
+/* Fortnite leaderboard strip */
+.fn-board{position:absolute;left:36px;top:96px;width:330px;background:rgba(5,24,17,.92);border-top:4px solid var(--gold,#FDC82F);padding:10px 0 8px}
+.fn-h{display:flex;justify-content:space-between;align-items:baseline;padding:0 16px 8px;border-bottom:1px solid rgba(255,255,255,.1)}
+.fn-h b{font-size:22px;letter-spacing:.06em;font-weight:500}.fn-h small{font-size:13px;letter-spacing:.14em;color:#9db3a8}
+.fn-row{display:grid;grid-template-columns:34px 34px 1fr auto;align-items:center;gap:10px;padding:5px 16px;font-size:24px;transition:background .3s}
+.fn-row:nth-child(2){background:rgba(253,200,47,.12)}
+.fn-row .rk{color:var(--gold,#FDC82F)}.fn-row .nm{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.fn-row .lgbox{width:30px;height:30px}

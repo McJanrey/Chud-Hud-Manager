@@ -85,6 +85,12 @@ function rocketFields(m, ev, game, ctx, f) {
 
 function genericFields(m, ev, game, ctx, f) { // games read by screen OCR or entered by hand: scores, the clock, and the series
   f["TIMER"] = clock(m.clock); SIDES.forEach((S, s) => { f[`SCORE ${S}`] = m.score[s]; });
+  if (m.kind === "val") f["ROUNDS TO WIN"] = (ev.val && ev.val.target) || 10;
+  if (m.kind === "dbd") { const d = HUD.dbdScore(ev), last = d.trials[d.trials.length - 1]; f["TRIALS PLAYED"] = d.trials.length; f["KILLER SIDE"] = last ? SIDES[last.killer] : ""; }
+  if (m.kind === "fn") { // the leaderboard: RANK 1 NAME, RANK 1 POINTS ... for the top twelve teams
+    f["MATCHES PLAYED"] = ((ev.fn && ev.fn.matches) || []).length;
+    HUD.fnTable(ev).slice(0, 12).forEach((r, i) => { const n = i + 1; f[`RANK ${n} NAME`] = r.team.name; f[`RANK ${n} TAG`] = r.team.tag; f[`RANK ${n} POINTS`] = r.pts; f[`RANK ${n} ELIMS`] = r.elims; f[`RANK ${n} WINS`] = r.wins; });
+  }
 }
 
 function minecraftFields(m, ev, game, ctx, f) {

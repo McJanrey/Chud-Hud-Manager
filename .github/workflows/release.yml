@@ -35,6 +35,7 @@ jobs:
           node test/scenes-test.js
           node test/twitch-test.js
           node test/variant-test.js
+          node test/games-test.js
       - name: Build and publish
         run: npx electron-builder --win nsis --publish always
         env:

@@ -113,7 +113,7 @@
   const escH = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   /* Quick Join: pin events here and one click opens the control room straight in that event. */
   let EVS = [];
-  const GAMETILE = { "Rocket League": ["RL", "#1f5bff"], "League of Legends": ["LoL", "#0397ab"], "Minecraft": ["MC", "#4aa02c"], "Riftbound": ["RB", "#b08a3c"] };
+  const GAMETILE = { "Rocket League": ["RL", "#1f5bff"], "League of Legends": ["LoL", "#0397ab"], "Minecraft": ["MC", "#4aa02c"], "Riftbound": ["RB", "#b08a3c"], "Dead by Daylight": ["DBD", "#8b1a1a"], "Fortnite": ["FN", "#7d4cff"], "Valorant": ["VAL", "#ff4655"] };
   const tile = g => { const t = GAMETILE[g] || [String(g || "?").slice(0, 2).toUpperCase(), "#4a4c55"]; return `<i class="qt" style="background:${t[1]}">${escH(t[0])}</i>`; };
   const pinned = () => (S && S.prefs && Array.isArray(S.prefs.quickJoin) ? S.prefs.quickJoin : []);
   function renderQuick() {

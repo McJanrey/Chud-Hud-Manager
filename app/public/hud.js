@@ -46,8 +46,8 @@
         if (best) { sides[s] = best; tracked[s] = true; }
       });
     }
-    const kind = live && game.kind ? game.kind : ev.game === "League of Legends" ? "lol" : ev.game === "Minecraft" ? "mc" : ev.game === "Riftbound" ? "rb" : ev.game === "Rocket League" ? "rl" : "gen";
-    const size = kind === "lol" ? 5 : 3;
+    const kind = GAMEDEF[ev.game] ? GAMEDEF[ev.game].kind : live && game.kind ? game.kind : ev.game === "League of Legends" ? "lol" : ev.game === "Minecraft" ? "mc" : ev.game === "Riftbound" ? "rb" : ev.game === "Rocket League" ? "rl" : "gen";
+    const size = kind === "lol" ? 5 : (GAMEDEF[ev.game] && GAMEDEF[ev.game].squad) || 3;
     const roster = (t, name) => t && t.players.find(p => low(p.ign) === low(name));
     const blank = { score: 0, goals: 0, shots: 0, assists: 0, saves: 0, demos: 0, touches: 0, boost: 0, kills: 0, deaths: 0, cs: 0, level: 1, ward: 0 };
     const players = [0, 1].map(s => {
@@ -64,7 +64,7 @@
     });
     const all = players[0].concat(players[1]);
     const find = w => w && all.find(p => (w.shortcut && p.shortcut === w.shortcut) || low(p.name) === low(w.name));
-    const score = l.autoScore && (live || hasScore) ? [game.teams[tn(0)].score, game.teams[tn(1)].score] : l.score;
+    const score = kind === "dbd" ? dbdScore(ev).total : l.autoScore && (live || hasScore) ? [game.teams[tn(0)].score, game.teams[tn(1)].score] : l.score;
     const colors = ev.hud.colorMode === "custom" ? ev.hud.custom : [sides[0] ? sides[0].color : "#2f7dff", sides[1] ? sides[1].color : "#ff9b1a"];
     const feed = (game && game.feed || []).filter(f => Date.now() - f.t < 9000).slice(-4).map(f => ({
       type: f.type, label: f.type === "goal" ? "GOAL" : f.label || f.type, main: find(f.main) || f.main, second: find(f.second) || f.second,
@@ -443,7 +443,7 @@
   /* ---------------- scenes for the games that are not Rocket League ----------------
      Every scene has to speak the game it is showing. The Rocket League versions (goals, saves, demos, boost) stay as they were; Minecraft,
      Riftbound and the screen-read games (kind "gen") get their own stats, lineup and starting-soon scenes, and a plain scorebug in game. */
-  const GD_LABEL = { "Rocket League": "GOAL DIFF", "League of Legends": "GAME DIFF", "Riftbound": "POINT DIFF", "Minecraft": "POINTS" };
+  const GD_LABEL = { "Rocket League": "GOAL DIFF", "League of Legends": "GAME DIFF", "Riftbound": "POINT DIFF", "Minecraft": "POINTS", "Dead by Daylight": "POINTS", "Fortnite": "POINTS", "Valorant": "ROUND DIFF" };
   const gdLabel = g => GD_LABEL[g] || "DIFF";
   const lgBig = t => lg(t).replace('class="lgbox"', 'class="lgbox" style="width:76px;height:76px"');
   const noLive = g => String(g || "").toUpperCase();
@@ -526,12 +526,110 @@
     return { html: `<div class="h-full"><div class="h-eyebrow">${noLive(m.ev.game)}</div><div class="h-title" style="font-size:80px">NO PLAYER STATS</div><div class="h-strip">SCORES AND THE CLOCK ARE READ FROM THE SCREEN</div></div>`, cams: [] };
   }
 
+  /* ---------------- Dead by Daylight, Fortnite and VALORANT 2v2 Skirmish ----------------
+     None of the three gives a live feed to a caster, so they are scored by hand (Overwolf and screen reading can fill the numbers
+     in later). Each has its own scoring rule, kept here so the dashboard, the overlay and the data files always agree. */
+  const GAMEDEF = {
+    "Dead by Daylight": { kind: "dbd", squad: 5, gd: "POINTS" },
+    "Fortnite": { kind: "fn", squad: 2, gd: "POINTS" },
+    "Valorant": { kind: "val", squad: 2, gd: "ROUND DIFF" },
+  };
+  /* Fortnite: points for a placement (the first tier whose "to" covers it) plus points per elimination, summed over matches. */
+  function fnPoints(fn, place, elims) {
+    place = Math.max(0, Math.floor(+place || 0)); elims = Math.max(0, Math.floor(+elims || 0));
+    if (!place && !elims) return 0;
+    const tier = place ? (fn.placePts || []).slice().sort((a, b) => a.to - b.to).find(t => place <= +t.to) : null;
+    return (tier ? +tier.pts || 0 : 0) + elims * (+fn.elimPts || 0);
+  }
+  function fnTable(ev) {
+    const fn = ev.fn || {};
+    const rows = ev.teams.map((t, i) => {
+      const r = { team: t, played: 0, wins: 0, elims: 0, pts: 0, best: 0, last: 0 };
+      (fn.matches || []).forEach(m => {
+        const place = Math.floor(+(m.place || [])[i] || 0), el = Math.floor(+(m.elims || [])[i] || 0);
+        if (!place && !el) return;
+        r.played++; r.elims += el; r.pts += fnPoints(fn, place, el); r.last = fnPoints(fn, place, el);
+        if (place === 1) r.wins++;
+        if (place && (!r.best || place < r.best)) r.best = place;
+      });
+      return r;
+    });
+    rows.sort((a, b) => b.pts - a.pts || b.wins - a.wins || b.elims - a.elims || (a.best || 999) - (b.best || 999) || a.team.name.localeCompare(b.team.name));
+    rows.forEach((r, i) => { r.rank = i > 0 && rows[i - 1].pts === r.pts && rows[i - 1].wins === r.wins && rows[i - 1].elims === r.elims ? rows[i - 1].rank : i + 1; });
+    return rows;
+  }
+  /* Dead by Daylight: one trial is one killer against survivors. The killer's side scores per kill; the survivors' side per escape
+     and per generator. Side 0 is the team on the left of the HUD. */
+  function dbdScore(ev) {
+    const d = ev.dbd || {}, total = [0, 0];
+    const trials = (d.trials || []).map(t => {
+      const k = +t.killer === 1 ? 1 : 0, s = 1 - k, kills = Math.max(0, +t.kills || 0), esc4 = Math.max(0, +t.escapes || 0), gens = Math.max(0, +t.gens || 0);
+      const pts = [0, 0]; pts[k] = kills * (+d.killPts || 0); pts[s] = esc4 * (+d.escapePts || 0) + gens * (+d.genPts || 0);
+      total[0] += pts[0]; total[1] += pts[1];
+      return { killer: k, kills, escapes: esc4, gens, pts };
+    });
+    return { total, trials };
+  }
+  const kStrip = ev => [ev.live.seriesTitle, ev.live.eventTitle, ev.live.roundTitle].filter(Boolean).join("  ·  ") || ev.tournament.name || ev.name;
+  const bugHead = m => { const g = S.geningame(m); return g.html.slice(0, g.html.indexOf('<div class="h-series">')); };
+
+  S.valingame = (m) => {
+    const ev = m.ev, v = ev.val || {}, t = +v.target || 10;
+    return { html: bugHead(m) + `<div class="h-series"><div class="ss l num">${m.score[0]}</div><div class="clk"><b class="num">FIRST TO ${t}</b><small>${esc(ev.live.gameSeries || "2V2 SKIRMISH")}</small></div><div class="ss r num">${m.score[1]}</div></div>`, cams: [] };
+  };
+
+  S.dbdingame = (m) => {
+    const ev = m.ev, [L, R] = m.sides, d = dbdScore(ev), n = d.trials.length, cur = d.trials[n - 1];
+    const role = s => (!cur ? "" : cur.killer === s ? "KILLER" : "SURVIVORS");
+    return { html: bugHead(m) + `<div class="h-series"><div class="ss l num" style="font-size:14px">${role(0)}</div><div class="clk"><b class="num">${n ? "TRIAL " + n : "DEAD BY DAYLIGHT"}</b><small>${esc(ev.live.gameSeries || "")}</small></div><div class="ss r num" style="font-size:14px">${role(1)}</div></div>`, cams: [] };
+  };
+
+  S.fningame = (m) => {
+    const ev = m.ev, rows = fnTable(ev), fn = ev.fn || {}, nm = (fn.matches || []).length;
+    const tick = kStrip(ev);
+    return { html: `<div class="h-tick"><span>${esc(tick)}  |  ${esc(tick)}  |  </span></div>
+      <div class="fn-board"><div class="fn-h"><b>${esc(ev.live.seriesTitle || "FORTNITE")}</b><small>${nm ? "AFTER MATCH " + nm : "STANDINGS"}</small></div>
+      ${rows.slice(0, 6).map(r => `<div class="fn-row" data-k="fn-${esc(r.team.id)}"><span class="rk num">${r.rank}</span>${lg(r.team)}<span class="nm">${esc(r.team.tag || r.team.name)}</span><b class="num">${r.pts}</b></div>`).join("") || `<div class="fn-row"><span class="nm">NO TEAMS YET</span></div>`}</div>`, cams: [] };
+  };
+  function fnFull(m, limit) {
+    const ev = m.ev, rows = fnTable(ev).slice(0, limit || 12), fn = ev.fn || {}, nm = (fn.matches || []).length;
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}${nm ? "  ·  AFTER MATCH " + nm : ""}</div><div class="h-title" style="font-size:80px">LEADERBOARD</div>
+      <table class="h-table" style="width:900px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>MATCHES</th><th>WINS</th><th>ELIMS</th><th>POINTS</th></tr></thead><tbody>
+      ${rows.map(r => `<tr class="${r.rank === 1 && r.pts ? "top" : ""}"><td class="num">${r.rank}</td><td class="tm" style="text-align:left">${lg(r.team, "lgbox")}${esc(r.team.name)}</td><td class="num">${r.played}</td><td class="num">${r.wins}</td><td class="num">${r.elims}</td><td class="num">${r.pts}</td></tr>`).join("") || `<tr><td colspan="6" style="text-align:center">NO TEAMS YET</td></tr>`}</tbody></table></div>`, cams: [] };
+  }
+  function fnLineup(m) {
+    const ev = m.ev;
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}</div><div class="h-title" style="font-size:80px">THE TEAMS</div>
+      <table class="h-table" style="width:900px"><tbody>${ev.teams.slice(0, 12).map(t => `<tr><td class="tm" style="text-align:left">${lg(t, "lgbox")}${esc(t.name)}</td><td style="text-align:left">${esc(t.players.map(p => p.alias || p.ign).filter(Boolean).join("  ·  ") || "–")}</td></tr>`).join("")}</tbody></table></div>`, cams: [] };
+  }
+  function dbdTrials(m) {
+    const ev = m.ev, [L, R] = m.sides, d = dbdScore(ev), side = s => (s ? (R ? R.tag || R.name : "RIGHT") : (L ? L.tag || L.name : "LEFT"));
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}</div><div class="h-title" style="font-size:80px">TRIAL RESULTS</div>
+      <table class="h-table" style="width:900px"><thead><tr><th>#</th><th>KILLER</th><th>KILLS</th><th>ESCAPES</th><th>GENS</th><th>${esc(side(0))}</th><th>${esc(side(1))}</th></tr></thead><tbody>
+      ${d.trials.map((t, i) => `<tr><td class="num">${i + 1}</td><td>${esc(side(t.killer))}</td><td class="num">${t.kills}</td><td class="num">${t.escapes}</td><td class="num">${t.gens}</td><td class="num">${t.pts[0]}</td><td class="num">${t.pts[1]}</td></tr>`).join("") || `<tr><td colspan="7" style="text-align:center">NO TRIALS YET</td></tr>`}
+      <tr class="top"><td colspan="5" style="text-align:right">TOTAL</td><td class="num">${d.total[0]}</td><td class="num">${d.total[1]}</td></tr></tbody></table></div>`, cams: [] };
+  }
+  function dbdLineup(m) {
+    const [L, R] = m.sides, panel = (t, col) => `<div class="side" style="--c:${esc(col)}"><div class="tl"><span>${esc(t ? t.name : "TEAM")}</span></div>${(t ? t.players : []).slice(0, 5).map((p, i) => `<div class="p"><small>P${i + 1}</small><b>${esc(p.alias || p.ign || "–")}</b></div>`).join("")}</div>`;
+    return { html: `<div class="h-full"><div class="h-eyebrow">THE MATCH-UP</div><div class="h-lineup">${panel(L, m.colors[0])}${panel(R, m.colors[1])}</div></div>`, cams: [] };
+  }
+  function kStarting(m) {
+    const ev = m.ev, [L, R] = m.sides, fnk = m.kind === "fn", vs = !fnk && L && R ? `${esc(L.name)}  VS  ${esc(R.name)}` : fnk ? `${ev.teams.length} TEAMS` : "";
+    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}</div><div class="h-title">STARTING SOON</div><div class="h-strip">${esc([vs, ev.live.roundTitle].filter(Boolean).join("  ·  ") || ev.game.toUpperCase())}</div></div>`, cams: [] };
+  }
+
   /* each of these scenes keeps its Rocket League / League version and swaps in the game's own for the others */
   const BASE = { statsteam: S.statsteam, statsplayer: S.statsplayer, lineup: S.lineup, starting: S.starting };
   const SWAP = {
     statsteam: { mc: mcStatsTeam, rb: rbStatsTeam, gen: genStatsTeam }, statsplayer: { mc: mcStatsPlayer, rb: rbStatsPlayer, gen: genStatsPlayer },
     lineup: { mc: mcLineup, rb: rbLineup }, starting: { mc: mcStarting, rb: rbStarting },
   };
+  BASE.rankings = S.rankings;
+  Object.assign(SWAP.statsteam, { fn: m => fnFull(m, 12), dbd: dbdTrials, val: genStatsTeam });
+  Object.assign(SWAP.statsplayer, { fn: genStatsPlayer, dbd: genStatsPlayer, val: genStatsPlayer });
+  Object.assign(SWAP.lineup, { fn: fnLineup, dbd: dbdLineup });
+  Object.assign(SWAP.starting, { fn: kStarting, dbd: kStarting, val: kStarting });
+  SWAP.rankings = { fn: m => fnFull(m, 12) };
   for (const name of Object.keys(SWAP)) S[name] = m => (SWAP[name][m.kind] || BASE[name])(m);
 
   /* pick the scene: "auto" follows the dashboard, and the in-game HUD
@@ -540,6 +638,9 @@
     let s = scene === "auto" || !scene ? ev.hud.scene : scene;
     if (s === "ingame" && m.kind === "lol") return "lolingame";
     if (s === "ingame" && m.kind === "gen") return "geningame";
+    if (s === "ingame" && m.kind === "val") return "valingame";
+    if (s === "ingame" && m.kind === "dbd") return "dbdingame";
+    if (s === "ingame" && m.kind === "fn") return "fningame";
     if (s === "ingame" && m.kind === "mc") return "mcingame";
     if (s === "ingame" && m.kind === "rb") return "rbingame";
     if (s === "ingame" && m.replay) s = "replay";
@@ -693,7 +794,7 @@
 
   /* Which live feed an event reads: its own game's feed unless its Live Game page picked another source. The server and the
      pages share this, so they always agree. "demo:<id>" is that event's own test match; "manual" has no feed (Riftbound). */
-  const AUTO_FEED = { "Rocket League": "rl", "League of Legends": "lol", "Minecraft": "mc", "Riftbound": "manual" };
+  const AUTO_FEED = { "Rocket League": "rl", "League of Legends": "lol", "Minecraft": "mc", "Riftbound": "manual", "Dead by Daylight": "manual", "Fortnite": "manual" };
   function feedKey(ev) {
     const s = (ev && ev.source) || "auto";
     return s === "auto" ? AUTO_FEED[ev && ev.game] || "ocr" : s === "demo" ? "demo:" + ev.id : s;
@@ -702,7 +803,7 @@
   // the html a scene draws for an event and a live feed, without a page (used by the tests)
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m).html; }
 
-  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml };
+  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, GAMEDEF, fnPoints, fnTable, dbdScore };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

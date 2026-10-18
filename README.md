@@ -235,6 +235,20 @@ Every game provides the common set:
 
 **Rocket League** adds `TIMER`, `OVERTIME`, `REPLAY`, `ARENA`, `SCORE LEFT/RIGHT`, `PLAYERS ALIVE LEFT/RIGHT`, the `FOCUS …` player (name, team, boost, score) and `P1`–`P6` with `NAME`, `SCORE`, `GOALS`, `ASSISTS`, `SAVES`, `SHOTS`, `DEMOS`, `BOOST`. **Minecraft** and **Riftbound** have their own sets (alive count, border, top killer, last elimination, build theme and phase; points, turn, cards in play, spotlight). Other games provide `TIMER` and `SCORE LEFT/RIGHT`.
 
+## Dead by Daylight, Fortnite and VALORANT 2v2 Skirmish
+
+None of these gives a caster a live data feed, so each is scored by hand on its own page (they sit under **Live game** in the sidebar), and Screen OCR can read the result screens for you.
+
+| Game | Page | Scoring |
+|---|---|---|
+| **VALORANT 2v2 Skirmish** | Skirmish | first to 10 rounds (change it): **+ Round** per team, **Undo**, **New match**; two players a team; the scorebug shows FIRST TO 10 |
+| **Fortnite** | Fortnite scoring | a field of eight duos; each match you enter every team's placement and eliminations; points = the placement tier the team lands in plus points per elimination (editable tiers, default 10 / 7 / 5 / 3 / 1 for 1st, 2nd, 3rd, 5th and 10th, and 1 per elimination); a live leaderboard, rankings and a corner leaderboard on the in-game scene |
+| **Dead by Daylight** | Trials | one trial is a killer against survivors: add a trial and enter kills, escapes and generators; the killer's team scores per kill, the survivors' team per escape and per generator (all three editable); five players a team; the scorebug shows the trial number and who is the killer |
+
+**Screen OCR for the result screens.** On the Screen OCR page choose the starting layout *Fortnite: match results screen* or *Dead by Daylight: trial tally screen*, line the boxes up with the game window, and the reading appears on the Fortnite scoring and Trials pages. You check it and press a button (*Apply* for a Fortnite team and match, *Add trial* for Dead by Daylight): nothing changes the score until you do. For VALORANT, the normal score and clock boxes work for the round score. The game windows OCR can capture must be borderless or windowed, not exclusive fullscreen.
+
+What each game does and does not offer for live data (Overwolf events, Riot's local client API and so on) is written up in the project notes; none of it is needed for the scoring above. For vMix, the data files carry the scores, `RANK 1..12 NAME / POINTS / ELIMS / WINS` for Fortnite, `TRIALS PLAYED` and `KILLER SIDE` for Dead by Daylight and `ROUNDS TO WIN` for VALORANT.
+
 ## Chud Hud LOTD (Lan of the Dead)
 
 A Halloween edition of the same app, built from the same code. It installs next to the standard Chud Hud and never touches its events:
@@ -246,7 +260,7 @@ A Halloween edition of the same app, built from the same code. It installs next 
 | Overlay port | 7777 | 7787 (cameras 7788), so both can run at once |
 | Updates from | the release's `latest.yml` | the release's `latest-lotd.yml`, so neither app is offered the other's installer |
 
-The look is orange, black, purple, green and white: the control room and launcher get a dark purple theme with a cobweb, drifting fog and an occasional bat, and the overlay's greens and gold become purple-black panels with pumpkin orange. The decorations are never on the overlay, so nothing flies across your stream. Every release builds both installers.
+LOTD opens with VALORANT 2v2 Skirmish, Fortnite duos and Dead by Daylight events ready at the front of My Events. The look is orange (#e1873d), black, purple (#8250f0), green (#65d589) and white: the control room and launcher get a dark purple theme with a cobweb, drifting fog and an occasional bat, and the overlay's greens and gold become purple-black panels with pumpkin orange. The decorations are never on the overlay, so nothing flies across your stream. Every release builds both installers.
 
 From source: `npm run start:lotd`, `npm run dist:lotd`. To change the logo, run `powershell -File app\tools\make-icons.ps1 -Source <image.png> -Edition lotd`: it rewrites the in-app logo and the window, installer and exe icons.
 
