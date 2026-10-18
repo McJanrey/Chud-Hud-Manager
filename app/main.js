@@ -63,7 +63,10 @@ function setupLauncherIpc() {
   on("launcher:check", () => checkNow());
   on("launcher:download", () => downloadUpdate());
   on("launcher:install", () => installUpdate());
-  on("launcher:control-room", id => openControlRoom(id));
+  on("launcher:control-room", async id => { // not before this copy is activated
+    try { const j = await (await fetch(base + "/api/license")).json(); if (j.enforced && !j.licensed) return { ok: false, error: j.message || "Enter your code first." }; } catch { /* the server answers for itself */ }
+    openControlRoom(id); return { ok: true };
+  });
   on("launcher:quickjoin", ids => { LS.prefs.quickJoin = Array.isArray(ids) ? ids.map(String).slice(0, 12) : []; saveLauncher(); return LS.prefs.quickJoin; });
   on("launcher:copy-overlay", id => { const u = overlayUrl(id); clipboard.writeText(u); return u; });
   on("launcher:open-data", () => shell.openPath(process.env.SAINTS_DATA));

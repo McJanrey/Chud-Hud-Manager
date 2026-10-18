@@ -264,6 +264,23 @@ LOTD opens with VALORANT 2v2 Skirmish, Fortnite duos and Dead by Daylight events
 
 From source: `npm run start:lotd`, `npm run dist:lotd`. To change the logo, run `powershell -File app\tools\make-icons.ps1 -Source <image.png> -Edition lotd`: it rewrites the in-app logo and the window, installer and exe icons.
 
+## License codes
+
+Release builds can be locked so they only run with a code from you. You make codes, give them out, and switch any of them off and on again at any time.
+
+```
+node tools/make-license.js new --edition all --days 365 --note "Alex"   # edition: std, lotd or all; days 0 = never expires
+node tools/make-license.js revoke 123456789                              # switch a code off: the app locks at its next check
+node tools/make-license.js enable 123456789                              # switch it back on
+node tools/make-license.js list                                          # every code and when it was last seen
+```
+
+Run those from the `app` folder. The person pastes the code into the launcher the first time they open the app. A code is checked once when they activate it, and then again every ten minutes while they are online. If you switch it off, the app locks at the next check and any open control room or overlay goes blank. With no internet the last answer is trusted for 14 days (you can set it per code with `--grace`), so a LAN event without internet keeps running.
+
+How it works: the code is signed with a private key that stays on your PC (`Secrets/chudhud-license/`, outside the repository; never commit it). The app only holds the public key, so it can check a code but nobody can make one. The on/off switch is a table in Supabase (`supabase/licensing.sql`); the app asks it with Supabase's public key, and only your admin secret can issue or switch codes. Releases turn the lock on only once `app/license-config.json` (the Supabase address and public key) exists.
+
+Honest limit: anything running on someone else's PC can be edited by a determined person. This keeps people from using the app without you; it does not stop someone who takes it apart, and the source is only protected if the repository is private. The real lock is the website plan, where the data lives on your server.
+
 ## Settings
 
 Environment variables, set before starting the app (or `npm run server`):

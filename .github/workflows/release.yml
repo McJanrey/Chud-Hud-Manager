@@ -36,6 +36,18 @@ jobs:
           node test/twitch-test.js
           node test/variant-test.js
           node test/games-test.js
+          node test/license-test.js
+      # Release builds only run with a code from the owner, but only once the license service is set up (app/license-config.json exists),
+      # so a release made before that can never lock anyone out. The flag is written into this build only, not committed.
+      - name: Turn licensing on
+        shell: bash
+        run: |
+          if [ -f license-config.json ]; then
+            node -e "const f='package.json',p=JSON.parse(require('fs').readFileSync(f,'utf8'));p.enforceLicense=true;require('fs').writeFileSync(f,JSON.stringify(p,null,2))"
+            echo "Licensing is ON for this release"
+          else
+            echo "No license-config.json yet: this release is not license-locked"
+          fi
       - name: Build and publish
         run: npx electron-builder --win nsis --publish always
         env:

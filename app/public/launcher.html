@@ -32,7 +32,7 @@
   <section id="home" class="view hidden">
     <button class="gear" id="gear" aria-label="Settings" aria-expanded="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
     <div class="menu hidden" id="menu">
-      <div class="who"><b id="mname"></b><small id="mmail"></small></div><hr>
+      <div class="who"><b id="mname"></b><small id="mmail"></small><small id="mlic" style="display:block"></small></div><hr>
       <button class="it link" id="mcheck">Check for updates</button>
       <button class="it" id="mdata">Open data folder</button><hr>
       <button class="it out" id="mout">Sign out</button>
@@ -48,6 +48,16 @@
       <button class="btn primary hidden" id="ur">Update &amp; Restart Chud Hud</button>
     </div>
   </section>
+<section id="lic" class="view hidden">
+    <div class="card">
+      <h2><img src="/brand/chud-hud.png" alt="">Activate Chud Hud</h2>
+      <p class="sub" id="licmsg">Enter the code you were given to turn this copy on.</p>
+      <textarea id="licc" rows="3" placeholder="CH1-XXXXX-XXXXX-XXXXX-…" spellcheck="false" aria-label="Activation code"></textarea>
+      <div class="err" id="liche" role="alert"></div>
+      <button class="btn primary wide" id="licgo" type="button">Activate</button>
+      <p class="fine">Your code is checked once, and again now and then when you're online. If it is switched off you'll be asked to contact whoever gave it to you.</p>
+    </div>
+  </section>
 <div class="modal hidden" id="qm" role="dialog" aria-modal="true" aria-label="Add to Quick Join">
   <div class="mbox">
     <div class="mhead"><h3>Add to Quick Join</h3><button class="ib" id="qref" type="button" aria-label="Refresh">&#8635;</button><input id="qsearch" placeholder="Search events" aria-label="Search events"><button class="ib" id="qx" type="button" aria-label="Close">&#10005;</button></div>
@@ -60,7 +70,14 @@
   const $ = id => document.getElementById(id);
   const api = window.saints;
   let S = null;
-  const show = v => { $("login").classList.toggle("hidden", v !== "login"); $("home").classList.toggle("hidden", v !== "home"); };
+  const show = v => { $("login").classList.toggle("hidden", v !== "login"); $("home").classList.toggle("hidden", v !== "home"); $("lic").classList.toggle("hidden", v !== "lic"); };
+  let LICS = null;
+  async function licenseOk() { try { LICS = await (await fetch("/api/license")).json(); return !LICS.enforced || !!LICS.licensed; } catch { return true; } } // an unreachable server answers for itself
+  function showLicense() {
+    $("licmsg").textContent = (LICS && LICS.message) || "Enter the code you were given to turn this copy on.";
+    $("licgo").disabled = false; $("liche").textContent = ""; show("lic"); $("licc").focus();
+  }
+  async function enter() { if (await licenseOk()) { show("home"); renderHome(); } else showLicense(); }
   $("wmin").onclick = () => api.win.min(); $("wmax").onclick = () => api.win.max(); $("wx").onclick = () => api.win.close();
 
   function renderUpdate(u) {
@@ -83,6 +100,7 @@
   }
   async function renderHome() {
     $("mname").textContent = S.profile.name; $("mmail").textContent = S.profile.email;
+    $("mlic").textContent = LICS && LICS.enforced && LICS.licensed ? (LICS.expires ? "Licensed until " + new Date(LICS.expires).toLocaleDateString() : "Licensed, no expiry") : "";
     renderUpdate(S.update);
     try { const d = await (await fetch("/api/state")).json(); EVS = d.db.events; renderLinks(EVS); renderQuick();
       $("srv").className = "stat ok"; $("srv").lastElementChild.textContent = "Overlay server running"; }
@@ -90,7 +108,7 @@
   }
   async function boot() {
     S = await api.state(); $("ver").textContent = "v" + S.version;
-    if (S.profile) { show("home"); renderHome(); } else { show("login"); $("ln").focus(); }
+    if (S.profile) enter(); else { show("login"); $("ln").focus(); }
   }
   api.onUpdate(u => { if (S) { S.update = u; renderUpdate(u); } });
 
@@ -99,13 +117,23 @@
     const r = await api.signIn({ name: $("ln").value, email: $("le").value });
     $("lgo").disabled = false;
     if (!r || !r.ok) { $("lerr").textContent = (r && r.error) || "Couldn't sign in."; return; }
-    S.profile = r.profile; show("home"); renderHome();
+    S.profile = r.profile; enter();
   };
   $("gear").onclick = () => { const m = $("menu"), open = m.classList.toggle("hidden") === false; $("gear").setAttribute("aria-expanded", open); };
   document.addEventListener("click", e => { if (!e.target.closest("#menu,#gear")) { $("menu").classList.add("hidden"); $("gear").setAttribute("aria-expanded", "false"); } });
   $("mcheck").onclick = () => api.checkUpdates(); $("mdata").onclick = () => api.openData();
   $("mout").onclick = async () => { await api.signOut(); S.profile = null; $("menu").classList.add("hidden"); $("ln").value = $("le").value = ""; show("login"); };
-  $("cr").onclick = () => api.openControlRoom();
+  $("cr").onclick = async () => { const r = await api.openControlRoom(); if (r && r.ok === false) { LICS = { message: r.error }; showLicense(); } };
+  $("licgo").onclick = async () => {
+    const code = $("licc").value.trim(); if (!code) { $("liche").textContent = "Paste your code first."; return; }
+    $("licgo").disabled = true; $("liche").textContent = "";
+    try {
+      const r = await fetch("/api/license", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) }), j = await r.json();
+      if (r.ok && j.ok) { LICS = j; $("licc").value = ""; show("home"); renderHome(); return; }
+      $("liche").textContent = j.error || "That code didn't work.";
+    } catch { $("liche").textContent = "Couldn't reach the app. Try again."; }
+    $("licgo").disabled = false;
+  };
   $("ur").onclick = async () => {
     const r = await (S && S.update.state === "available" ? api.downloadUpdate() : api.installUpdate());
     if (r && r.ok === false && r.error) { $("ut").textContent = r.error; $("us").className = "stat bad"; }

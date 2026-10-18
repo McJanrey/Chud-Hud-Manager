@@ -84,3 +84,7 @@ main{flex:1;position:relative;min-height:0}
 .mc small{color:var(--text-3);font-size:11px}
 .mc i.r{width:18px;height:18px;border-radius:50%;border:2px solid var(--line-strong);flex:none}
 .mc.on{border-color:var(--accent)}.mc.on i.r{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 45%,transparent 50%)}
+
+#licc{width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:var(--r-md);padding:10px 12px;font:13px var(--font-mono);color:var(--text);resize:none;user-select:text;word-break:break-all}
+#licc:focus{outline:2px solid var(--accent);outline-offset:1px}
+#lic .sub{margin:0;color:var(--text-2)}

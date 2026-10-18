@@ -8,6 +8,8 @@ const path = require("path");
 const crypto = require("crypto");
 
 const V = require("./variant.js"); // the standard app, or a themed edition such as Chud Hud LOTD
+const LIC = require("./license.js"); // license codes: release builds only run with a valid, switched-on code (see license.js)
+const EDITION = V.id || "std";
 const PORT = +process.env.PORT || V.port || 7777;
 const HOST = process.env.HOST || "127.0.0.1"; // set HOST=0.0.0.0 to reach it from other PCs on your LAN
 const RL_HOST = process.env.RL_HOST || "127.0.0.1";
@@ -962,10 +964,25 @@ function chatClear(evId, mode, build) {
   tally(ev); save(); broadcastDb("chat");
 }
 
+// Licensing: the verdict is cached for a few seconds. Only the launcher, its styles and the license calls work while locked.
+let licCache = { at: 0, s: null };
+const licenseStatus = () => { if (Date.now() - licCache.at > 3000 || !licCache.s) licCache = { at: Date.now(), s: LIC.status(DATA, EDITION) }; return licCache.s; };
+const licensed = () => licenseStatus().licensed;
+const licenseOpen = p => p === "/launcher" || p === "/api/license" || p === "/api/variant" || p.startsWith("/brand/") || p.startsWith("/fonts/") || ["/tokens.css", "/components.css", "/launcher.css", "/theme.css", "/favicon.ico"].includes(p);
+function licenseWatch() { // ask the license service now and every ten minutes; if the code was switched off, drop every open page
+  const run = () => LIC.refresh(DATA, EDITION).catch(() => null).then(() => { const was = licCache.s && licCache.s.licensed; licCache.at = 0; if (was && !licensed()) { log("This copy's license was switched off. Locked."); clients.forEach(c => { try { c.res.end(); } catch { /* gone */ } }); clients.clear(); } });
+  run(); setInterval(run, LIC.CHECK_EVERY).unref();
+}
+
 const server = http.createServer((req, res) => {
   if (!hostOk(req)) { res.writeHead(421, { "content-type": "text/plain" }); return res.end("Unexpected host name"); }
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
+  if (!licensed() && !licenseOpen(p)) {
+    const wantsPage = String(req.headers.accept || "").includes("text/html");
+    res.writeHead(402, { "content-type": wantsPage ? "text/html; charset=utf-8" : "application/json", "cache-control": "no-store" });
+    return res.end(wantsPage ? `<!doctype html><meta charset="utf-8"><title>${V.name}</title><body style="font:16px system-ui;background:#0b0b0f;color:#eee;display:grid;place-items:center;height:100vh;margin:0"><div style="max-width:420px;text-align:center"><h2>${V.name} isn't activated</h2><p style="color:#aaa">${LIC.status(DATA, EDITION).message || "Enter your code in the launcher."}</p><p><a style="color:#ffb86b" href="/launcher">Open the launcher</a></p></div>` : JSON.stringify({ error: "license", message: LIC.status(DATA, EDITION).message }));
+  }
   if (cams.handle(req, res, url, false)) return;
 
   if (req.method === "GET") {
@@ -974,6 +991,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { "content-type": "text/css; charset=utf-8", "cache-control": "no-cache" }); return res.end("");
     }
     if (p === "/api/variant") return json(res, 200, { id: V.id, name: V.name, tagline: V.tagline, port: PORT });
+    if (p === "/api/license") return json(res, 200, Object.assign({ edition: EDITION, service: !!LIC.service() }, licenseStatus()));
     if (p === "/cam") return sendFile(res, path.join(PUB, "cam.html")); // this PC's own camera (127.0.0.1 counts as secure)
     if (p === "/camview") return sendFile(res, path.join(PUB, "camview.html"));
     if (p === "/api/cam/status") return json(res, 200, cams.status());
@@ -1130,6 +1148,9 @@ const server = http.createServer((req, res) => {
             const ok = sendRL({ Command: body.Command, Data: body.Data || {} });
             return json(res, ok ? 200 : 409, ok ? { ok } : { error: "Rocket League isn't connected." });
           }
+          case "/api/license": { // { code }: activate this copy. Saved only when the code is genuine, for this edition, and switched on.
+            return LIC.activate(DATA, String(body.code || ""), EDITION).then(r => { licCache.at = 0; if (r.ok) return json(res, 200, Object.assign({ ok: true }, licenseStatus())); return json(res, 400, { ok: false, error: r.message, reason: r.reason }); });
+          }
           case "/api/ingest": { // external feeds (OCR etc.) post Stats API-shaped messages; they reach every event whose source is External
             if (!feeds.has("push")) return json(res, 200, { ok: true, used: false });
             inFeed("push", () => { (Array.isArray(body) ? body : [body]).forEach(handleMessage); game.connected = true; });
@@ -1159,6 +1180,7 @@ server.on("error", err => {
 module.exports = { server, PORT, DATA, setOcrProvider, getDb: () => DB };
 
 server.listen(PORT, HOST, () => {
+  if (LIC.enforced()) licenseWatch();
   const shown = HOST === "0.0.0.0" ? "localhost" : HOST;
   log(`Chud Hud running`);
   log(`  Dashboard:  http://${shown}:${PORT}/`);

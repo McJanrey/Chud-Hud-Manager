@@ -989,6 +989,9 @@ function ocrLive(){
   $$("[data-rawof]").forEach(td=>{const r=(o.readings||{})[td.dataset.rawof];td.textContent=r?(r.error?"error":(r.raw||"(blank)")):"—"});
   $$("[data-valof]").forEach(td=>{const r=(o.readings||{})[td.dataset.valof];td.textContent=r&&r.value!=null?(r.key==="clock"?SaintsHUD.fmt(r.value):r.value):"—";td.className="read "+(r&&r.ok?"ok":"bad")});
 }
+setInterval(async()=>{try{const s=await(await fetch("/api/license")).json(),lk=s.enforced&&!s.licensed;let b=$("#lockbar");
+  if(lk&&!b){b=document.createElement("div");b.id="lockbar";b.className="scrim";b.style.zIndex=99;b.innerHTML=`<div class="dialog" role="alertdialog"><h2>Locked</h2><p>${esc(s.message||"This copy isn't activated.")}</p><p class="faint">Close this window and open the launcher to enter a code.</p></div>`;document.body.appendChild(b)}
+  else if(!lk&&b)b.remove()}catch(e){}},20000);
 /* shortcuts: Ctrl+K palette, Ctrl+N new event, Esc closes, arrows and Enter in the palette */
 document.addEventListener("keydown",k=>{
   const mod=k.ctrlKey||k.metaKey,key=String(k.key).toLowerCase();
