@@ -19,9 +19,9 @@ const VARIANTS = {
     // the overlay's greens and gold become a haunted purple and pumpkin orange when its stylesheet is served
     colors: [
       [/rgba\(5,\s*24,\s*17/g, "rgba(16,6,26"], [/rgba\(2,\s*14,\s*10/g, "rgba(9,3,15"], [/rgba\(8,\s*36,\s*25/g, "rgba(34,12,48"],
-      [/rgba\(10,\s*62,\s*40/g, "rgba(78,24,104"], [/rgba\(253,\s*200,\s*47/g, "rgba(255,122,26"], [/rgba\(255,\s*200,\s*60/g, "rgba(255,138,43"],
-      [/#07120e/gi, "#0d0614"], [/#1a2a22/gi, "#2a1838"], [/#fdc82f/gi, "#ff7a1a"], [/#ffc531/gi, "#ff8a2b"], [/#ffe08a/gi, "#ffb869"],
-      [/#9db3a8/gi, "#b7a6c9"], [/#cbd6cf/gi, "#ddd0ea"], [/#b9c9bf/gi, "#cbbdd9"], [/#7be3a3/gi, "#8cff4a"],
+      [/rgba\(10,\s*62,\s*40/g, "rgba(78,24,104"], [/rgba\(253,\s*200,\s*47/g, "rgba(225,135,61"], [/rgba\(255,\s*200,\s*60/g, "rgba(240,162,101"],
+      [/#07120e/gi, "#0d0614"], [/#1a2a22/gi, "#2a1838"], [/#fdc82f/gi, "#e1873d"], [/#ffc531/gi, "#e8985a"], [/#ffe08a/gi, "#f0b585"],
+      [/#9db3a8/gi, "#b7a6c9"], [/#cbd6cf/gi, "#ddd0ea"], [/#b9c9bf/gi, "#cbbdd9"], [/#7be3a3/gi, "#65d589"], [/#b48cff/gi, "#8250f0"], [/#c8a2ff/gi, "#9b78f4"], [/#d8c6ff/gi, "#b9a2f8"],
     ],
   },
 };

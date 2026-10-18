@@ -10,24 +10,24 @@
   --text:#F1E9F8;
   --text-2:#B9A8CC;
   --text-3:#9684AD;
-  --accent:#FF7A1A;
-  --accent-ink:#FF9B4A;
-  --on-accent:#1A0A00;
-  --accent-soft:rgba(255,122,26,.13);
-  --accent-line:rgba(255,122,26,.6);
-  --brand:#6B2FB3;
-  --brand-soft:rgba(107,47,179,.3);
-  --ok:#8CFF4A;   --ok-bg:rgba(140,255,74,.12);
+  --accent:#E1873D;
+  --accent-ink:#F0A265;
+  --on-accent:#1A0E00;
+  --accent-soft:rgba(225,135,61,.13);
+  --accent-line:rgba(225,135,61,.6);
+  --brand:#8250F0;
+  --brand-soft:rgba(130,80,240,.3);
+  --ok:#65D589;   --ok-bg:rgba(101,213,137,.13);
   --warn:#FFB020; --warn-bg:rgba(255,176,32,.14);
   --err:#FF4D6A;  --err-bg:rgba(255,77,106,.14);
-  --info:#B48CFF; --info-bg:rgba(180,140,255,.14);
+  --info:#A582F5; --info-bg:rgba(130,80,240,.18);
   --scrim:rgba(6,2,10,.7);
   --stage-bg:#060309;
   --shadow-2:0 8px 28px rgba(0,0,0,.55);
   --shadow-3:0 24px 64px rgba(0,0,0,.7);
   --ring:0 0 0 2px var(--bg),0 0 0 4px var(--accent);
 }
-body{background:radial-gradient(1200px 600px at 85% -10%,rgba(107,47,179,.22),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(255,122,26,.10),transparent 60%),var(--bg)}
+body{background:radial-gradient(1200px 600px at 85% -10%,rgba(130,80,240,.20),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(225,135,61,.10),transparent 60%),var(--bg)}
 
 /* creeping fog along the bottom */
 html[data-variant="lotd"]::after{content:"";position:fixed;left:-20%;right:-20%;bottom:-40px;height:220px;pointer-events:none;z-index:2;
@@ -41,16 +41,16 @@ html[data-variant="lotd"]::before{content:"";position:fixed;right:0;top:0;width:
 
 /* a bat now and then */
 body::after{content:"";position:fixed;left:-80px;top:70px;width:46px;height:24px;pointer-events:none;z-index:3;opacity:0;
-  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -20 100 40'><path fill='%23b48cff' d='M0-5L-6-14-12-8-38-13-50 4-38 0-30 12-21 1-11 8 0 4 11 8 21 1 30 12 38 0 50 4 38-13 12-8 6-14Z'/></svg>") no-repeat center/contain;
+  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -20 100 40'><path fill='%238250f0' d='M0-5L-6-14-12-8-38-13-50 4-38 0-30 12-21 1-11 8 0 4 11 8 21 1 30 12 38 0 50 4 38-13 12-8 6-14Z'/></svg>") no-repeat center/contain;
   animation:lotd-bat 42s linear infinite 6s}
 @keyframes lotd-bat{0%{transform:translate(0,0);opacity:0}2%{opacity:.85}10%{transform:translate(35vw,-30px)}18%{transform:translate(70vw,40px)}26%{transform:translate(112vw,-20px);opacity:.85}28%,100%{transform:translate(112vw,-20px);opacity:0}}
 
 /* the brand glows like a lantern, and the primary button flickers a little */
-.brand b,.tb .nm b,.card h2,.side h1 b{text-shadow:0 0 14px rgba(255,122,26,.55);animation:lotd-flicker 5.5s steps(1,end) infinite}
+.brand b,.tb .nm b,.card h2,.side h1 b{text-shadow:0 0 14px rgba(225,135,61,.55);animation:lotd-flicker 5.5s steps(1,end) infinite}
 @keyframes lotd-flicker{0%,100%{opacity:1}7%{opacity:.78}9%{opacity:1}52%{opacity:1}54%{opacity:.82}55%{opacity:1}}
-.btn.primary{box-shadow:0 0 0 1px rgba(255,122,26,.5),0 6px 22px rgba(255,122,26,.22)}
-.btn.primary:hover{box-shadow:0 0 0 1px rgba(255,155,74,.8),0 8px 28px rgba(255,122,26,.38)}
+.btn.primary{box-shadow:0 0 0 1px rgba(225,135,61,.5),0 6px 22px rgba(225,135,61,.22)}
+.btn.primary:hover{box-shadow:0 0 0 1px rgba(240,162,101,.8),0 8px 28px rgba(225,135,61,.38)}
 .nav a.nl.on::before{box-shadow:0 0 12px var(--accent)}
-.evcard:hover{box-shadow:0 0 0 1px var(--accent-line),0 12px 40px rgba(255,122,26,.18)}
-::selection{background:rgba(255,122,26,.35)}
+.evcard:hover{box-shadow:0 0 0 1px var(--accent-line),0 12px 40px rgba(225,135,61,.18)}
+::selection{background:rgba(225,135,61,.35)}
 @media (prefers-reduced-motion:reduce){html[data-variant="lotd"]::after,body::after,.brand b,.tb .nm b,.card h2,.side h1 b{animation:none}}

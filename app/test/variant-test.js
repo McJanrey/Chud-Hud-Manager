@@ -17,7 +17,7 @@ const lotd = V.forId("lotd"), std = V.forId("");
   check("LOTD has its own port, icon and data folder", lotd.port === 7787 && lotd.camPort === 7788 && lotd.icon === "build/lotd/icon.png" && lotd.dataDir === "Chud Hud LOTD" && lotd.appId !== std.appId);
   const css = fs.readFileSync(path.join(__dirname, "..", "public", "hud.css"), "utf8");
   const out = lotd.hudCss(css);
-  check("the overlay stylesheet is recoloured for LOTD (no gold, no green panels)", !/#fdc82f/i.test(out) && !/rgba\(5,\s*24,\s*17/.test(out) && /#ff7a1a/i.test(out));
+  check("the overlay stylesheet is recoloured for LOTD (no gold, no green panels)", !/#fdc82f/i.test(out) && !/rgba\(5,\s*24,\s*17/.test(out) && /#e1873d/i.test(out));
   check("the standard overlay stylesheet is untouched", std.hudCss(css) === css);
   for (const f of ["public/themes/lotd.css", "public/brand/lotd/chud-hud.png", "build/lotd/icon.png", "build/lotd/icon.ico", "electron-builder.lotd.js"])
     check("ships " + f, fs.existsSync(path.join(__dirname, "..", f)));
@@ -40,7 +40,7 @@ const lotd = V.forId("lotd"), std = V.forId("");
     check("LOTD server reports itself", L.v.id === "lotd" && L.v.name === "Chud Hud LOTD");
     check("LOTD control room is themed and renamed", L.app.text.includes("theme.css") && L.app.text.includes("Chud Hud LOTD"));
     check("LOTD overlay carries no theme", !L.overlay.text.includes("theme.css") && L.overlay.status === 200);
-    check("LOTD serves its Halloween theme", L.theme.text.includes("--accent:#FF7A1A"));
+    check("LOTD serves its Halloween theme", L.theme.text.includes("--accent:#E1873D"));
     check("LOTD serves a recoloured overlay stylesheet", !/#fdc82f/i.test(L.hud.text));
     check("the standard server has no theme and its normal overlay colours", S.theme.text === "" && /#fdc82f/i.test(S.hud.text) && S.v.id === "");
     check("LOTD serves its own logo", !L.logo.equals(S.logo));
