@@ -144,6 +144,12 @@ function valAgentList(){
   if(VALAG===null){VALAG=[];fetch("/api/val/agents").then(r=>r.ok?r.json():[]).then(a=>{if(Array.isArray(a)&&a.length){VALAG=a;if(ui.view==="teams"&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)))render()}else setTimeout(()=>{VALAG=null},30000)}).catch(()=>setTimeout(()=>{VALAG=null},30000))}
   return VALAG;
 }
+/* the maps for the map selection, fetched and kept by the server the same way */
+let VALMP=null;
+function valMapList(){
+  if(VALMP===null){VALMP=[];fetch("/api/val/maps").then(r=>r.ok?r.json():[]).then(a=>{if(Array.isArray(a)&&a.length){VALMP=a;if(ui.view==="val"&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)))render()}else setTimeout(()=>{VALMP=null},30000)}).catch(()=>setTimeout(()=>{VALMP=null},30000))}
+  return VALMP;
+}
 /* the guns for the player panels, fetched and kept by the server the same way */
 let VALWP=null;
 function valWeaponList(){
@@ -623,6 +629,20 @@ val(e){
       <div class="cols">${[0,1].map(s=>{const t=sideTeam(e,s),sq=Math.max(2,Math.min(5,+v.squad||2)),dead=v.dead||{};return`<div class="box"><b>${esc(sideName(e,s))}</b><div class="row c" style="flex-wrap:wrap">${(t?t.players.slice(0,sq):[]).filter(p=>p.alias||p.ign).map(p=>`<button class="btn sm" type="button" data-act="valAlive" data-arg="${esc(p.id)}" aria-pressed="${!!dead[p.id]}">${esc(p.alias||String(p.ign).replace(/#[^#]*$/,""))}${dead[p.id]?" · out":""}</button>`).join("")||`<span class="sub">No named players yet. Add them on Players &amp; Teams.</span>`}</div></div>`}).join("")}</div></div>
       <div class="sec"><div class="sechead"><div><h2>Player panels</h2><p class="sub">VALORANT sends no live numbers, so the panels show what you type here: HP (100 unless you change it, 0 when out), ultimate points, the gun and credits.</p></div></div>
       <div class="cols">${[0,1].map(s=>{const t=sideTeam(e,s),sq=Math.max(2,Math.min(5,+v.squad||2)),P=v.p||{},W=valWeaponList();return`<div class="box"><b>${esc(sideName(e,s))}</b>${(t?t.players.slice(0,sq):[]).filter(p=>p.alias||p.ign).map(p=>{const q=P[p.id]||{},n=(k,x)=>`<input type="number" data-valp="${esc(p.id)}" data-k="${k}" value="${esc(q[k]==null?"":q[k])}" ${x} style="width:62px">`;return`<div class="row c" style="flex-wrap:wrap;gap:6px;margin-top:8px"><span style="min-width:84px">${esc(p.alias||String(p.ign).replace(/#[^#]*$/,""))}</span><label class="sub">HP ${n("hp",'min="0" max="150" placeholder="100"')}</label><label class="sub">Ult ${n("ult",'min="0" max="9" placeholder="0"')}/${n("ultMax",'min="1" max="9" placeholder="8"')}</label><label class="sub">Credits ${n("cr",'min="0" max="99999"')}</label><select data-valp="${esc(p.id)}" data-k="gun" aria-label="Gun"><option value="">No gun</option>${W.map(w=>`<option value="${esc(w.uuid)}"${q.gun===w.uuid?" selected":""}>${esc(w.name)}</option>`).join("")}</select></div>`}).join("")||`<span class="sub">No named players yet.</span>`}</div>`}).join("")}</div></div>
+      ${(()=>{const V=SaintsHUD.vetoFix(v.veto,v.squad),M=valMapList().filter(x=>x.pool===V.pool),tg=s=>sideName(e,s),used=V.steps.map(x=>x.map);
+        const sel=(i,k,opts,val)=>`<select data-veto="${i}" data-k="${k}" aria-label="${k}">${opts.map(([o,t])=>`<option value="${esc(String(o))}"${String(val)===String(o)?" selected":""}>${esc(t)}</option>`).join("")}</select>`;
+        return`<div class="sec"><div class="sechead"><div><h2>Map selection</h2><p class="sub">Fill each map in as the veto happens and the Map Selection scene follows. A step with no map shows the team's logo, dimmed.</p></div><div class="row c"><button class="btn primary" type="button" data-act="scene" data-arg="mapveto">Show map selection</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to in-game</button></div></div>
+        <div class="cols" style="--n:4"><label class="fld"><span>Format</span><select data-vetofmt="fmt">${Object.entries(SaintsHUD.VETO_FMT).map(([k,t])=>`<option value="${k}"${V.fmt===k?" selected":""}>${t}</option>`).join("")}</select></label><label class="fld"><span>Map pool</span><select data-vetofmt="pool"><option value="comp"${V.pool==="comp"?" selected":""}>Competitive (7 maps)</option><option value="skirmish"${V.pool==="skirmish"?" selected":""}>2v2 Skirmish</option></select></label><div class="fld"><span>&nbsp;</span><button class="btn danger" type="button" data-act="vetoReset">Clear the maps</button></div></div>
+        ${M.length?"":`<p class="note">The map list comes from valorant-api.com the first time; it appears here once the app is online.</p>`}
+        <div class="sec" style="gap:6px">${V.steps.map((x,i)=>`<div class="row c" style="gap:6px;flex-wrap:wrap"><b style="min-width:22px">${i+1}</b>
+          ${sel(i,"team",[[0,tg(0)],[1,tg(1)],[-1,"Decider"]],x.team)}${sel(i,"act",[["ban","Veto"],["pick","Select"],["decider","Decider"]],x.act)}
+          ${sel(i,"map",[["","No map yet"],...M.filter(mp=>mp.uuid===x.map||!used.includes(mp.uuid)).map(mp=>[mp.uuid,mp.name])],x.map)}
+          ${x.act==="ban"?"":sel(i,"side",[["","No side yet"],["atk","Attack"],["def","Defense"]],x.side)+sel(i,"by",[[0,tg(0)+" picks the side"],[1,tg(1)+" picks the side"]],x.by)}</div>`).join("")}</div></div>`})()}
+      ${(()=>{const A=SaintsHUD.agsInfo(e),V=SaintsHUD.vetoFix(v.veto,v.squad),AG=valAgentList(),sq=Math.max(2,Math.min(5,+v.squad||2));
+        const maps=V.steps.map((x,i)=>[i,x]).filter(([i,x])=>x.map&&x.act!=="ban");
+        return`<div class="sec"><div class="sechead"><div><h2>Agent select</h2><p class="sub">Pick each player's agent as they hover and lock it in; the Agent Select scene follows. With no agent the card glows in the team colour (still picking).</p></div><div class="row c"><button class="btn primary" type="button" data-act="scene" data-arg="agents">Show agent select</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to in-game</button></div></div>
+        <div class="cols" style="--n:3"><label class="fld"><span>Map being played</span><select data-agsstep>${maps.length?maps.map(([i,x])=>`<option value="${i}"${A.step===i?" selected":""}>${esc(x.name||"Map "+(i+1))}${x.act==="decider"?" (decider)":""}</option>`).join(""):`<option value="-1">Fill the map selection first</option>`}</select></label></div>
+        <div class="cols">${[0,1].map(s=>{const t=sideTeam(e,s);return`<div class="box"><b>${esc(sideName(e,s))}</b>${(t?t.players.slice(0,sq):[]).filter(p=>p.alias||p.ign).map(p=>`<div class="row c" style="gap:6px;margin-top:8px;flex-wrap:wrap"><span style="min-width:84px">${esc(p.alias||String(p.ign).replace(/#[^#]*$/,""))}</span><select data-agspid="${esc(p.id)}" data-k="agent" aria-label="Agent"><option value="">No agent yet</option>${AG.map(a=>`<option value="${esc(a.uuid)}"${p.agent===a.uuid?" selected":""}>${esc(a.name)}</option>`).join("")}</select><select data-agspid="${esc(p.id)}" data-k="st" aria-label="State"><option value="lock"${(A.st[p.id]||"lock")!=="hover"?" selected":""}>Locked in</option><option value="hover"${A.st[p.id]==="hover"?" selected":""}>Hovering</option></select></div>`).join("")||`<span class="sub">No named players yet.</span>`}</div>`}).join("")}</div></div>`})()}
       <div class="sec"><div class="sechead"><div><h2>Top bar background</h2><p class="sub">The built-in look, a transparent bar, or your own picture or video behind it (PNG, JPG, WebP, GIF, or an MP4, WebM or MOV that loops; 1143 × 86 at 1080p fills it exactly).</p></div></div>
       <div class="cols" style="--n:2">${F.sel("val.barStyle","Style",[["solid","Built-in look"],["clear","Transparent"],["media","Your picture or video"]],"data-rerender")}${v.barStyle==="media"?`<div class="fld"><span>Picture or video</span><div class="dz mini" style="width:100%;min-height:56px">${v.barBg?(/\.(mp4|webm|mov)$/i.test(v.barBg)?`<video src="${esc(v.barBg)}" muted loop autoplay playsinline style="max-height:56px"></video>`:`<img src="${esc(v.barBg)}" alt="">`)+`<button class="btn icon x" type="button" data-act="clearImg" data-path="val.barBg" aria-label="Remove background">${ico("x")}</button>`:ico("up")}<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime,.mov" data-upload="val.barBg" data-video aria-label="Top bar picture or video"></div></div>`:""}</div></div>
       <p class="note">Each team has ${Math.max(2,Math.min(5,+v.squad||2))} players. Add them (and their agents) on Players &amp; Teams.</p></div>
@@ -937,6 +957,7 @@ document.addEventListener("click",async ev0=>{
     case "valUndo":{const r=[...(e.val.rounds||[])],i=r.pop();if(i===undefined)break;const sc=[...e.live.score];sc[i]=Math.max(0,(sc[i]||0)-1);put("live.score",sc);put("val.rounds",r);break}
     case "valReset":put("live.score",[0,0]);put("val.rounds",[]);put("val.dead",{});put("val.aliveUsed",false);break;
     case "valAlive":{const d=Object.assign({},e.val.dead||{});if(d[arg])delete d[arg];else d[arg]=true;put("val.dead",d);put("val.aliveUsed",true);break}
+    case "vetoReset":{const V=SaintsHUD.vetoFix(e.val.veto,e.val.squad);put("val.veto",Object.assign({},V,{steps:V.steps.map(x=>Object.assign({},x,{map:"",name:"",side:""}))}));render();break}
     case "valAllAlive":put("val.dead",{});put("val.aliveUsed",false);break;
     case "dbdAdd":{const t=e.dbd.trials,last=t[t.length-1];put("dbd.trials",[...t,{killer:last?1-last.killer:0,kills:0,escapes:0,gens:0}]);break}
     case "dbdFromOcr":{const v=gameOcr();if(!v)break;const r=dbdRead(v);put("dbd.trials",[...e.dbd.trials,{killer:+arg,kills:r.kills,escapes:r.escapes,gens:r.gens}]);toast("Trial added from the screen.");break}
@@ -977,6 +998,19 @@ document.addEventListener("change",ev0=>{
   if(el.id==="evgame"){ui.evgame=el.value;$("#evgrid").innerHTML=evCards();return}
   if(el.id==="evsort"){ui.evsort=el.value;$("#evgrid").innerHTML=evCards();return}
   if(el.dataset.upload!==undefined){upload(el,el.files[0]);return}
+  if(el.dataset.vetofmt){const e=ev();if(!e)return;const V=SaintsHUD.vetoFix(e.val.veto,e.val.squad);V[el.dataset.vetofmt]=el.value;put("val.veto",{fmt:V.fmt,pool:V.pool,steps:SaintsHUD.vetoPreset(V.fmt,V.pool)});render();return} // a new format or pool starts a fresh order
+  if(el.dataset.veto!==undefined){const e=ev();if(!e)return;const V=SaintsHUD.vetoFix(e.val.veto,e.val.squad),x=V.steps[+el.dataset.veto],k=el.dataset.k;if(!x)return;
+    if(k==="team"||k==="by")x[k]=+el.value;else x[k]=el.value;
+    if(k==="map"){const mp=(VALMP||[]).find(q=>q.uuid===el.value);x.name=mp?mp.name:""}
+    if(k==="team"){if(x.team<0)x.act="decider";else if(x.act==="decider")x.act="pick";x.by=x.team===0?1:0}
+    if(k==="act"&&el.value==="decider")x.team=-1;
+    put("val.veto",V);updateStages();render();return}
+  if(el.dataset.agsstep!==undefined){const e=ev();if(!e)return;put("val.ags",Object.assign({},e.val.ags||{},{step:+el.value}));updateStages();return}
+  if(el.dataset.agspid){const e=ev();if(!e)return;const a=Object.assign({st:{}},e.val.ags||{}),pid=el.dataset.agspid;a.st=Object.assign({},a.st);
+    if(el.dataset.k==="st"){a.st[pid]=el.value;put("val.ags",a)}
+    else{const ti=e.teams.findIndex(t=>t.players.some(p=>p.id===pid)),pi=ti<0?-1:e.teams[ti].players.findIndex(p=>p.id===pid);if(pi<0)return;const ag=(VALAG||[]).find(x=>x.uuid===el.value);
+      put(`teams.${ti}.players.${pi}.agent`,el.value);put(`teams.${ti}.players.${pi}.agentName`,ag?ag.name:"")}
+    updateStages();render();return}
   if(el.dataset.valp){const e=ev();if(!e)return;const P=Object.assign({},e.val.p||{}),q=Object.assign({},P[el.dataset.valp]||{}),k=el.dataset.k; // one player's panel numbers, saved as a whole map (the server only sets existing paths)
     q[k]=k==="gun"?el.value:el.value===""?"":Math.max(0,parseInt(el.value)||0);P[el.dataset.valp]=q;put("val.p",P);updateStages();return}
   if(el.id==="ocrLayout"){if(OCR_LAYOUTS[el.value]){ocrCfg().regions=OCR_LAYOUTS[el.value].map(([key,x,y,w,h])=>({id:uid(),key,label:"",type:OCR_ROLES[key][1],polarity:"auto",x,y,w,h}));OCR.sel=null;ocrBoxes();ocrRows();ocrSave()}el.value="";return}
@@ -985,6 +1019,7 @@ document.addEventListener("change",ev0=>{
     ocrBoxes();ocrRows();ocrSave();return}
   if(el.id==="rpTime"){lolPost("playback",{time:+el.value});return}
   if(el.dataset.rp){lolPost("render",{[el.dataset.rp]:el.type==="checkbox"?el.checked:el.value});return}
+  if(/^teams\.\d+\.players\.\d+\.agent$/.test(el.dataset.bind||"")){const ag=(VALAG||[]).find(x=>x.uuid===el.value);put(el.dataset.bind+"Name",ag?ag.name:"")} // the agent's name for the Agent Select cards
   if(el.dataset.bind==="val.squad"){const e=ev();if(e)e.teams.forEach((t,i)=>{const n=Math.max(2,Math.min(5,+e.val.squad||2));if(t.players.length<n){while(t.players.length<n)t.players.push(Object.assign(blankPlayer(),{agent:""}));put(`teams.${i}.players`,t.players)}})} // a bigger squad seats the empty roster rows
   if(el.dataset.rerender!==undefined||el.dataset.bind==="hud.show.playerCam"||/(^teams\.\d+\.(color|tag|name)$)|^camera\./.test(el.dataset.bind||""))render();
 });

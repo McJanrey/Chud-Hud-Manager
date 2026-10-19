@@ -87,6 +87,11 @@ function genericFields(m, ev, game, ctx, f) { // games read by screen OCR or ent
   f["TIMER"] = clock(m.clock); SIDES.forEach((S, s) => { f[`SCORE ${S}`] = m.score[s]; });
   if (m.kind === "val") {
     const vi = HUD.valInfo(m), names = ctx.agents || {};
+    HUD.vetoFix(ev.val && ev.val.veto, ev.val && ev.val.squad).steps.forEach((x, i) => { // the map selection, one row per step
+      const who = s => s < 0 ? "DECIDER" : String(((ev.teams.find(t => t.id === (s ? ev.live.right : ev.live.left))) || {}).tag || (s ? "RIGHT" : "LEFT"));
+      f[`MAP ${i + 1} NAME`] = x.name || ""; f[`MAP ${i + 1} ACTION`] = x.act === "ban" ? "VETO" : x.act === "pick" ? "PICK" : "DECIDER"; f[`MAP ${i + 1} TEAM`] = who(x.team);
+      f[`MAP ${i + 1} SIDE`] = x.side ? `${who(x.by)} ${x.side === "atk" ? "ATTACK" : "DEFENSE"}` : "";
+    });
     f["ROUNDS TO WIN"] = vi.target; f["ROUND"] = vi.round; f["TIMER"] = vi.fresh ? clock(m.clock) : ""; // same rules as the scene: the clock only while a screen read is fresh
     SIDES.forEach((S, s) => { f[`PLAYERS LEFT ${S}`] = vi.left[s]; });
     for (let s = 0; s < 2; s++) for (let i = 0; i < 5; i++) { // P1..P5 left team, P6..P10 right team; seats the squad does not use stay empty

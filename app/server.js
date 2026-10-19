@@ -59,7 +59,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
         judges: [], judgeScores: {}, audience: { open: false, weight: 0, scores: {} } },
       poll: { question: "", options: ["", ""], open: false, show: false, counts: [0, 0], total: 0 } },
     // VALORANT 2v2 Skirmish: first to "target" rounds, scored by hand
-    val: { target: 10, squad: 2, dead: {}, aliveUsed: false, p: {}, barBg: "", barStyle: "solid" }, // squad: players a side (2 to 5); dead: player id -> true while out this round; aliveUsed: a toggle was used since the last reset;
+    val: { target: 10, squad: 2, dead: {}, aliveUsed: false, p: {}, barBg: "", barStyle: "solid", veto: null }, // squad: players a side (2 to 5); dead: player id -> true while out this round; aliveUsed: a toggle was used since the last reset;
     // p: player id -> { hp, ult, ultMax, gun, cr } typed by the operator (VALORANT has no live feed); barStyle: solid | clear | media, barBg: the picture or video behind the top bar
     // Dead by Daylight: one trial is a killer against survivors; points per kill, per escape and per generator
     dbd: { killPts: 1, escapePts: 1, genPts: 0, trials: [] },
@@ -87,6 +87,7 @@ function upgrade(ev) {
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
   ev.val = Object.assign({}, d.val, ev.val); ev.val.squad = Math.max(2, Math.min(5, Math.round(+ev.val.squad) || 2)); if (!ev.val.dead || typeof ev.val.dead !== "object" || Array.isArray(ev.val.dead)) ev.val.dead = {};
   if (!ev.val.p || typeof ev.val.p !== "object" || Array.isArray(ev.val.p)) ev.val.p = {}; if (!["solid", "clear", "media"].includes(ev.val.barStyle)) ev.val.barStyle = "solid";
+  ev.val.veto = require("./public/hud.js").vetoFix(ev.val.veto, ev.val.squad); // map selection: format, pool and one step per map
   if (ev.game === "Valorant") ev.teams.forEach(t => t.players.forEach(p => { if (p.agent === undefined) p.agent = ""; })); // the agent a player picks (a valorant-api.com uuid)
   ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn);
   ev.fn.matches.forEach(m => { m.place = m.place || []; m.elims = m.elims || []; });
@@ -661,14 +662,14 @@ const COVER_SRC = {
 };
 const coverSlug = g => String(g).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const IMG_MAGIC = [[[0xff, 0xd8, 0xff], "image/jpeg"], [[0x89, 0x50, 0x4e, 0x47], "image/png"], [[0x52, 0x49, 0x46, 0x46], "image/webp"]];
-function fetchImage(url, hops = 3) {
+function fetchImage(url, hops = 3, max = 4e6) { // max: bytes allowed (map art is larger than a cover)
   return new Promise((resolve, reject) => {
     const get = url.startsWith("https") ? https : http;
     get.get(url, { timeout: 15000, headers: { "user-agent": "SaintsHUD" } }, r => {
-      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && hops > 0) { r.resume(); return resolve(fetchImage(new URL(r.headers.location, url).href, hops - 1)); }
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && hops > 0) { r.resume(); return resolve(fetchImage(new URL(r.headers.location, url).href, hops - 1, max)); }
       if (r.statusCode !== 200) { r.resume(); return reject(new Error("HTTP " + r.statusCode)); }
       const chunks = []; let size = 0;
-      r.on("data", c => { size += c.length; if (size > 4e6) { r.destroy(); reject(new Error("file too large")); } else chunks.push(c); });
+      r.on("data", c => { size += c.length; if (size > max) { r.destroy(); reject(new Error("file too large")); } else chunks.push(c); });
       r.on("end", () => { const b = Buffer.concat(chunks), m = IMG_MAGIC.find(([sig]) => sig.every((x, i) => b[i] === x)); m ? resolve({ buf: b, type: m[1] }) : reject(new Error("not an image")); });
     }).on("error", reject).on("timeout", function () { this.destroy(new Error("timed out")); });
   });
@@ -688,7 +689,8 @@ async function coverFor(slug) {
 // and nothing is fetched during a show once it has been seen. Offline, a panel falls back to an initials tile.
 const VAL_DIR = path.join(DATA, "val-agents");
 const VAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const VAL_KINDS = new Set(["displayicon", "killfeedportrait", "fullportrait"]);
+const valFresh = name => { try { return Date.now() - fs.statSync(path.join(VAL_DIR, name)).mtimeMs < 3 * 864e5; } catch { return false; } }; // lists are re-checked every 3 days so new agents, guns and maps appear
+const VAL_KINDS = new Set(["displayicon", "killfeedportrait", "fullportrait", "role"]); // role: the agent's role icon
 let valAgents = null;
 function valAgentCache() { // the cached list from disk (null when never fetched); also feeds the vMix agent names
   if (valAgents) return valAgents;
@@ -696,11 +698,11 @@ function valAgentCache() { // the cached list from disk (null when never fetched
   return valAgents;
 }
 async function valAgentList() {
-  const have = valAgentCache(); if (have) return have;
-  const j = await getJson("https://valorant-api.com/v1/agents?isPlayableCharacter=true");
+  const have = valAgentCache(); if (have && have.every(a => a.roleId !== undefined) && valFresh("agents.json")) return have; // a list saved before role icons is refreshed once
+  let j; try { j = await getJson("https://valorant-api.com/v1/agents?isPlayableCharacter=true"); } catch (e) { if (have) return have; throw e; }
   if (!j || !Array.isArray(j.data)) throw new Error("unexpected answer");
   const seen = new Set(), list = j.data.filter(a => a && a.isPlayableCharacter !== false && VAL_UUID.test(String(a.uuid)) && !seen.has(a.uuid) && seen.add(a.uuid))
-    .map(a => ({ uuid: a.uuid, name: String(a.displayName || "").slice(0, 40), role: String((a.role && a.role.displayName) || "").slice(0, 30) }))
+    .map(a => ({ uuid: a.uuid, name: String(a.displayName || "").slice(0, 40), role: String((a.role && a.role.displayName) || "").slice(0, 30), roleId: a.role && VAL_UUID.test(String(a.role.uuid)) ? a.role.uuid : "" }))
     .filter(a => a.name).sort((a, b) => a.name.localeCompare(b.name));
   if (!list.length) throw new Error("no agents in the answer");
   fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(path.join(VAL_DIR, "agents.json"), JSON.stringify(list));
@@ -713,8 +715,8 @@ function valWeaponCache() {
   return valWeapons;
 }
 async function valWeaponList() { // every gun (and the knife) with its shop category, for the loadout picker on the Skirmish page
-  const have = valWeaponCache(); if (have) return have;
-  const j = await getJson("https://valorant-api.com/v1/weapons");
+  const have = valWeaponCache(); if (have && valFresh("weapons.json")) return have;
+  let j; try { j = await getJson("https://valorant-api.com/v1/weapons"); } catch (e) { if (have) return have; throw e; } // offline: the saved list
   if (!j || !Array.isArray(j.data)) throw new Error("unexpected answer");
   const order = ["Sidearms", "SMGs", "Shotguns", "Rifles", "Sniper Rifles", "Heavy Weapons", ""];
   const list = j.data.filter(w => w && VAL_UUID.test(String(w.uuid))).map(w => ({ uuid: w.uuid, name: String(w.displayName || "").slice(0, 30), cat: String((w.shopData && w.shopData.category) || "").slice(0, 30), cost: +(w.shopData && w.shopData.cost) || 0 }))
@@ -722,6 +724,35 @@ async function valWeaponList() { // every gun (and the knife) with its shop cate
   if (!list.length) throw new Error("no weapons in the answer");
   fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(path.join(VAL_DIR, "weapons.json"), JSON.stringify(list));
   valWeapons = list; return list;
+}
+// The maps for the map selection scene: the competitive pool (the maps with bomb sites) and the 2v2 Skirmish maps, with their tall
+// card art, from valorant-api.com; listed once, pictures fetched on first use and kept in the data folder like the agents.
+const VAL_MAP_KINDS = new Set(["listviewicontall", "listviewicon", "splash"]);
+let valMaps = null;
+function valMapCache() {
+  if (valMaps) return valMaps;
+  try { const a = JSON.parse(fs.readFileSync(path.join(VAL_DIR, "maps.json"), "utf8")); if (Array.isArray(a) && a.length) valMaps = a; } catch { /* not fetched yet */ }
+  return valMaps;
+}
+async function valMapList() {
+  const have = valMapCache(); if (have && valFresh("maps.json")) return have;
+  let j; try { j = await getJson("https://valorant-api.com/v1/maps"); } catch (e) { if (have) return have; throw e; } // offline: the saved list
+  if (!j || !Array.isArray(j.data)) throw new Error("unexpected answer");
+  const list = j.data.filter(m => m && VAL_UUID.test(String(m.uuid)) && m.displayName).map(m => {
+    const name = String(m.displayName).slice(0, 30), pool = m.tacticalDescription ? "comp" : /^Skirmish\b/i.test(name) ? "skirmish" : "";
+    return { uuid: m.uuid, name, pool };
+  }).filter(m => m.pool).sort((a, b) => a.pool.localeCompare(b.pool) || a.name.localeCompare(b.name));
+  if (!list.length) throw new Error("no maps in the answer");
+  fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(path.join(VAL_DIR, "maps.json"), JSON.stringify(list));
+  valMaps = list; return list;
+}
+async function valMapImage(uuid, kind) {
+  const f = path.join(VAL_DIR, "m_" + uuid + "_" + kind + ".png");
+  if (fs.existsSync(f)) return fs.readFileSync(f);
+  const got = await fetchImage(`https://media.valorant-api.com/maps/${uuid}/${kind}.png`, 3, 16e6); // the tall card art is about 5 MB
+  if (got.type !== "image/png") throw new Error("not a PNG");
+  fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(f, got.buf);
+  return got.buf;
 }
 const valWeaponNames = () => Object.fromEntries((valWeaponCache() || []).map(w => [w.uuid, w.name]));
 async function valWeaponImage(uuid) {
@@ -736,7 +767,9 @@ const valAgentNames = () => Object.fromEntries((valAgentCache() || []).map(a => 
 async function valAgentImage(uuid, kind) {
   const f = path.join(VAL_DIR, uuid + "_" + kind + ".png");
   if (fs.existsSync(f)) return fs.readFileSync(f);
-  const got = await fetchImage(`https://media.valorant-api.com/agents/${uuid}/${kind}.png`);
+  let src = `https://media.valorant-api.com/agents/${uuid}/${kind}.png`;
+  if (kind === "role") { const a = (await valAgentList()).find(x => x.uuid === uuid); if (!a || !a.roleId) throw new Error("no role"); src = `https://media.valorant-api.com/agents/roles/${a.roleId}/displayicon.png`; }
+  const got = await fetchImage(src, 3, 16e6);
   if (got.type !== "image/png") throw new Error("not a PNG");
   fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(f, got.buf);
   return got.buf;
@@ -1219,6 +1252,13 @@ const server = http.createServer((req, res) => {
       }).catch(e => json(res, 502, { error: e.message }));
     }
     if (p === "/api/val/agents") return valAgentList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the agent list: " + e.message }));
+    if (p === "/api/val/maps") return valMapList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the map list: " + e.message }));
+    if (p.startsWith("/val-map/")) { // a map's card art: strict uuid and kind, fetched once, then served from the data folder
+      const mt = /^\/val-map\/([^/]+)\/([a-z]+)\.png$/.exec(p);
+      if (!mt || !VAL_UUID.test(mt[1]) || !VAL_MAP_KINDS.has(mt[2])) return json(res, 400, { error: "bad path" });
+      return valMapImage(mt[1], mt[2]).then(buf => { res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" }); res.end(buf); })
+        .catch(e => json(res, 502, { error: e.message }));
+    }
     if (p === "/api/val/weapons") return valWeaponList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the weapon list: " + e.message }));
     if (p.startsWith("/val-weapon/")) { // a gun's white kill-feed silhouette, same rules as the agent pictures
       const mt = /^\/val-weapon\/([^/]+)\.png$/.exec(p);

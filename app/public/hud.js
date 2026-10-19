@@ -40,7 +40,7 @@
   const SCENES = {
     ingame: "Ingame HUD", bracket: "Bracket", casters: "Caster Nameplates", lowerthird: "Lower Thirds",
     rankings: "Rankings Screen", replay: "Replay", schedule: "Schedule", starting: "Starting Soon",
-    statsplayer: "Stats Page Individual", statsteam: "Stats Page Team", lineup: "Team Lineup", timer: "Timer", title: "Title Screen", draft: "Champion Select",
+    statsplayer: "Stats Page Individual", statsteam: "Stats Page Team", lineup: "Team Lineup", timer: "Timer", title: "Title Screen", draft: "Champion Select", mapveto: "Map Selection", agents: "Agent Select",
   };
 
   /* Combine event config with the live game feed into one view model. */
@@ -747,6 +747,79 @@
     return { html: h + pc.html, cams: pc.cams };
   };
 
+  /* Map selection (VALORANT veto). A step is { team: 0 left | 1 right | -1 decider, act: "ban" | "pick" | "decider", map: uuid, name,
+     side: "" | "atk" | "def", by: the side (0/1) that chose it }. Presets follow the usual orders: the competitive pool has seven maps,
+     2v2 Skirmish five. vetoFix makes any stored value safe, so the server, the dashboard and the scene read the same thing. */
+  const VETO_FMT = { bo1: "Best of 1", bo3: "Best of 3", bo5: "Best of 5" };
+  function vetoPreset(fmt, pool) {
+    const B = t => ({ team: t, act: "ban" }), P = t => ({ team: t, act: "pick" }), D = { team: -1, act: "decider" };
+    const seq = pool === "skirmish"
+      ? { bo1: [B(0), B(1), B(0), B(1), D], bo3: [B(0), B(1), P(0), P(1), D], bo5: [P(0), P(1), P(0), P(1), D] }[fmt]
+      : { bo1: [B(0), B(1), B(0), B(1), B(0), B(1), D], bo3: [B(0), B(1), P(0), P(1), B(0), B(1), D], bo5: [B(0), B(1), P(0), P(1), P(0), P(1), D] }[fmt];
+    return (seq || []).map(x => Object.assign({ map: "", name: "", side: "", by: x.team === 0 ? 1 : 0 }, x));
+  }
+  function vetoFix(v, squad) {
+    const o = v && typeof v === "object" && !Array.isArray(v) ? v : {};
+    const pool = o.pool === "skirmish" || o.pool === "comp" ? o.pool : (+squad || 2) === 2 ? "skirmish" : "comp", fmt = VETO_FMT[o.fmt] ? o.fmt : "bo3";
+    const steps = Array.isArray(o.steps) && o.steps.length ? o.steps.slice(0, 9) : vetoPreset(fmt, pool);
+    return { fmt, pool, steps: steps.map(x => { x = x && typeof x === "object" ? x : {};
+      const team = x.team === 0 || x.team === 1 ? x.team : -1, act = ["ban", "pick", "decider"].includes(x.act) ? x.act : team < 0 ? "decider" : "ban";
+      return { team, act, map: VAL_UUID.test(String(x.map || "")) ? x.map : "", name: String(x.name || "").slice(0, 30), side: x.side === "atk" || x.side === "def" ? x.side : "", by: x.by === 0 || x.by === 1 ? x.by : team === 0 ? 1 : 0 }; }) };
+  }
+  S.mapveto = (m) => {
+    const ev = m.ev, [L, R] = m.sides, v = vetoFix((ev.val || {}).veto, (ev.val || {}).squad), n = v.steps.length || 1;
+    const tag = s => { const t = s ? R : L; return String((t && (t.tag || t.name)) || (s ? "TEAM B" : "TEAM A")).toUpperCase(); };
+    const logo = (s, cls) => { const t = s ? R : L, u = t && (t.logos || []).find(Boolean); return u ? `<img class="${cls}" src="${esc(u)}" alt="" onerror="this.style.display='none'">` : ""; };
+    const emb = (ev.tournament.logos || []).find(Boolean);
+    const decider = emb ? `<img class="lg" src="${esc(emb)}" alt="" onerror="this.style.display='none'">`
+      : `<svg class="dc" viewBox="0 0 100 100"><path d="M20 8 L42 30 L34 38 L12 16 Z M80 8 L58 30 L66 38 L88 16 Z M20 92 L42 70 L34 62 L12 84 Z M80 92 L58 70 L66 62 L88 84 Z M50 36 L64 50 L50 64 L36 50 Z"/></svg>`;
+    const cards = v.steps.map((x, i) => {
+      const who = x.team < 0 ? "DECIDER" : tag(x.team), what = x.act === "ban" ? "VETO MAP" : x.act === "pick" ? "SELECT MAP" : "MAP";
+      let body;
+      if (!x.map) body = x.team < 0 ? decider : (logo(x.team, "lg dim") || `<b class="tg">${esc(tag(x.team))}</b>`); // waiting: the team's logo, dimmed
+      else {
+        const art = artImg(`/val-map/${x.map}/listviewicontall.png`, "art"), nm = esc(String(x.name || "").toUpperCase());
+        body = x.act === "ban" ? `${art}<b class="mn ghost">${nm}</b><svg class="no" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42"/><line x1="21" y1="79" x2="79" y2="21"/></svg>`
+          : `${art}${x.side ? `<span class="sd">${esc(tag(x.by))} PICKS<br>${x.side === "atk" ? "ATTACK" : "DEFENSE"}</span>` : ""}<b class="mn">${nm}</b>`;
+      }
+      return `<div class="vc ${x.map ? x.act : "wait"}${x.team < 0 ? " dec" : ""}" data-k="vc-${i}-${x.map || "w"}" style="--c:${esc(x.team < 0 ? "#c9b27c" : m.colors[x.team])}"><div class="cd">${body}</div><span class="lb">${esc(who)}<br>${what}</span></div>`;
+    }).join("");
+    return { html: `<div class="v3-veto" data-k="v3-veto" style="--n:${n}"><div class="vt-hd"><b class="tt">MAP SELECTION</b><span class="vs">${logo(0, "tl")}<b>${esc(tag(0))}</b><i>VS</i><b>${esc(tag(1))}</b>${logo(1, "tl")}</span></div><div class="vt-row">${cards}</div></div>`, cams: [] };
+  };
+
+  /* Agent select, on MJ's reference: team name, logo, series dots and side on each end, the tournament in the middle, then a card per
+     player either side of the map being played. A card is empty (the team colour glows: still picking), hovering (the agent under a team
+     tint) or locked (the agent, clean, with the team underline). val.ags = { step: which veto step is being played, st: player id -> "hover" | "none" }. */
+  function agsInfo(ev) {
+    const v = ev.val || {}, V = vetoFix(v.veto, v.squad), a = v.ags && typeof v.ags === "object" ? v.ags : {};
+    const played = V.steps.map((x, i) => i).filter(i => V.steps[i].map && V.steps[i].act !== "ban");
+    const step = played.includes(+a.step) ? +a.step : played.length ? played[0] : -1, x = step >= 0 ? V.steps[step] : null;
+    const side = s => !x || !x.side ? "" : (x.by === s) === (x.side === "atk") ? "ATK" : "DEF"; // the side each team plays first on this map
+    return { step, map: x, side, st: a.st && typeof a.st === "object" ? a.st : {} };
+  }
+  S.agents = (m) => {
+    const ev = m.ev, [L, R] = m.sides, A = agsInfo(ev), n = Math.max(2, Math.min(5, m.squad || 2));
+    const roster = {}; ev.teams.forEach(t => (t.players || []).forEach(p => { roster[p.id] = p; }));
+    const tag = s => { const t = s ? R : L; return String((t && (t.tag || t.name)) || (s ? "TEAM B" : "TEAM A")).toUpperCase(); };
+    const logo = s => { const t = s ? R : L, u = t && (t.logos || []).find(Boolean); return u ? `<img class="tl" src="${esc(u)}" alt="" onerror="this.style.display='none'">` : ""; };
+    const need = Math.max(1, Math.ceil((+ev.live.bestOf || 1) / 2)), won = s => Math.max(0, Math.min(need, +m.series[s] || 0));
+    const dots = s => `<span class="dt">${Array.from({ length: need }, (_, k) => `<i class="${k < won(s) ? "on" : ""}"></i>`).join("")}</span>`;
+    const end = s => `<div class="en ${s ? "r" : "l"}" data-k="ag-en-${s}"><b class="nm">${esc(tag(s))}</b>${logo(s)}${dots(s)}${A.side(s) ? `<b class="sd">${A.side(s)}</b>` : ""}</div>`;
+    const emb = (ev.tournament.logos || []).find(Boolean), tname = String(ev.tournament.name || "").trim();
+    const mid = emb || tname ? `<div class="tn" data-k="ag-tn">${emb ? `<img src="${esc(emb)}" alt="" onerror="this.style.display='none'">` : ""}${tname ? `<b>${esc(tname.toUpperCase())}</b>` : ""}</div>` : "";
+    const card = (s, i) => {
+      const p = m.players[s][i], r = (p && p.pid && roster[p.pid]) || {}, name = p && p.shortcut !== 0 ? noTag(p.display) : "";
+      const ag = VAL_UUID.test(String((p && p.agent) || "")) ? p.agent : "", st = !ag ? "none" : A.st[p.pid] === "hover" ? "hover" : "lock";
+      const art = ag ? artImg(`/val-agent/${ag}/fullportrait.png`, "art") : "", role = ag ? artImg(`/val-agent/${ag}/role.png`, "ro") : "";
+      return `<div class="ac ${s ? "r" : "l"} ${st}" data-k="ag-${s}-${i}-${ag || "x"}-${st}" style="--c:${esc(m.colors[s])}"><i class="gl"></i>${art}${st === "hover" ? `<i class="tint"></i>` : ""}${role}
+        ${name ? `<span class="tx"><b>${esc(name.toUpperCase())}</b>${r.agentName && ag ? `<small>${esc(String(r.agentName).toUpperCase())}</small>` : ""}</span>` : ""}<i class="ul"></i></div>`;
+    };
+    const mp = A.map ? `<div class="ac mp" data-k="ag-map-${A.map.map}">${artImg(`/val-map/${A.map.map}/listviewicontall.png`, "art")}<b class="mn">${esc(String(A.map.name || "").toUpperCase())}</b></div>`
+      : `<div class="ac mp" data-k="ag-map-none"></div>`;
+    const cards = Array.from({ length: n }, (_, i) => card(0, i)).join("") + mp + Array.from({ length: n }, (_, i) => card(1, i)).join("");
+    return { html: `<div class="v3-ags" data-k="v3-ags" style="--k:${2 * n + 1}">${end(0)}${mid}${end(1)}<div class="ag-row">${cards}</div></div>`, cams: [] };
+  };
+
   S.dbdingame = (m) => {
     const ev = m.ev, [L, R] = m.sides, d = dbdScore(ev), n = d.trials.length, cur = d.trials[n - 1];
     const role = s => (!cur ? "" : cur.killer === s ? "KILLER" : "SURVIVORS");
@@ -1025,7 +1098,7 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m).html; }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail };
+  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, vetoPreset, vetoFix, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

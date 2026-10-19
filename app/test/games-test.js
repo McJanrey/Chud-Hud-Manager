@@ -70,7 +70,7 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAJ6xk2AAAAABJRU5ErkJggg==", "base64");
     fs.mkdirSync(path.join(dataDir, "val-agents"), { recursive: true });
     fs.writeFileSync(path.join(dataDir, "val-agents", `${AG}_displayicon.png`), PNG);
-    fs.writeFileSync(path.join(dataDir, "val-agents", "agents.json"), JSON.stringify([{ uuid: AG, name: "Jett", role: "Duelist" }, { uuid: "5f8d3a7f-467b-97f3-062c-13acf203c006", name: "Breach", role: "Initiator" }]));
+    fs.writeFileSync(path.join(dataDir, "val-agents", "agents.json"), JSON.stringify([{ uuid: AG, name: "Jett", role: "Duelist", roleId: "" }, { uuid: "5f8d3a7f-467b-97f3-062c-13acf203c006", name: "Breach", role: "Initiator", roleId: "" }]));
     const f1 = await (await fetch(`${base}/hud.json?event=${val.id}`)).json();
     check("vMix fields: ROUND, ROUNDS TO WIN, PLAYERS LEFT, and name, agent and alive per player", f1.ROUND === 1 && f1["ROUNDS TO WIN"] === 10 && f1["PLAYERS LEFT LEFT"] === 4 && f1["PLAYERS LEFT RIGHT"] === 5 && f1["P1 NAME"] === "Ann" && f1["P1 ALIVE"] === 0 && f1["P6 NAME"] === "Bob" && f1["P6 ALIVE"] === 1 && f1["P2 NAME"] === "" && f1["P1 AGENT"] === "Jett", JSON.stringify(f1).slice(0, 400));
     const html = fs.readFileSync(path.join(__dirname, "..", "public", "app.html"), "utf8");
@@ -106,6 +106,14 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     check("without a range the whole video comes back with accept-ranges", all.status === 200 && all.headers.get("accept-ranges") === "bytes" && (await all.arrayBuffer()).byteLength === 4096);
     check("an impossible range is refused with 416", (await fetch(base + up.url, { headers: { range: "bytes=5000-6000" } })).status === 416);
     check("other file types are still refused", (await fetch(base + "/api/upload", hdr("application/x-msdownload"))).status === 415);
+    // map selection art
+    const MP = "7eaecc1b-4337-bbf6-6ab9-04b8f06b3319";
+    fs.writeFileSync(path.join(dataDir, "val-agents", `m_${MP}_listviewicontall.png`), PNG);
+    for (const bad of ["/val-map/x/listviewicontall.png", `/val-map/${MP}/evil.png`, `/val-map/${MP}/listviewicontall.jpg`, `/val-map/..%2F..%2Fdb/splash.png`, `/val-map/${MP}/splash.png/x`])
+      check("map route refuses " + bad, (await status(bad)) === 400, String(await status(bad)));
+    const mp = await fetch(`${base}/val-map/${MP}/listviewicontall.png`);
+    check("cached map art is served from disk as a PNG", mp.status === 200 && mp.headers.get("content-type") === "image/png" && (await mp.arrayBuffer()).byteLength === PNG.length);
+    check("a new event carries a map selection matching its squad (created 2v2: Skirmish pool)", (await (await fetch(base + "/api/state")).json()).db.events.find(e => e.id === val.id).val.veto.pool === "skirmish");
     check("the cached agent list is served (uuid, name, role)", ag.status === 200 && Array.isArray(agl) && agl[0].uuid === AG && agl[0].name === "Jett" && agl[0].role === "Duelist");
   } catch (e) { check("test ran", false, e.stack || e.message); }
   srv.kill(); try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* temp folder */ }
