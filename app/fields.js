@@ -105,6 +105,11 @@ function genericFields(m, ev, game, ctx, f) { // games read by screen OCR or ent
   if (m.kind === "dbd") { const d = HUD.dbdScore(ev), last = d.trials[d.trials.length - 1]; f["TRIALS PLAYED"] = d.trials.length; f["KILLER SIDE"] = last ? SIDES[last.killer] : ""; }
   if (m.kind === "fn") { // the leaderboard: RANK 1 NAME, RANK 1 POINTS ... for the top twelve teams
     f["MATCHES PLAYED"] = ((ev.fn && ev.fn.matches) || []).length;
+    const L = HUD.fnLive(ev); // the game being played now
+    f["PLAYERS LEFT"] = L.alive; f["PLAYERS TOTAL"] = L.max; f["TEAMS LEFT"] = L.teamsLeft; f["TEAMS TOTAL"] = L.teamsMax; f["STORM PHASE"] = L.storm; f["GAME"] = Math.min(L.game, L.games); f["GAMES"] = L.games;
+    f["DAMAGE THRESHOLD"] = L.thr.n === "" || L.thr.n == null ? "" : `${L.thr.n} ${L.thr.dir === "below" ? "BELOW" : "ABOVE"}`;
+    const ft = ev.teams.find(t => t.id === L.focus.team), fp = ft ? L.named(ft)[+L.focus.p || 0] : null, q = (fp && L.ps[fp.id]) || {};
+    f["SPECTATING NAME"] = fp ? String(fp.alias || fp.ign || "").replace(/#[^#]*$/, "").trim() : ""; f["SPECTATING ELIMS"] = fp ? +q.el || 0 : ""; f["SPECTATING HP"] = fp ? (L.dead[fp.id] ? 0 : q.hp === "" || q.hp == null ? 100 : q.hp) : ""; f["SPECTATING SHIELD"] = fp ? (L.dead[fp.id] ? 0 : +q.sh || 0) : "";
     HUD.fnTable(ev).slice(0, 12).forEach((r, i) => { const n = i + 1; f[`RANK ${n} NAME`] = r.team.name; f[`RANK ${n} TAG`] = r.team.tag; f[`RANK ${n} POINTS`] = r.pts; f[`RANK ${n} ELIMS`] = r.elims; f[`RANK ${n} WINS`] = r.wins; });
   }
 }

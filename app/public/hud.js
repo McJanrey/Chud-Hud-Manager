@@ -154,18 +154,6 @@
     return { html, cams };
   }
   /* Fortnite has a field of teams, not two sides: the cameras of one team (the one you pick, else the leader) down the left edge */
-  function fnCams(ev, rows) {
-    const f = ev.fn || {}, team = ev.teams.find(t => t.id === f.spotlight) || (rows[0] && rows[0].team), cams = []; let html = "";
-    if (!team) return { html, cams };
-    team.players.forEach((p, i) => {
-      const u = p.cam || ownCam(ev, p.id); if (!u) return;
-      const x = 8, y = 330 + i * 111;
-      html += `<div class="pc l" style="left:${x}px;top:${y}px;--c:${esc(team.color)}"><span>${esc(p.alias || p.ign || team.name)}</span></div>`;
-      cams.push({ key: "pc-fn-" + i + u, url: u, x, y, w: 150, h: 84 });
-    });
-    return { html, cams };
-  }
-
   const S = {};
   S.ingame = (m) => {
     const ev = m.ev, l = ev.live, sh = ev.hud.show, [L, R] = m.sides;
@@ -826,13 +814,87 @@
     return { html: bugHead(m) + `<div class="h-series"><div class="ss l num" style="font-size:14px">${role(0)}</div><div class="clk"><b class="num">${n ? "TRIAL " + n : "DEAD BY DAYLIGHT"}</b><small>${esc(ev.live.gameSeries || "")}</small></div><div class="ss r num" style="font-size:14px">${role(1)}</div></div>`, cams: [] };
   };
 
-  S.fningame = (m) => {
-    const ev = m.ev, rows = fnTable(ev), fn = ev.fn || {}, nm = (fn.matches || []).length;
-    const tick = kStrip(ev);
-    return { html: `<div class="h-tick"><span>${esc(tick)}  |  ${esc(tick)}  |  </span></div>
-      <div class="fn-board"><div class="fn-h"><b>${esc(ev.live.seriesTitle || "FORTNITE")}</b><small>${nm ? "AFTER MATCH " + nm : "STANDINGS"}</small></div>
-      ${rows.slice(0, 6).map(r => `<div class="fn-row" data-k="fn-${esc(r.team.id)}"><span class="rk num">${r.rank}</span>${lg(r.team)}<span class="nm">${esc(r.team.tag || r.team.name)}</span><b class="num">${r.pts}</b></div>`).join("") || `<div class="fn-row"><span class="nm">NO TEAMS YET</span></div>`}</div>`, cams: [] };
+  /* Fortnite in-game, laid out on MJ's FNCS 2026 references (1080p pixels / 1.5). Fortnite gives a caster no live data, so the game is
+     run from the dashboard: "X eliminated Y" feeds the killfeed, the killer's elims, players and teams left and the live leaderboard.
+     fn.live = { dead: {pid}, knocked: {pid}, ps: {pid: {el, hp, sh, mats, lvl}}, feed: [{k, v, kind, t}], focus: {team, p}, storm, thr: {n, dir},
+     tr: "rotate" | "board" | "sponsor", show: {part: false} }. */
+  const fnPrev = {}; // last value per counter, so a drop can jump (browser only; the server never draws)
+  function fnLive(ev) {
+    const fn = ev.fn || {}, L = fn.live && typeof fn.live === "object" ? fn.live : {}, ob = x => (x && typeof x === "object" && !Array.isArray(x) ? x : {});
+    const dead = ob(L.dead), ps = ob(L.ps), teams = ev.teams || [];
+    const named = t => (t.players || []).filter(p => p && (p.ign || p.alias));
+    const max = Math.max(0, Math.round(+L.max) || teams.reduce((a, t) => a + named(t).length, 0));
+    const deadN = teams.reduce((a, t) => a + named(t).filter(p => dead[p.id]).length, 0);
+    const out = t => named(t).length > 0 && named(t).every(p => dead[p.id]);
+    const alive = Math.max(0, max - deadN), teamsMax = teams.filter(t => named(t).length).length, teamsLeft = teams.filter(t => named(t).length && !out(t)).length;
+    const gel = t => named(t).reduce((a, p) => a + Math.max(0, Math.round(+(ps[p.id] || {}).el) || 0), 0); // this game's elims
+    return { L, dead, knocked: ob(L.knocked), ps, named, max, alive, teamsMax, teamsLeft, out, gel, show: ob(L.show),
+      storm: Math.max(0, Math.round(+L.storm) || 0), stormOf: Math.max(1, Math.round(+L.stormOf) || 12), games: Math.max(1, Math.round(+fn.games) || 6), game: (fn.matches || []).length + 1,
+      feed: (Array.isArray(L.feed) ? L.feed : []).filter(x => x && Date.now() - (+x.t || 0) < 20000).slice(-3), focus: ob(L.focus), thr: ob(L.thr), tr: ["board", "sponsor"].includes(L.tr) ? L.tr : "rotate" };
+  }
+  const fnName = p => String((p && (p.alias || p.ign)) || "").replace(/#[^#]*$/, "").trim();
+  const fnDrop = (k, v) => { const o = fnPrev[k]; if (!o || o.v !== v) fnPrev[k] = { v, dn: !!o && v < o.v }; return fnPrev[k].dn; }; // did this value just drop?
+  const FN_ICON = {
+    one: `<svg viewBox="0 0 20 28"><circle cx="10" cy="6" r="5.5"/><path d="M2 27 V18 Q2 12 10 12 Q18 12 18 18 V27 Z"/></svg>`,
+    two: `<svg viewBox="0 0 30 28"><circle cx="20" cy="6" r="5"/><path d="M13 27 V17 Q13 12 20 12 Q27 12 27 17 V27 Z"/><circle cx="10" cy="9" r="5"/><path d="M3 28 V20 Q3 15 10 15 Q17 15 17 20 V28 Z"/></svg>`,
+    ret: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke-width="2.6"/><path d="M12 1v6M12 17v6M1 12h6M17 12h6" stroke-width="2.6"/></svg>`,
+    plus: `<svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke-width="4"/></svg>`,
+    shield: `<svg viewBox="0 0 20 22"><path d="M10 1 L19 4 V10 Q19 18 10 21 Q1 18 1 10 V4 Z"/></svg>`,
+    mats: `<svg viewBox="0 0 26 22"><path d="M2 9h22v3H2zM6 4h3v14H6zM15 2l5 3-1.5 2.5-5-3zM15 12h3v8h-3z"/></svg>`,
+    storm: `<svg viewBox="0 0 28 26"><path d="M7 12 Q2 12 2 8 Q2 4 7 4 Q8 0 13 0 Q19 0 20 5 Q26 5 26 9 Q26 12 21 12 Z"/><path d="M13 13 L8 21 H12 L10 26 L18 17 H14 L17 13 Z"/></svg>`,
+    check: `<svg viewBox="0 0 26 22"><path d="M2 12 L9 19 L24 3" fill="none" stroke-width="4.4"/></svg>`,
+    thr: `<svg viewBox="0 0 52 46"><path d="M26 2 L50 44 H2 Z" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.75)" stroke-width="2.4"/><path d="M27 13 L20 27 H26 L22 38 L33 22 H27 L31 13 Z" fill="#fff"/></svg>`,
   };
+  S.fningame = (m) => {
+    const ev = m.ev, l = ev.live, F = fnLive(ev), on = k => F.show[k] !== false, rows = fnTable(ev);
+    let h = "";
+    if (on("counts")) { // players and teams left; a drop makes the number jump
+      const n = (k, v, mx, ic, cls) => `<div class="fn3-ct ${cls}" data-k="fn3-${k}">${FN_ICON[ic]}<b class="num${fnDrop(k, v) ? " dn" : ""}" data-k="fn3-${k}-${v}">${v}</b><small>/${mx}</small></div>`;
+      h += n("pl", F.alive, F.max, "one", "a") + n("tm", F.teamsLeft, F.teamsMax, "two", "b");
+    }
+    if (on("feed") && F.feed.length) h += `<div class="fn3-feed" data-k="fn3-feed">${F.feed.map(x => `<div class="kr" data-k="kf-${+x.t || 0}"><span class="kk">${esc(x.k)}</span><i class="ki">${FN_ICON[x.kind === "knock" ? "plus" : "ret"]}</i><span class="kv">${esc(x.v)}</span></div>`).join("")}</div>`;
+    // top right: the event box, then the leaderboard or the sponsor box (alternating every 15 s unless one is chosen), then the damage threshold
+    if (on("event")) {
+      const emb = (ev.tournament.logos || []).find(Boolean);
+      h += `<div class="fn3-ev" data-k="fn3-ev">${emb ? `<img src="${esc(emb)}" alt="" onerror="this.style.display='none'">` : ""}<b>${esc(String(l.roundTitle || l.seriesTitle || ev.tournament.name || "").toUpperCase())}<br>GAME ${Math.min(F.game, F.games)}/${F.games}</b></div>`;
+    }
+    const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), spx = sp.length ? sp[Math.floor(Date.now() / 15000) % sp.length] : null;
+    const showBoard = on("board") && rows.length && (F.tr === "board" || !spx || (F.tr === "rotate" && Math.floor(Date.now() / 15000) % 2 === 0));
+    if (showBoard) {
+      const live = rows.map(r => ({ r, pts: r.pts + F.gel(r.team) * (+((ev.fn || {}).elimPts) || 0), out: F.out(r.team) })).sort((a, b) => b.pts - a.pts);
+      const pages = Math.max(1, Math.ceil(live.length / 5)), pg = Math.floor(Date.now() / 8000) % pages, page = live.slice(pg * 5, pg * 5 + 5);
+      h += `<div class="fn3-lb" data-k="fn3-lb" style="height:${56 + 46 * page.length + 6}px"><i class="cn"></i><b class="tt">LEADERBOARD</b><span class="pp">POINTS</span>${page.map((x, i) => { const ns = F.named(x.r.team).map(fnName).filter(Boolean);
+        return `<div class="lr${x.out ? " out" : ""}" data-k="lr-${esc(x.r.team.id)}"><b class="rk num">${pg * 5 + i + 1}</b><span class="nms">${(ns.length ? ns.slice(0, 2) : [x.r.team.name]).map(s => `<span>${esc(String(s).toUpperCase())}</span>`).join("")}</span><b class="pt num">${x.pts}</b></div>`; }).join("")}</div>`;
+    } else if (on("sponsor") && spx) h += `<div class="fn3-sp" data-k="fn3-sp-${esc(spx.name || spx.logo)}">${spx.logo ? `<img src="${esc(spx.logo)}" alt="" onerror="this.style.display='none'">` : `<b>${esc(String(spx.name).toUpperCase())}</b>`}</div>`;
+    const tn = Math.round(+F.thr.n);
+    if (on("thr") && F.thr.n !== "" && F.thr.n != null && isFinite(tn)) h += `<div class="fn3-th${showBoard ? "" : " lo"}" data-k="fn3-th"><b class="num">${Math.abs(tn)} ${F.thr.dir === "below" ? "BELOW" : "ABOVE"}</b><div class="bx">${FN_ICON.thr}<span>DAMAGE THRESHOLD</span></div></div>`;
+    // bottom right, under the game's minimap: storm phase and the timer (only while a screen-read clock is fresh)
+    if (on("storm")) {
+      const fresh = !!(m.clockLive && m.clockAt && Date.now() - m.clockAt <= 5000);
+      h += `<div class="fn3-st" data-k="fn3-st">${FN_ICON.storm}<b class="num">${F.storm || "-"}</b><small>/${F.stormOf}</small></div>${fresh ? `<div class="fn3-tmr" data-k="fn3-tmr">${FN_ICON.check}<b class="num">${fmt(m.clock)}</b></div>` : ""}`;
+    }
+    // the spectated player (chosen on the dashboard, else nobody): name and elims, shield, health and materials as typed
+    const ft = ev.teams.find(t => t.id === F.focus.team), fps = ft ? F.named(ft) : [], fp = fps[Math.max(0, Math.min(fps.length - 1, +F.focus.p || 0))];
+    if (fp) {
+      const st = F.ps[fp.id] || {}, num = (x, d) => (x === "" || x == null || !isFinite(+x) ? d : Math.max(0, Math.round(+x)));
+      const dead = !!F.dead[fp.id], hp = dead ? 0 : num(st.hp, 100), sh = dead ? 0 : num(st.sh, 0), el = num(st.el, 0), w = v => Math.min(100, v) / 100 * 288.7;
+      if (on("card")) h += `<div class="fn3-card" data-k="fn3-card"><div class="nb"><b class="nm">${esc(fnName(fp))}</b><span class="el">${FN_ICON.ret}<b class="num">${el}</b></span></div>
+        <div class="bars"><i class="bar s" style="width:${w(sh).toFixed(1)}px"></i><span class="bt s">${FN_ICON.shield}<b class="num">${sh}</b><em>|</em><b class="num">100</b></span><i class="bar h" style="width:${w(hp).toFixed(1)}px"></i><span class="bt h">${FN_ICON.plus}<b class="num">${hp}</b><em>|</em><b class="num">100</b></span></div>
+        ${st.mats !== "" && st.mats != null ? `<span class="mt">${FN_ICON.mats}<b class="num">${num(st.mats, 0)}</b></span>` : ""}${st.lvl !== "" && st.lvl != null ? `<span class="lv"><b class="num">${num(st.lvl, 0)}</b></span>` : ""}</div>`;
+      const mates = fps.filter(p => p !== fp);
+      if (on("team") && mates.length) h += `<div class="fn3-team" data-k="fn3-team"><div class="tab">${FN_ICON.two}<b>TEAM</b></div>${mates.slice(0, 3).map(p => { const q = F.ps[p.id] || {}, d = !!F.dead[p.id], kn = !!F.knocked[p.id];
+        return `<div class="tr${d ? " dead" : ""}" data-k="ftr-${esc(p.id)}"><span class="nm">${esc(fnName(p))}</span>${d || kn ? `<b class="x">${d ? "&#x2715;" : "+"}</b>` : `<span class="mb"><i style="width:${(Math.min(100, num(q.sh, 0)) * .45).toFixed(1)}px"></i><i class="h" style="width:${(Math.min(100, num(q.hp, 100)) * .45).toFixed(1)}px"></i></span>`}<span class="el">${FN_ICON.ret}<b class="num">${num(q.el, 0)}</b></span></div>`; }).join("")}</div>`;
+    }
+    return { html: h, cams: [] };
+  };
+  // the spectated player's camera in the white frame bottom left (falls back to the old spotlight team's first camera)
+  function fnCams(ev) {
+    const F = fnLive(ev), rows = fnTable(ev), pick = (ev.fn || {}).spotlight, ft = ev.teams.find(t => t.id === F.focus.team) || ev.teams.find(t => t.id === pick) || (rows[0] && rows[0].team);
+    const fps = ft ? F.named(ft) : [], fp = fps[ft && ft.id === F.focus.team ? Math.max(0, Math.min(fps.length - 1, +F.focus.p || 0)) : 0];
+    if (!fp || F.show.cam === false) return { html: "", cams: [] };
+    const u = fp.cam || ownCam(ev, fp.id);
+    return u ? { html: `<div class="fn3-cam" data-k="fn3-cam"></div>`, cams: [{ key: "pc-fn-" + fp.id + u, url: u, x: 22, y: 440, w: 280.7, h: 154.7 }] } : { html: "", cams: [] };
+  }
   function fnFull(m, limit) {
     const ev = m.ev, rows = fnTable(ev).slice(0, limit || 12), fn = ev.fn || {}, nm = (fn.matches || []).length;
     return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.live.seriesTitle || ev.tournament.name || ev.name)}${nm ? "  ·  AFTER MATCH " + nm : ""}</div><div class="h-title" style="font-size:80px">LEADERBOARD</div>
@@ -1098,7 +1160,7 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m).html; }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, vetoPreset, vetoFix, VETO_FMT, agsInfo };
+  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, vetoPreset, vetoFix, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

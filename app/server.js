@@ -64,7 +64,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     // Dead by Daylight: one trial is a killer against survivors; points per kill, per escape and per generator
     dbd: { killPts: 1, escapePts: 1, genPts: 0, trials: [] },
     // Fortnite: points for the placement tier a team lands in plus points per elimination, over a number of matches
-    fn: { elimPts: 1, spotlight: "", placePts: [{ to: 1, pts: 10 }, { to: 2, pts: 7 }, { to: 3, pts: 5 }, { to: 5, pts: 3 }, { to: 10, pts: 1 }], matches: [] },
+    fn: { elimPts: 1, spotlight: "", placePts: [{ to: 1, pts: 10 }, { to: 2, pts: 7 }, { to: 3, pts: 5 }, { to: 5, pts: 3 }, { to: 10, pts: 1 }], matches: [], games: 6, live: {} }, // live: the game being played now (see hud.js fnLive)
     // Riftbound (trading card game): operator-driven scoring
     rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
       limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "", play: [[], []], log: [] },
@@ -89,7 +89,7 @@ function upgrade(ev) {
   if (!ev.val.p || typeof ev.val.p !== "object" || Array.isArray(ev.val.p)) ev.val.p = {}; if (!["solid", "clear", "media"].includes(ev.val.barStyle)) ev.val.barStyle = "solid";
   ev.val.veto = require("./public/hud.js").vetoFix(ev.val.veto, ev.val.squad); // map selection: format, pool and one step per map
   if (ev.game === "Valorant") ev.teams.forEach(t => t.players.forEach(p => { if (p.agent === undefined) p.agent = ""; })); // the agent a player picks (a valorant-api.com uuid)
-  ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn);
+  ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn); if (!ev.fn.live || typeof ev.fn.live !== "object" || Array.isArray(ev.fn.live)) ev.fn.live = {};
   ev.fn.matches.forEach(m => { m.place = m.place || []; m.elims = m.elims || []; });
   ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
   if (!ev.source) ev.source = "auto";

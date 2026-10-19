@@ -178,10 +178,27 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     check("a pinned player beats the action", out.cams.find(c => c.show && c.key.startsWith("ac-0-")).key.startsWith("ac-0-1") && out.cams.find(c => c.show && c.key.startsWith("ac-1-")).key.startsWith("ac-1-0"));
     const dbdCam = JSON.parse(JSON.stringify(dbEv)); dbdCam.hud.show.playerCam = true; dbdCam.teams[0].players[0].cam = "https://cam.example/k"; dbdCam.teams[1].players[0].cam = "https://cam.example/s";
     check("webcams show on Dead by Daylight's scene", HUD.sceneOut(dbdCam, null, "ingame").cams.length === 2);
-    const fnCam = JSON.parse(JSON.stringify(fnEv)); fnCam.hud.show.playerCam = true; fnCam.teams[1].players.forEach((p, i) => { p.cam = "https://cam.example/f" + i; }); fnCam.fn.spotlight = fnCam.teams[1].id;
-    check("Fortnite shows the cameras of the team you pick", HUD.sceneOut(fnCam, null, "ingame").cams.length === 2);
+    const fnCam = JSON.parse(JSON.stringify(fnEv)); fnCam.hud.show.playerCam = true; fnCam.teams.forEach((t, ti) => t.players.forEach((p, i) => { p.ign = "P" + ti + i; })); fnCam.teams[1].players.forEach((p, i) => { p.cam = "https://cam.example/f" + i; }); fnCam.fn.spotlight = fnCam.teams[1].id;
+    check("Fortnite shows one camera: the first player of the team you pick when nobody is spectated", (o => o.cams.length === 1 && o.cams[0].url === "https://cam.example/f0")(HUD.sceneOut(fnCam, null, "ingame")));
     fnCam.fn.spotlight = ""; fnCam.fn.matches = [{ place: [2, 1, 3, 4, 5, 6, 7, 8], elims: [0, 0, 0, 0, 0, 0, 0, 0] }];
-    check("or the leader's when none is picked", HUD.sceneOut(fnCam, null, "ingame").cams.length === 2);
+    check("or the leader's when none is picked", HUD.sceneOut(fnCam, null, "ingame").cams.length === 1);
+    fnCam.fn.live = { focus: { team: fnCam.teams[1].id, p: 1 } };
+    check("the spectated player's camera wins, in the white frame bottom left", (o => o.cams.length === 1 && o.cams[0].url === "https://cam.example/f1" && o.cams[0].x === 22 && o.html.includes("fn3-cam"))(HUD.sceneOut(fnCam, null, "ingame")));
+    /* Fortnite in-game (FNCS reference): counters, killfeed, leaderboard, threshold, storm, spectated player */
+    const fk = JSON.parse(JSON.stringify(fnEv)); fk.teams.forEach((t, ti) => t.players.forEach((p, i) => { p.ign = "P" + ti + i; })); fk.fn.elimPts = 1; fk.fn.matches = [];
+    const P = (t, i) => fk.teams[t].players[i].id, now = 16000 * Math.floor(Date.now() / 16000);
+    fk.fn.live = { dead: { [P(0, 0)]: true, [P(0, 1)]: true, [P(1, 0)]: true }, ps: { [P(2, 0)]: { el: 3, hp: 62, sh: 40, mats: 147 } }, focus: { team: fk.teams[2].id, p: 0 },
+      feed: [{ k: "<b>Killer</b>", v: "Victim", kind: "elim", t: now }, { k: "Old", v: "Gone", kind: "elim", t: now - 60000 }], storm: 6, thr: { n: 17, dir: "above" }, tr: "board" };
+    const dn0 = Date.now; Date.now = () => now; let fnh = HUD.sceneHtml(fk, null, "ingame"); Date.now = dn0; // page 1 of the leaderboard
+    check("Fortnite: players left counts the named players still in (13 of 16) and teams left (7 of 8)", /data-k="fn3-pl-13">13<\/b><small>\/16/.test(fnh) && /data-k="fn3-tm-7">7<\/b><small>\/8/.test(fnh), fnh.slice(0, 300));
+    check("Fortnite: the killfeed shows recent rows only, escaped", fnh.includes("&lt;b&gt;Killer&lt;/b&gt;") && !fnh.includes("Gone"));
+    check("Fortnite: a team with everyone out is greyed on the leaderboard", /class="lr out" data-k="lr-[^"]+"[^]*?P00/.test(fnh));
+    check("Fortnite: live points add this game's elims (team 3 has 3)", /P20<\/span><span>P21<\/span><\/span><b class="pt num">3</.test(fnh), (fnh.match(/P20[^]{0,90}/) || ["none"])[0] + " matches=" + JSON.stringify(fk.fn.matches));
+    check("Fortnite: the damage threshold reads 17 ABOVE, and hides when blank", /17 ABOVE/.test(fnh) && !HUD.sceneHtml(Object.assign(JSON.parse(JSON.stringify(fk)), { fn: Object.assign({}, fk.fn, { live: Object.assign({}, fk.fn.live, { thr: { n: "" } }) }) }), null, "ingame").includes("fn3-th"));
+    check("Fortnite: storm phase 6/12; the timer only with a fresh screen-read clock", /fn3-st[^]*?>6<\/b><small>\/12/.test(fnh) && !fnh.includes("fn3-tmr"));
+    check("Fortnite: the spectated player card shows name, elims, shield 40, health 62, mats 147, and the teammate row", /fn3-card[^]*?P20[^]*?class="num">3<[^]*?>40<[^]*?>62<[^]*?>147</.test(fnh) && /fn3-team[^]*?P21/.test(fnh));
+    check("Fortnite: nobody spectated means no card", !HUD.sceneHtml(Object.assign(JSON.parse(JSON.stringify(fk)), { fn: Object.assign({}, fk.fn, { live: { } }) }), null, "ingame").includes("fn3-card"));
+    check("Fortnite: each part can be switched off", (() => { const x = JSON.parse(JSON.stringify(fk)); x.fn.live.show = { counts: false, feed: false, board: false, thr: false, storm: false, card: false, team: false, event: false, sponsor: false }; const h = HUD.sceneHtml(x, null, "ingame"); return !/fn3-(ct|feed|lb|th|st|card|team|ev|sp)/.test(h); })());
     check("webcams stay off unless switched on", HUD.sceneOut(JSON.parse(JSON.stringify(vEv)), null, "ingame").cams.length === 0);
 
     /* League of Legends in-game scene (Worlds-style): bottom band, board, focus panel, sponsor box, minimap frame, stacks, EST, bars, cameras */
