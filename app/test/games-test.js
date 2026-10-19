@@ -43,6 +43,41 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     await post("/api/ingest", { Event: "GameOcr", Data: { values: { dbdS1: "ESCAPED", dbdS2: "SACRIFICED", dbdS3: "KILLED", dbdS4: "ESCAPED", dbdGens: 4 } } });
     const st = await (await fetch(`${base}/api/state?event=${dbd.id}`)).json();
     check("a GameOcr reading reaches the feed", st.game && st.game.gameOcr && st.game.gameOcr.dbdGens === 4 && st.game.gameOcr.dbdS2 === "SACRIFICED", JSON.stringify(st.game && st.game.gameOcr));
+
+    /* VALORANT (phase C2): the squad setting, the alive toggles, the agent field, the agent route and the vMix fields */
+    check("VALORANT starts with a squad of 2, nobody out, and an empty agent on every player", val.val.squad === 2 && val.val.aliveUsed === false && JSON.stringify(val.val.dead) === "{}" && val.teams.every(t => t.players.every(p => p.agent === "")), JSON.stringify(val.val));
+    check("other games' players carry no agent field", dbd.teams.every(t => t.players.every(p => p.agent === undefined)));
+    const AG = "add6443a-41bd-e414-f6ad-e58d267f4e95";
+    val.name = "VAL TEST"; val.teams[0].players[0].ign = "Ann#EU1"; val.teams[0].players[0].agent = AG; val.teams[1].players[0].ign = "Bob#EU2";
+    await post("/api/set", { path: "events", value: (await (await fetch(base + "/api/state")).json()).db.events.concat([val]), by: "test" });
+    await post("/api/set", { event: val.id, path: "val.squad", value: 4, by: "test" });
+    let v2 = (await (await fetch(base + "/api/state")).json()).db.events.find(e => e.id === val.id);
+    check("a bigger squad seats the empty roster rows (4 a side, with agent fields) and keeps the players already there", v2.val.squad === 4 && v2.teams.every(t => t.players.length === 4 && t.players.every(p => p.agent !== undefined)) && v2.teams[0].players[0].ign === "Ann#EU1" && v2.teams[0].players[0].agent === AG, JSON.stringify(v2.teams.map(t => t.players.length)));
+    await post("/api/set", { event: val.id, path: "val.squad", value: 9, by: "test" });
+    v2 = (await (await fetch(base + "/api/state")).json()).db.events.find(e => e.id === val.id);
+    check("the squad is kept between 2 and 5", v2.val.squad === 5 && v2.teams.every(t => t.players.length === 5));
+    // alive toggles: the data the Skirmish page writes, what the scene and vMix read, and the reset a + Round does
+    const HUD = require("../public/hud.js"), id0 = v2.teams[0].players[0].id;
+    await post("/api/set", { event: val.id, path: "val.dead", value: { [id0]: true }, by: "test" }); await post("/api/set", { event: val.id, path: "val.aliveUsed", value: true, by: "test" });
+    v2 = (await (await fetch(base + "/api/state")).json()).db.events.find(e => e.id === val.id);
+    check("alive toggles are saved per player id", v2.val.dead[id0] === true && v2.val.aliveUsed === true && HUD.valInfo(HUD.model(v2, null)).left[0] === 4 && HUD.valInfo(HUD.model(v2, null)).left[1] === 5);
+    const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAJ6xk2AAAAABJRU5ErkJggg==", "base64");
+    fs.mkdirSync(path.join(dataDir, "val-agents"), { recursive: true });
+    fs.writeFileSync(path.join(dataDir, "val-agents", `${AG}_displayicon.png`), PNG);
+    fs.writeFileSync(path.join(dataDir, "val-agents", "agents.json"), JSON.stringify([{ uuid: AG, name: "Jett", role: "Duelist" }, { uuid: "5f8d3a7f-467b-97f3-062c-13acf203c006", name: "Breach", role: "Initiator" }]));
+    const f1 = await (await fetch(`${base}/hud.json?event=${val.id}`)).json();
+    check("vMix fields: ROUND, ROUNDS TO WIN, PLAYERS LEFT, and name, agent and alive per player", f1.ROUND === 1 && f1["ROUNDS TO WIN"] === 10 && f1["PLAYERS LEFT LEFT"] === 4 && f1["PLAYERS LEFT RIGHT"] === 5 && f1["P1 NAME"] === "Ann" && f1["P1 ALIVE"] === 0 && f1["P6 NAME"] === "Bob" && f1["P6 ALIVE"] === 1 && f1["P2 NAME"] === "" && f1["P1 AGENT"] === "Jett", JSON.stringify(f1).slice(0, 400));
+    const html = fs.readFileSync(path.join(__dirname, "..", "public", "app.html"), "utf8");
+    check("+ Round and New match bring everyone back alive (the dashboard actions)", /case "valRound":[^\n]*put\("val\.dead",\{\}\);put\("val\.aliveUsed",false\)/.test(html) && /case "valReset":[^\n]*put\("val\.dead",\{\}\);put\("val\.aliveUsed",false\)/.test(html) && /case "valAllAlive":put\("val\.dead",\{\}\)/.test(html));
+    // the agent route: nothing but a real uuid and an allowed picture kind; a cached picture is served from disk, an unknown one fails cleanly offline
+    const status = p => fetch(base + p).then(r => r.status);
+    for (const bad of ["/val-agent/not-a-uuid/displayicon.png", `/val-agent/${AG}/evil.png`, `/val-agent/${AG}/displayicon.jpg`, `/val-agent/${AG}/displayicon`, `/val-agent/${AG.toUpperCase()}/displayicon.png`, `/val-agent/${AG}/..%2F..%2Fdb.png`,
+      `/val-agent/..%2F..%2Fsecret/displayicon.png`, `/val-agent/${AG}/displayicon.png/extra`, `/val-agent/${AG}x/displayicon.png`, `/val-agent//displayicon.png`, `/val-agent/${AG}/constructor.png`, `/val-agent/${AG}/%00.png`])
+      check("agent route refuses " + bad, (await status(bad)) === 400, String(await status(bad)));
+    const cp = await fetch(`${base}/val-agent/${AG}/displayicon.png`);
+    check("a cached agent picture is served from disk as a PNG", cp.status === 200 && cp.headers.get("content-type") === "image/png" && (await cp.arrayBuffer()).byteLength === PNG.length, String(cp.status));
+    const ag = await fetch(base + "/api/val/agents"), agl = await ag.json();
+    check("the cached agent list is served (uuid, name, role)", ag.status === 200 && Array.isArray(agl) && agl[0].uuid === AG && agl[0].name === "Jett" && agl[0].role === "Duelist");
   } catch (e) { check("test ran", false, e.stack || e.message); }
   srv.kill(); try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* temp folder */ }
   console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nGAMES TEST PASS");

@@ -68,7 +68,7 @@
       });
     }
     const kind = GAMEDEF[ev.game] ? GAMEDEF[ev.game].kind : live && game.kind ? game.kind : ev.game === "League of Legends" ? "lol" : ev.game === "Minecraft" ? "mc" : ev.game === "Riftbound" ? "rb" : ev.game === "Rocket League" ? "rl" : "gen";
-    const size = kind === "lol" ? 5 : (GAMEDEF[ev.game] && GAMEDEF[ev.game].squad) || 3;
+    const size = kind === "lol" ? 5 : kind === "val" ? Math.max(2, Math.min(5, Math.round(+(ev.val && ev.val.squad)) || 2)) : (GAMEDEF[ev.game] && GAMEDEF[ev.game].squad) || 3; // VALORANT's squad is a setting (2 to 5)
     const roster = (t, name) => t && pickName(t.players, name);
     const blank = { score: 0, goals: 0, shots: 0, assists: 0, saves: 0, demos: 0, touches: 0, boost: 0, kills: 0, deaths: 0, cs: 0, level: 1, ward: 0 };
     const players = [0, 1].map(s => {
@@ -80,7 +80,7 @@
       return list.map(p => {
         const r = p._r || roster(t, p.name);
         return Object.assign({}, blank, p, { _r: undefined, display: (r && (r.alias || r.ign)) || p.name, side: s, team: t,
-          avatar: r ? r.avatar : "", country: r ? r.country : "", cam: r ? r.cam : "", pid: r ? r.id : "" });
+          avatar: r ? r.avatar : "", country: r ? r.country : "", cam: r ? r.cam : "", pid: r ? r.id : "", agent: r && r.agent ? r.agent : "" });
       });
     });
     const all = players[0].concat(players[1]);
@@ -106,7 +106,7 @@
     return {
       ev, live, kind, lol: game && game.lol, mc: game && game.mc, mcOcr: game && game.mcOcr, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
       series: l.series, focus: live ? find(game.target) : null, action, actionLast,
-      clock: live || hasClock ? game.time : 300, clockLive: live || hasClock, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
+      clock: live || hasClock ? game.time : 300, clockLive: live || hasClock, clockAt: (game && game.clockAt) || 0, squad: size, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
       connected: !!(game && game.connected), source: game ? game.source : "",
     };
   }
@@ -656,9 +656,83 @@
   const kStrip = ev => [ev.live.seriesTitle, ev.live.eventTitle, ev.live.roundTitle].filter(Boolean).join("  ·  ") || ev.tournament.name || ev.name;
   const bugHead = m => { const g = S.geningame(m); return g.html.slice(0, g.html.indexOf('<div class="h-series">')); };
 
+  /* ---------------- VALORANT in-game scene (classes v3-*, sizes and colours are variables in hud.css) ----------------
+     Laid out like a VALORANT broadcast over the game's own minimap and scoreboard: a top bar (team, one score each side, round line and
+     the clock only while a screen-read clock keeps arriving), a players-left tab, sponsor boxes, and a bottom-anchored panel per player.
+     Nothing is invented: HP, ultimate points and credits are drawn only if a player object ever carries them (none does today). */
+  const VAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  const VAL_FRESH = 5000; // a screen-read clock older than this is not drawn
+  const artBad = new Map(); // picture url -> when it failed to load; left out of the markup for a minute (the initials tile shows), then tried again
+  const artFail = url => { artBad.set(String(url), Date.now()); };
+  const artImg = (url, cls) => (artBad.get(url) > Date.now() - 60000 ? "" : `<img class="${cls}" src="${esc(url)}" alt="" onerror="SaintsHUD.artFail(this.getAttribute('src'))">`);
+  const noTag = s => String(s || "").replace(/#[^#]*$/, "").trim(); // a Riot ID without its #TAG
+  const initials = s => { const w = String(s || "?").trim().split(/\s+/); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase(); };
+  // round line, players left and the clock for the scene and the vMix fields (one place, so they always agree)
+  function valInfo(m) {
+    const v = m.ev.val || {}, t = Math.max(1, Math.round(+v.target) || 10), n = m.squad || 2, dead = v.dead || {};
+    const left = [0, 1].map(s => Math.max(0, n - m.players[s].filter(p => p.shortcut !== 0 && p.pid && dead[p.pid]).length));
+    const sum = (+m.score[0] || 0) + (+m.score[1] || 0);
+    return { target: t, squad: n, round: Math.max(1, Math.min(sum + 1, 2 * t - 1)), left, used: !!v.aliveUsed, dead,
+      fresh: !!(m.clockLive && m.clockAt && Date.now() - m.clockAt <= VAL_FRESH) };
+  }
+  /* cameras: "all" = a 116 x 65 tile on the inner side of each player's panel row; "action" = one 240 x 135 box a side near the bottom.
+     Same keys and show rules as the shared camera rows, so the cameras stay loaded and switch instantly. */
+  function valCams(m) {
+    const cams = []; let html = "";
+    if ((m.ev.camera || {}).director === "action") {
+      const w = 240, h = 135, y = 564;
+      [0, 1].forEach(s => {
+        const x = s ? 795 : 245, act = actionIndex(m, s);
+        m.players[s].forEach((p, i) => { const u = camUrlOf(m.ev, p); if (u) cams.push({ key: "ac-" + s + "-" + i + u, url: u, x, y, w, h, show: i === act }); });
+        const p = act >= 0 ? m.players[s][act] : null;
+        if (p) html += `<div class="pc act ${s ? "r" : "l"}" data-k="ac-${s}" style="left:${x}px;top:${y + h}px;width:${w}px;--c:${esc(m.colors[s])}"><span>${esc(noTag(p.display))}</span></div>`;
+      });
+      return { html, cams };
+    }
+    const top = 720 - (m.squad || 2) * 65;
+    [0, 1].forEach(s => m.players[s].forEach((p, i) => { const u = camUrlOf(m.ev, p); if (u) cams.push({ key: "pc-" + s + "-" + i + u, url: u, x: s ? 927 : 237, y: top + i * 65, w: 116, h: 65 }); }));
+    return { html, cams };
+  }
   S.valingame = (m) => {
-    const ev = m.ev, v = ev.val || {}, t = +v.target || 10;
-    return { html: bugHead(m) + `<div class="h-series"><div class="ss l num">${m.score[0]}</div><div class="clk"><b class="num">FIRST TO ${t}</b><small>${esc(ev.live.gameSeries || "2V2 SKIRMISH")}</small></div><div class="ss r num">${m.score[1]}</div></div>`, cams: [] };
+    const ev = m.ev, l = ev.live, sh = ev.hud.show, [L, R] = m.sides, info = valInfo(m);
+    let h = "";
+    if (sh.score !== false) {
+      const nm = (t, s) => noTag(t ? t.name || (t.players[0] && t.players[0].ign) || t.tag : "") || (s ? "TEAM B" : "TEAM A");
+      const half = (t, s) => { const x = nm(t, s); return `<div class="hf ${s ? "r" : "l"}" data-k="v3-hf-${s}" style="--c:${esc(m.colors[s])}">${lg(t)}<b class="nm${x.length > 13 ? " long" : ""}">${esc(x)}</b></div>`; };
+      const line = `ROUND ${info.round} · FIRST TO ${info.target}`;
+      h += `<div class="v3-bar" data-k="v3-bar">${half(L, 0)}${half(R, 1)}<div class="ct" data-k="v3-ct"><b class="sc l num">${m.score[0]}</b><div class="mid" data-k="v3-mid">${info.fresh ? `<b class="tm num">${fmt(m.clock)}</b>` : ""}<small>${esc(line)}</small></div><b class="sc r num">${m.score[1]}</b></div></div>`;
+      const emb = (ev.tournament.logos || []).find(Boolean);
+      if (emb) h += `<div class="v3-emb" data-k="v3-emb"><img src="${esc(emb)}" alt="" onerror="this.style.display='none'"></div>`;
+      // players left: pips (and a digit from four a side up) for each side, once an alive toggle has been used
+      if (info.used) {
+        const side = s => `<span class="sd ${s ? "r" : "l"}" data-k="pl-${s}" style="--c:${esc(m.colors[s])}">${info.squad >= 4 ? `<b class="num">${info.left[s]}</b>` : ""}<span class="pp">${Array.from({ length: info.squad }, (_, i) => `<i class="${i < info.left[s] ? "on" : ""}"></i>`).join("")}</span></span>`;
+        h += `<div class="v3-pl" data-k="v3-pl"><small>PLAYERS LEFT</small><div class="rw">${side(0)}${side(1)}</div></div>`;
+      }
+    }
+    // sponsor boxes: the main sponsor on the left, the others (one at a time, 8 seconds each) on the right
+    if (sh.sponsor !== false) {
+      const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), main = sp.find(x => x.type === "main"), rest = sp.filter(x => x !== main);
+      const body = (x, k) => `<div class="in" data-k="${k}">${x.logo ? `<img src="${esc(x.logo)}" alt="${esc(x.name || "")}" onerror="this.style.display='none'">` : `<b>${esc(x.name)}</b>`}</div>`;
+      if (main) h += `<div class="v3-sp l" data-k="v3-sp-l"><small>PRESENTED BY</small>${body(main, "spm")}</div>`;
+      if (rest.length) { const si = Math.floor(Date.now() / 8000) % rest.length; h += `<div class="v3-sp r" data-k="v3-sp-r">${body(rest[si], "sp-" + si)}</div>`; }
+    }
+    // player panels, bottom-anchored; a padded "Player N" seat (shortcut 0) is never drawn
+    if (sh.boost !== false) {
+      const top = 720 - info.squad * 65, frac = (a, b) => Math.max(0, Math.min(1, +a / (+b || 100)));
+      [0, 1].forEach(s => m.players[s].forEach((p, i) => {
+        const name = p ? noTag(p.display) : "";
+        if (!name || p.shortcut === 0) return; // no padded seat, and no seat nobody has named yet
+        const dead = !!(p.pid && info.dead[p.pid]);
+        const agent = VAL_UUID.test(String(p.agent || "")) ? `/val-agent/${p.agent}/displayicon.png` : "";
+        const art = (agent ? artImg(agent, "ag") : "") || (p.avatar ? artImg(p.avatar, "av") : "");
+        const ult = p.ult != null ? `<span class="ul" data-k="ul">${Array.from({ length: Math.max(1, Math.min(9, +p.ultMax || 8)) }, (_, k) => `<i class="${k < +p.ult ? "on" : ""}"></i>`).join("")}</span>` : "";
+        h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}" data-k="vp-${s}-${i}" style="top:${top + i * 65}px;--c:${esc(m.colors[s])}"><div class="pt">${art || `<span class="in">${esc(initials(name))}</span>`}</div>
+          <div class="bd"><b class="nm">${esc(name)}</b>${ult}${p.hp != null ? `<em class="hv num">${Math.round(+p.hp) || 0}</em>` : ""}${p.credits != null ? `<small class="cr num">${esc(p.credits)}</small>` : ""}
+          <span class="ac${p.hp != null ? "" : " solid"}">${p.hp != null ? `<i style="transform:scaleX(${frac(p.hp, p.hpMax)})"></i>` : ""}</span></div></div>`;
+      }));
+    }
+    const pc = sh.playerCam ? valCams(m) : { html: "", cams: [] };
+    return { html: h + pc.html, cams: pc.cams };
   };
 
   S.dbdingame = (m) => {
@@ -702,7 +776,6 @@
   }
 
   const withCams = (scene, camFn) => m => { const r = scene(m); if (!m.ev.hud.show.playerCam) return r; const pc = camFn(m); return { html: r.html + pc.html, cams: r.cams.concat(pc.cams) }; };
-  S.valingame = withCams(S.valingame, m => playerCams(m, 100));
   S.dbdingame = withCams(S.dbdingame, m => playerCams(m, 100));
   S.fningame = withCams(S.fningame, m => fnCams(m.ev, fnTable(m.ev)));
 
@@ -940,7 +1013,7 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m).html; }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore };
+  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

@@ -257,13 +257,15 @@ None of these gives a caster a live data feed, so each is scored by hand on its 
 
 | Game | Page | Scoring |
 |---|---|---|
-| **VALORANT 2v2 Skirmish** | Skirmish | first to 10 rounds (change it): **+ Round** per team, **Undo**, **New match**; two players a team; the scorebug shows FIRST TO 10 |
+| **VALORANT 2v2 Skirmish** | Skirmish | first to 10 rounds (change it): **+ Round** per team, **Undo**, **New match**; two to five players a team (Squad); tap a player to mark them out for the round, **Everyone alive** brings them back (+ Round and New match do it too) |
 | **Fortnite** | Fortnite scoring | a field of eight duos; each match you enter every team's placement and eliminations; points = the placement tier the team lands in plus points per elimination (editable tiers, default 10 / 7 / 5 / 3 / 1 for 1st, 2nd, 3rd, 5th and 10th, and 1 per elimination); a live leaderboard, rankings and a corner leaderboard on the in-game scene |
 | **Dead by Daylight** | Trials | one trial is a killer against survivors: add a trial and enter kills, escapes and generators; the killer's team scores per kill, the survivors' team per escape and per generator (all three editable); five players a team; the scorebug shows the trial number and who is the killer |
 
 **Screen OCR for the result screens.** On the Screen OCR page choose the starting layout *Fortnite: match results screen* or *Dead by Daylight: trial tally screen*, line the boxes up with the game window, and the reading appears on the Fortnite scoring and Trials pages. You check it and press a button (*Apply* for a Fortnite team and match, *Add trial* for Dead by Daylight): nothing changes the score until you do. For VALORANT, the normal score and clock boxes work for the round score. The game windows OCR can capture must be borderless or windowed, not exclusive fullscreen.
 
-What each game does and does not offer for live data (Overwolf events, Riot's local client API and so on) is written up in the project notes; none of it is needed for the scoring above. For vMix, the data files carry the scores, `RANK 1..12 NAME / POINTS / ELIMS / WINS` for Fortnite, `TRIALS PLAYED` and `KILLER SIDE` for Dead by Daylight and `ROUNDS TO WIN` for VALORANT.
+**The VALORANT in-game scene** sits over the observer view at 1920x1080: a top bar with both logos, the round score and ROUND n · FIRST TO 10 (the clock appears there only while an OCR reading is fresh), players-left pips under it once an alive toggle has been used, the main and second sponsor boxes on either side, and a panel per player down each edge with their agent's portrait, name and a strike-through when they are out. Pick each player's agent on Players & Teams; the portraits come from valorant-api.com the first time and are kept in the data folder, so a LAN without internet still shows any agent already used. Player cameras, when set, sit beside the panels; the game's own minimap corner stays clear.
+
+What each game does and does not offer for live data (Overwolf events, Riot's local client API and so on) is written up in the project notes; none of it is needed for the scoring above. For vMix, the data files carry the scores, `RANK 1..12 NAME / POINTS / ELIMS / WINS` for Fortnite, `TRIALS PLAYED` and `KILLER SIDE` for Dead by Daylight and `ROUND`, `ROUNDS TO WIN`, `PLAYERS LEFT LEFT / RIGHT` and `P1..P10 NAME / AGENT / ALIVE` for VALORANT.
 
 ## Chud Hud LOTD (Lan of the Dead)
 

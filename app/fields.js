@@ -85,7 +85,15 @@ function rocketFields(m, ev, game, ctx, f) {
 
 function genericFields(m, ev, game, ctx, f) { // games read by screen OCR or entered by hand: scores, the clock, and the series
   f["TIMER"] = clock(m.clock); SIDES.forEach((S, s) => { f[`SCORE ${S}`] = m.score[s]; });
-  if (m.kind === "val") f["ROUNDS TO WIN"] = (ev.val && ev.val.target) || 10;
+  if (m.kind === "val") {
+    const vi = HUD.valInfo(m), names = ctx.agents || {};
+    f["ROUNDS TO WIN"] = (ev.val && ev.val.target) || 10; f["ROUND"] = vi.round;
+    SIDES.forEach((S, s) => { f[`PLAYERS LEFT ${S}`] = vi.left[s]; });
+    for (let s = 0; s < 2; s++) for (let i = 0; i < 5; i++) { // P1..P5 left team, P6..P10 right team; seats the squad does not use stay empty
+      const p = m.players[s][i], real = p && p.shortcut !== 0, n = s * 5 + i + 1;
+      f[`P${n} NAME`] = real ? String(p.display || "").replace(/#[^#]*$/, "").trim() : ""; f[`P${n} AGENT`] = real && p.agent ? names[p.agent] || p.agent : ""; f[`P${n} ALIVE`] = real ? (p.pid && vi.dead[p.pid] ? 0 : 1) : "";
+    }
+  }
   if (m.kind === "dbd") { const d = HUD.dbdScore(ev), last = d.trials[d.trials.length - 1]; f["TRIALS PLAYED"] = d.trials.length; f["KILLER SIDE"] = last ? SIDES[last.killer] : ""; }
   if (m.kind === "fn") { // the leaderboard: RANK 1 NAME, RANK 1 POINTS ... for the top twelve teams
     f["MATCHES PLAYED"] = ((ev.fn && ev.fn.matches) || []).length;

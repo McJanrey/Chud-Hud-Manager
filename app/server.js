@@ -59,7 +59,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
         judges: [], judgeScores: {}, audience: { open: false, weight: 0, scores: {} } },
       poll: { question: "", options: ["", ""], open: false, show: false, counts: [0, 0], total: 0 } },
     // VALORANT 2v2 Skirmish: first to "target" rounds, scored by hand
-    val: { target: 10 },
+    val: { target: 10, squad: 2, dead: {}, aliveUsed: false }, // squad: players a side (2 to 5); dead: player id -> true while out this round; aliveUsed: a toggle was used since the last reset
     // Dead by Daylight: one trial is a killer against survivors; points per kill, per escape and per generator
     dbd: { killPts: 1, escapePts: 1, genPts: 0, trials: [] },
     // Fortnite: points for the placement tier a team lands in plus points per elimination, over a number of matches
@@ -84,7 +84,9 @@ function upgrade(ev) {
   ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
-  ev.val = Object.assign({}, d.val, ev.val); ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn);
+  ev.val = Object.assign({}, d.val, ev.val); ev.val.squad = Math.max(2, Math.min(5, Math.round(+ev.val.squad) || 2)); if (!ev.val.dead || typeof ev.val.dead !== "object" || Array.isArray(ev.val.dead)) ev.val.dead = {};
+  if (ev.game === "Valorant") ev.teams.forEach(t => t.players.forEach(p => { if (p.agent === undefined) p.agent = ""; })); // the agent a player picks (a valorant-api.com uuid)
+  ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn);
   ev.fn.matches.forEach(m => { m.place = m.place || []; m.elims = m.elims || []; });
   ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
   if (!ev.source) ev.source = "auto";
@@ -102,7 +104,7 @@ function upgrade(ev) {
   return ev;
 }
 const SQUAD = { "League of Legends": 5, "Rocket League": 3, "Dead by Daylight": 5, "Fortnite": 2, "Valorant": 2 };
-const seatPlayers = (ev, n) => ev.teams.forEach(t => { while (t.players.length < n) t.players.push({ id: uid(), ign: "", alias: "", country: "", avatar: "", cam: "" }); });
+const seatPlayers = (ev, n) => ev.teams.forEach(t => { while (t.players.length < n) t.players.push(Object.assign({ id: uid(), ign: "", alias: "", country: "", avatar: "", cam: "" }, ev.game === "Valorant" ? { agent: "" } : {})); });
 function freshEvent(game, name = "New Event") {
   const ev = newEvent(name, game);
   // Blue and Orange are Rocket League's sides (and League has blue and red); every other game starts with names that fit it
@@ -117,7 +119,7 @@ function freshEvent(game, name = "New Event") {
     ev.teams = Array.from({ length: 8 }, (_, i) => blankTeam("Duo " + (i + 1), "D" + (i + 1), cols[i]));
     Object.assign(ev.live, { left: ev.teams[0].id, right: ev.teams[1].id });
   }
-  if (SQUAD[game]) seatPlayers(ev, SQUAD[game]);
+  if (SQUAD[game]) seatPlayers(ev, game === "Valorant" ? ev.val.squad : SQUAD[game]);
   return upgrade(ev);
 }
 function seed() {
@@ -234,7 +236,7 @@ const onAirEvent = () => DB.events.find(e => e.id === DB.onAir) || DB.events[0];
 // events can be live together, each with its own overlay link.
 const HUD = require("./public/hud.js");
 const blankGame = (key = "") => ({
-  kind: "rl", lol: null, ocr: null, mc: null, mcOcr: null, scoreLive: false, clockLive: false,
+  kind: "rl", lol: null, ocr: null, mc: null, mcOcr: null, scoreLive: false, clockLive: false, clockAt: 0,
   source: String(key).split(":")[0], connected: false, inMatch: false, lastPacket: 0, matchGuid: "", arena: "",
   teams: [{ name: "Blue", score: 0, color: "" }, { name: "Orange", score: 0, color: "" }],
   time: 300, overtime: false, replay: false, paused: false, podium: false, hasWinner: false, winner: -1,
@@ -301,7 +303,7 @@ function handleMessage(msg) {
       game.replay = !!g.bReplay;
       game.arena = g.Arena || game.arena;
       game.scoreLive = Array.isArray(g.Teams) && g.Teams.some(t => t.Score != null);
-      game.clockLive = g.TimeSeconds != null;
+      game.clockLive = g.TimeSeconds != null; if (game.clockLive) game.clockAt = Date.now(); // when the clock last arrived: a scene can tell a live clock from a stale one
       game.hasWinner = !!g.bHasWinner;
       game.target = g.bHasTarget && g.Target && g.Target.Name ? who(g.Target) : null;
       break;
@@ -314,7 +316,7 @@ function handleMessage(msg) {
       game.mcOcr = Object.assign({}, d.values || {}, { t: Date.now() });
       break;
     }
-    case "ClockUpdatedSeconds": game.time = d.TimeSeconds ?? game.time; game.overtime = !!d.bOvertime; break;
+    case "ClockUpdatedSeconds": if (d.TimeSeconds != null) game.clockAt = Date.now(); game.time = d.TimeSeconds ?? game.time; game.overtime = !!d.bOvertime; break;
     case "GoalScored": {
       const s = who(d.Scorer), a = who(d.Assister);
       const kmh = Math.round((d.GoalSpeed || 0) * 0.036 * 10) / 10; // uu/s → km/h
@@ -677,6 +679,40 @@ async function coverFor(slug) {
   return got;
 }
 
+/* ------------------------------------------------ VALORANT agent art */
+// The playable agents and their pictures come from valorant-api.com (community project, Riot's art). The list is fetched once and kept in
+// <data>/val-agents/agents.json; each picture is fetched the first time a player panel asks for it and kept beside it. Nothing is bundled,
+// and nothing is fetched during a show once it has been seen. Offline, a panel falls back to an initials tile.
+const VAL_DIR = path.join(DATA, "val-agents");
+const VAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const VAL_KINDS = new Set(["displayicon", "killfeedportrait", "fullportrait"]);
+let valAgents = null;
+function valAgentCache() { // the cached list from disk (null when never fetched); also feeds the vMix agent names
+  if (valAgents) return valAgents;
+  try { const a = JSON.parse(fs.readFileSync(path.join(VAL_DIR, "agents.json"), "utf8")); if (Array.isArray(a) && a.length) valAgents = a; } catch { /* not fetched yet */ }
+  return valAgents;
+}
+async function valAgentList() {
+  const have = valAgentCache(); if (have) return have;
+  const j = await getJson("https://valorant-api.com/v1/agents?isPlayableCharacter=true");
+  if (!j || !Array.isArray(j.data)) throw new Error("unexpected answer");
+  const seen = new Set(), list = j.data.filter(a => a && a.isPlayableCharacter !== false && VAL_UUID.test(String(a.uuid)) && !seen.has(a.uuid) && seen.add(a.uuid))
+    .map(a => ({ uuid: a.uuid, name: String(a.displayName || "").slice(0, 40), role: String((a.role && a.role.displayName) || "").slice(0, 30) }))
+    .filter(a => a.name).sort((a, b) => a.name.localeCompare(b.name));
+  if (!list.length) throw new Error("no agents in the answer");
+  fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(path.join(VAL_DIR, "agents.json"), JSON.stringify(list));
+  valAgents = list; return list;
+}
+const valAgentNames = () => Object.fromEntries((valAgentCache() || []).map(a => [a.uuid, a.name]));
+async function valAgentImage(uuid, kind) {
+  const f = path.join(VAL_DIR, uuid + "_" + kind + ".png");
+  if (fs.existsSync(f)) return fs.readFileSync(f);
+  const got = await fetchImage(`https://media.valorant-api.com/agents/${uuid}/${kind}.png`);
+  if (got.type !== "image/png") throw new Error("not a PNG");
+  fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(f, got.buf);
+  return got.buf;
+}
+
 const DD_OK = /^cdn\/(?:(?:[\w.-]+\/img\/(?:champion|item|spell)\/[\w.-]+|img\/[\w\/.-]+)\.png|img\/champion\/loading\/[\w.-]+\.jpg)$/; // the only paths the cache will fetch (icons, and champion select's loading art)
 
 /* ------------------------------------------------ official League objective icons */
@@ -730,7 +766,7 @@ const fieldsLib = require("./fields.js");
 const OUT_DIR = path.join(DATA, "output");
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const eventById = id => DB.events.find(e => e.id === id) || onAirEvent(); // the on-air event is only the fallback for old links that name no event
-function fieldsOf(ev, query = {}, base = "") { return fieldsLib.build(DB, ev, ev ? feedOf(feedKeyOf(ev)).game : null, { dataDir: DATA, appDir: ROOT, images: query.images, base }); }
+function fieldsOf(ev, query = {}, base = "") { return fieldsLib.build(DB, ev, ev ? feedOf(feedKeyOf(ev)).game : null, { dataDir: DATA, appDir: ROOT, images: query.images, base, agents: valAgentNames() }); }
 function currentFields(query = {}, base = "") { return fieldsOf(eventById(query.event), query, base); }
 let lastCsv = "", lastJson = "";
 const lastOut = new Map();
@@ -1140,6 +1176,13 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { "content-type": rel.endsWith(".jpg") ? "image/jpeg" : "image/png", "cache-control": "max-age=86400" }); res.end(buf);
       }).catch(e => json(res, 502, { error: e.message }));
     }
+    if (p === "/api/val/agents") return valAgentList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the agent list: " + e.message }));
+    if (p.startsWith("/val-agent/")) { // an agent's picture: strict uuid and kind, fetched once, then served from the data folder; an error status makes the panel fall back to an initials tile
+      const mt = /^\/val-agent\/([^/]+)\/([a-z]+)\.png$/.exec(p);
+      if (!mt || !VAL_UUID.test(mt[1]) || !VAL_KINDS.has(mt[2])) return json(res, 400, { error: "bad path" });
+      return valAgentImage(mt[1], mt[2]).then(buf => { res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" }); res.end(buf); })
+        .catch(e => json(res, 502, { error: e.message }));
+    }
     if (p.startsWith("/covers/")) { // official key art for the event cards; 404 means "use the gradient"
       return coverFor(coverSlug(p.slice(8))).then(c => {
         if (!c) return json(res, 404, { error: "no cover" });
@@ -1172,6 +1215,7 @@ const server = http.createServer((req, res) => {
             const target = body.event ? DB.events.find(e => e.id === body.event) : DB;
             if (!target) return json(res, 404, { error: "event not found" });
             setPath(target, body.path, body.value);
+            if (body.event && body.path === "val.squad") { target.val.squad = Math.max(2, Math.min(5, Math.round(+target.val.squad) || 2)); seatPlayers(target, target.val.squad); } // a bigger squad seats the empty roster rows
             if (body.event && body.path === "game") { upgrade(target); if (SQUAD[target.game] && target.teams.every(t => !t.players.length)) seatPlayers(target, SQUAD[target.game]); } // switching game gives that game's own settings
             save(); broadcastDb(body.by || "api");
             applyFeeds(); // an event's game decides which feed it reads

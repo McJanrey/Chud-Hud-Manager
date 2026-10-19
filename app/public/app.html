@@ -138,6 +138,13 @@ const F={
 };
 const ml=(t,cls="ml")=>!t?`<span class="${cls}">?</span>`:t.logos&&t.logos[0]?`<img class="${cls}" src="${esc(t.logos[0])}" alt="">`:`<span class="${cls}" style="background:${esc(t.color)}">${esc((t.tag||"?").slice(0,4))}</span>`;
 const teamOpts=e=>[["","Select team"],...e.teams.map(t=>[t.id,t.name])];
+/* VALORANT agents for the roster dropdown: the server fetches the list from valorant-api.com once and keeps it on disk; offline it stays empty and a player's agent is simply "none" */
+let VALAG=null;
+function valAgentList(){
+  if(VALAG===null){VALAG=[];fetch("/api/val/agents").then(r=>r.ok?r.json():[]).then(a=>{if(Array.isArray(a)&&a.length){VALAG=a;if(ui.view==="teams"&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)))render()}else setTimeout(()=>{VALAG=null},30000)}).catch(()=>setTimeout(()=>{VALAG=null},30000))}
+  return VALAG;
+}
+const agentOpts=cur=>{const l=valAgentList();return[["","No agent"],...(cur&&!l.some(a=>a.uuid===cur)?[[cur,"Chosen agent"]]:[]),...l.map(a=>[a.uuid,a.name])]};
 
 /* ---------- shell ---------- */
 function screensText(){return`${SCREENS.overlay||0} overlay${SCREENS.overlay===1?"":"s"} · ${SCREENS.dashboard||0} dashboard${SCREENS.dashboard===1?"":"s"} connected`}
@@ -326,8 +333,8 @@ teams(e){
     <div class="sec"><div><h2>Team logo</h2><p class="sub">Upload your team's primary, secondary and tertiary logos. The HUD uses the primary.</p></div>
       <div class="cols" style="--n:3">${["Primary","Secondary","Tertiary"].map((l,j)=>F.dz(`${P}.logos.${j}`,l)).join("")}</div></div>
     <div class="sec"><div class="sechead"><div><h2>Team members</h2><p class="sub">The in-game name must match the IGN exactly for auto team tracking.</p></div><button class="btn" type="button" data-act="addPlayer">+ Add player</button></div>
-      <div class="tw"><table class="grid"><thead><tr><th style="width:60px">Avatar</th><th>${IGN_LABEL(e.game)} *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source URL</th><th style="width:44px"></th></tr></thead><tbody>
-      ${t.players.map((p,j)=>`<tr><td>${F.dz(`${P}.players.${j}.avatar`,"Avatar","mini")}</td><td>${F.text(`${P}.players.${j}.ign`,"","In-game name")}</td><td>${F.text(`${P}.players.${j}.alias`,"","Alias")}</td><td>${F.sel(`${P}.players.${j}.country`,"",COUNTRIES)}</td><td>${F.text(`${P}.players.${j}.cam`,"","https://vdo.ninja/?view=…")}</td><td><button class="btn icon" type="button" data-act="delPlayer" data-arg="${j}" aria-label="Remove player">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="6" class="sub" style="padding:16px">No players yet.</td></tr>`}
+      <div class="tw"><table class="grid"><thead><tr><th style="width:60px">Avatar</th><th>${IGN_LABEL(e.game)} *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source URL</th>${e.game==="Valorant"?"<th>Agent</th>":""}<th style="width:44px"></th></tr></thead><tbody>
+      ${t.players.map((p,j)=>`<tr><td>${F.dz(`${P}.players.${j}.avatar`,"Avatar","mini")}</td><td>${F.text(`${P}.players.${j}.ign`,"","In-game name")}</td><td>${F.text(`${P}.players.${j}.alias`,"","Alias")}</td><td>${F.sel(`${P}.players.${j}.country`,"",COUNTRIES)}</td><td>${F.text(`${P}.players.${j}.cam`,"","https://vdo.ninja/?view=…")}</td>${e.game==="Valorant"?`<td>${F.sel(`${P}.players.${j}.agent`,"",agentOpts(p.agent))}</td>`:""}<td><button class="btn icon" type="button" data-act="delPlayer" data-arg="${j}" aria-label="Remove player">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="7" class="sub" style="padding:16px">No players yet.</td></tr>`}
       </tbody></table></div></div>`:`<div class="empty"><div class="ico">${ico("teams")}</div><p>No teams yet. Add your first team to start building the roster.</p><button class="btn primary" type="button" data-act="addTeam">${ico("plus")}Add team</button></div>`}</div></div>`;
 },
 tournament(e){
@@ -605,7 +612,10 @@ val(e){
       <div class="cols">${[0,1].map(s=>`<div class="box"><b>${esc(sideName(e,s))}</b><div class="row c" style="justify-content:space-between"><span class="mono" style="font-size:44px" data-mirror="live.score.${s}">${sc[s]}</span><button class="btn primary" type="button" data-act="valRound" data-arg="${s}">+ Round</button></div></div>`).join("")}</div>
       <div class="row c"><button class="btn" type="button" data-act="valUndo">Undo last round</button><button class="btn danger" type="button" data-act="valReset">New match</button></div>
       <div class="cols" style="--n:4">${F.num("val.target","Rounds to win",'min="1" max="30" data-rerender')}${F.text("live.gameSeries","Label on stream","2V2 SKIRMISH")}${F.sel("live.left","Left team",teamOpts(e))}${F.sel("live.right","Right team",teamOpts(e))}</div>
-      <p class="note">Each team has two players. Add them on Players &amp; Teams.</p></div>
+      <div class="cols" style="--n:4">${F.sel("val.squad","Players a side",[2,3,4,5].map(n=>[n,n+" players"]),"data-num data-rerender")}</div>
+      <div class="sec"><div class="sechead"><div><h2>Players alive</h2><p class="sub">Tap a player when they die. The players-left tab appears on stream after the first tap, and + Round brings everyone back for the next round.</p></div><button class="btn" type="button" data-act="valAllAlive">Everyone alive</button></div>
+      <div class="cols">${[0,1].map(s=>{const t=sideTeam(e,s),sq=Math.max(2,Math.min(5,+v.squad||2)),dead=v.dead||{};return`<div class="box"><b>${esc(sideName(e,s))}</b><div class="row c" style="flex-wrap:wrap">${(t?t.players.slice(0,sq):[]).filter(p=>p.alias||p.ign).map(p=>`<button class="btn sm" type="button" data-act="valAlive" data-arg="${esc(p.id)}" aria-pressed="${!!dead[p.id]}">${esc(p.alias||String(p.ign).replace(/#[^#]*$/,""))}${dead[p.id]?" · out":""}</button>`).join("")||`<span class="sub">No named players yet. Add them on Players &amp; Teams.</span>`}</div></div>`}).join("")}</div></div>
+      <p class="note">Each team has ${Math.max(2,Math.min(5,+v.squad||2))} players. Add them (and their agents) on Players &amp; Teams.</p></div>
   </div><div class="sec">${stage("ingame")}</div></div>`;
 },
 dbd(e){
@@ -912,9 +922,11 @@ document.addEventListener("click",async ev0=>{
     case "ocrSaveFrame":{const r=await fetch("/api/ocr/save-frame",{method:"POST",headers:{"content-type":"application/json"},body:"{}"}).then(x=>x.json()).catch(()=>null);toast(r&&r.ok?"Saved to "+r.file:(r&&r.error)||"Couldn't save the frame.");return}
     case "draftDemo":{const on=!(DRAFTST&&DRAFTST.demo);await fetch("/api/draft/demo",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on})});DRAFTST=Object.assign({},DRAFTST,{demo:on});const b=$("#draftBox");if(b)b.innerHTML=draftBoxHtml();return}
     case "draftSeriesReset":await fetch("/api/draft/series-reset",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});toast("Series bans cleared.");return;
-    case "valRound":{const i=+arg,sc=[...e.live.score];sc[i]=(sc[i]||0)+1;put("live.score",sc);put("live.autoScore",false);put("val.rounds",[...(e.val.rounds||[]),i]);break}
+    case "valRound":{const i=+arg,sc=[...e.live.score];sc[i]=(sc[i]||0)+1;put("live.score",sc);put("live.autoScore",false);put("val.rounds",[...(e.val.rounds||[]),i]);put("val.dead",{});put("val.aliveUsed",false);break} // a new round: everyone is alive again
     case "valUndo":{const r=[...(e.val.rounds||[])],i=r.pop();if(i===undefined)break;const sc=[...e.live.score];sc[i]=Math.max(0,(sc[i]||0)-1);put("live.score",sc);put("val.rounds",r);break}
-    case "valReset":put("live.score",[0,0]);put("val.rounds",[]);break;
+    case "valReset":put("live.score",[0,0]);put("val.rounds",[]);put("val.dead",{});put("val.aliveUsed",false);break;
+    case "valAlive":{const d=Object.assign({},e.val.dead||{});if(d[arg])delete d[arg];else d[arg]=true;put("val.dead",d);put("val.aliveUsed",true);break}
+    case "valAllAlive":put("val.dead",{});put("val.aliveUsed",false);break;
     case "dbdAdd":{const t=e.dbd.trials,last=t[t.length-1];put("dbd.trials",[...t,{killer:last?1-last.killer:0,kills:0,escapes:0,gens:0}]);break}
     case "dbdFromOcr":{const v=gameOcr();if(!v)break;const r=dbdRead(v);put("dbd.trials",[...e.dbd.trials,{killer:+arg,kills:r.kills,escapes:r.escapes,gens:r.gens}]);toast("Trial added from the screen.");break}
     case "fnFromOcr":{const v=gameOcr();if(!v)break;const ti=+($("#fnOcrTeam")||{value:0}).value,mv=($("#fnOcrMatch")||{value:"new"}).value;
@@ -960,6 +972,7 @@ document.addEventListener("change",ev0=>{
     ocrBoxes();ocrRows();ocrSave();return}
   if(el.id==="rpTime"){lolPost("playback",{time:+el.value});return}
   if(el.dataset.rp){lolPost("render",{[el.dataset.rp]:el.type==="checkbox"?el.checked:el.value});return}
+  if(el.dataset.bind==="val.squad"){const e=ev();if(e)e.teams.forEach((t,i)=>{const n=Math.max(2,Math.min(5,+e.val.squad||2));if(t.players.length<n){while(t.players.length<n)t.players.push(Object.assign(blankPlayer(),{agent:""}));put(`teams.${i}.players`,t.players)}})} // a bigger squad seats the empty roster rows
   if(el.dataset.rerender!==undefined||el.dataset.bind==="hud.show.playerCam"||/(^teams\.\d+\.(color|tag|name)$)|^camera\./.test(el.dataset.bind||""))render();
 });
 document.addEventListener("dragover",ev0=>{const dz=ev0.target.closest(".dz");if(dz){ev0.preventDefault();dz.classList.add("over")}});
