@@ -18,6 +18,7 @@ const DEFAULTS = {
     heraldFirst: 900, heraldDespawn: 1185, baronFirst: 1200, baronRespawn: 360, baronBuff: 180, elderBuff: 150 },
   showTimers: { grubs: true, dragon: true, herald: true, elder: true, baron: true },
   counters: { dragons: true, heralds: true, grubs: true },
+  focus: "auto",         // the focus panel: "auto" (player in the latest kill) or a player number "0".."9" (side * 5 + row)
 };
 
 const DRAGON_NAMES = { Fire: "Infernal", Water: "Ocean", Earth: "Mountain", Air: "Cloud", Hextech: "Hextech", Chemtech: "Chemtech", Elder: "Elder" };

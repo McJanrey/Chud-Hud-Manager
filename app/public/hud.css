@@ -3,7 +3,7 @@
 @font-face{font-family:"Teko";font-style:normal;font-weight:500 700;font-display:swap;src:url(/fonts/teko-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 @font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/jetbrains-mono-500-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 /* Chud Hud scenes. Every scene is laid out on a 1280x720 stage and scaled to fit. */
-.hud{--gold:#FDC82F;--green:#00693C;position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;font-family:"Teko","Arial Narrow",Impact,sans-serif;color:#fff;text-transform:uppercase;line-height:1;--L:#2f7dff;--R:#ff9b1a;overflow:hidden}
+.hud{--gold:#FDC82F;--green:#00693C;--panel:rgba(8,12,16,.94);--panel2:rgba(2,6,10,.97);--line:rgba(255,255,255,.18);--rowline:rgba(255,255,255,.07);--muted:#9db3a8;--text2:#cbd6cf;--bar-w:594px;--cam-w:117px;--cam-h:147px;--row-h:34px;position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;font-family:"Teko","Arial Narrow",Impact,sans-serif;color:#fff;text-transform:uppercase;line-height:1;--L:#2f7dff;--R:#ff9b1a;overflow:hidden}
 .hud *{box-sizing:border-box}
 .hud .lay,.hud .cams{position:absolute;inset:0}
 .hud .cams iframe{position:absolute;border:0;background:#111}
@@ -71,83 +71,107 @@
 .h-goal span{color:#66676f}
 .h-flag{position:absolute;top:128px;left:50%;transform:translateX(-50%);background:#d23b3b;padding:5px 14px 1px;font-size:22px;letter-spacing:.1em}
 
-/* ---------- League of Legends ingame (broadcast scorebar) ---------- */
-.l2-bar{position:absolute;top:0;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;height:50px;width:1040px;background:linear-gradient(180deg,rgba(5,24,17,.96),rgba(5,24,17,.88));border-bottom:3px solid var(--gold,#FDC82F);filter:drop-shadow(0 6px 10px rgba(0,0,0,.4))}
-.l2-team{display:flex;align-items:center;gap:12px;width:170px;padding:0 14px;font-size:34px}
-.l2-team.l{background:linear-gradient(90deg,var(--L),transparent)}.l2-team.r{background:linear-gradient(270deg,var(--R),transparent);justify-content:flex-end}
-.l2-team .lgbox{width:38px;height:38px}.l2-team .tg{padding-top:5px;text-shadow:0 2px 0 rgba(0,0,0,.35)}
-.l2-stat{flex:1;display:flex;align-items:center;justify-content:space-evenly;font-size:30px}
-.l2-stat .k,.l2-stat .g{display:flex;align-items:center;gap:6px;position:relative}
-.l2-stat svg{width:22px;height:22px;color:#cbd6cf}
-.l2-stat b{padding-top:5px;font-weight:600}
-.l2-stat .g small{position:absolute;left:30px;top:30px;font-size:15px;color:#7be3a3;white-space:nowrap}
-.l2-stat.r .g small{left:30px}
-.l2-mid{width:132px;background:rgba(2,14,10,.95);display:flex;align-items:center;justify-content:space-between;padding:0 14px;position:relative}
-.l2-mid b{font-size:40px;padding-top:5px;font-weight:600}
-.l2-mid small{position:absolute;left:0;right:0;bottom:1px;text-align:center;font-size:13px;color:#9db3a8;letter-spacing:.12em}
-.l2-sub{position:absolute;top:50px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;height:32px;width:1040px}
-.l2-obj{flex:1;display:flex;align-items:center;gap:16px;padding:0 16px;font-size:20px;background:rgba(5,24,17,.82);color:#cbd6cf}
-.l2-obj.r{flex-direction:row-reverse}
-.l2-obj span{display:flex;align-items:center;gap:5px}
-.l2-obj svg{width:16px;height:16px}
-.l2-obj b{color:#fff;padding-top:3px;font-weight:600}
-.l2-obj .drk i{display:inline-block;width:16px;height:16px}
-.l2-obj .bar{color:#b48cff}
-.l2-time{width:132px;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(2,14,10,.95);font-size:28px;color:#FDC82F}
-.l2-time svg{width:16px;height:16px}.l2-time b{padding-top:4px;font-weight:600}
-.l2-note{position:absolute;top:92px;left:50%;transform:translateX(-50%);background:var(--gold,#FDC82F);color:#07120e;font-size:24px;padding:7px 26px 3px;border-left:8px solid var(--c);letter-spacing:.04em;white-space:nowrap;animation:hfade .35s}
-.l2-note b{margin-right:6px}
 
-/* ---------- League of Legends teamfight strip ---------- */
-.tf{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:1040px;display:flex;align-items:stretch;background:rgba(5,24,17,.93);border-top:3px solid var(--gold,#FDC82F);animation:hfade .3s}
-.tf-s{flex:1;display:flex;min-width:0}
-.tf-p{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px 6px;min-width:0;position:relative}
-.tf-s:first-child .tf-p{border-bottom:3px solid var(--L)}.tf-s:last-child .tf-p{border-bottom:3px solid var(--R)}
-.tf-p .it{display:flex;gap:1px}
-.tf-p .it img,.tf-p .it i{width:14px;height:14px;border-radius:2px;background:rgba(255,255,255,.08);display:block;object-fit:cover;flex:none}
-.tf-p .ch{position:relative;width:58px;height:58px;background:#2a2d3a;display:grid;place-items:center;font-size:22px}
-.tf-p .ch img{width:100%;height:100%;object-fit:cover}
-.tf-p .ch .lv{position:absolute;bottom:0;right:0;background:#07120e;font-size:14px;padding:1px 4px 0;min-width:18px;text-align:center}
-.tf-p .ch .rs{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;color:#ff5d5d;background:rgba(0,0,0,.5)}
-.tf-p.dead .ch img{filter:grayscale(1) brightness(.5)}
-.tf-p .nm{font-size:18px;font-weight:500;padding-top:2px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1}
-.tf-p small{font-size:15px;color:#b9c9bf;line-height:1}
-.tf-m{width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(2,14,10,.97)}
-.tf-m small{font-size:13px;letter-spacing:.14em;color:var(--gold,#FDC82F)}
-.tf-m b{font-size:32px;font-weight:600;padding-top:2px}
-
-/* ---------- League of Legends objective timers (top-left corner) ---------- */
-.l2-timers{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;z-index:2}
-.l2-timers .tm{display:grid;grid-template-columns:30px auto;grid-template-rows:auto auto;align-items:center;column-gap:8px;min-width:112px;padding:4px 12px 3px 8px;background:rgba(5,24,17,.94);border-left:4px solid var(--gold,#FDC82F)}
-.l2-timers .tm svg,.l2-timers .tm i{grid-row:span 2;width:26px;height:26px;display:grid;place-items:center;font-style:normal;font-size:20px}
-.l2-timers .tm.drake svg{color:#FDC82F}.l2-timers .tm.baron i{color:#b48cff;border:2px solid #b48cff;border-radius:50%;width:24px;height:24px;font-size:15px;padding-top:2px}
-.l2-timers .tm b{font-size:26px;font-weight:600;line-height:1;padding-top:3px}
-.l2-timers .tm b.up{color:#7be3a3}
-.l2-timers .tm.grub svg{color:#9be15d}.l2-timers .tm.herald svg{color:#c8a2ff}.l2-timers .tm.elder svg{color:#b48cff}.l2-timers .tm.elder{border-left-color:#b48cff}
-.l2-obj .bf{display:none;font-size:15px;padding:2px 8px 0;border-radius:3px;background:rgba(180,140,255,.22);color:#d8c6ff;letter-spacing:.06em}.l2-obj .bf.elder{background:rgba(255,200,60,.2);color:#ffe08a}
-.l2-obj .bf b{color:inherit}
-.l2-timers .tm small{font-size:12px;letter-spacing:.14em;color:#9db3a8;line-height:1}
-
-/* ---------- League of Legends lower panel (lane by lane) ---------- */
-.lp{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:1000px;display:grid;grid-template-columns:1fr 84px 1fr;background:rgba(5,24,17,.92);border-top:3px solid var(--gold,#FDC82F)}
-.lp-h{display:flex;align-items:center;gap:10px;height:46px;padding:0 10px;border-bottom:1px solid rgba(255,255,255,.06);min-width:0}
-.lp-h.r{flex-direction:row-reverse;text-align:right}
-.lp-h .it{display:flex;gap:2px;flex:none}.lp-h.r .it{flex-direction:row-reverse}
-.lp-h .it img,.lp-h .it i{width:28px;height:28px;border-radius:4px;background:rgba(255,255,255,.08);display:block;object-fit:cover}
-.lp-h .ch{position:relative;width:38px;height:38px;flex:none;background:#2a2d3a;display:grid;place-items:center;font-size:18px}
-.lp-h .ch img{width:100%;height:100%;object-fit:cover}
-.lp-h .ch .lv{position:absolute;bottom:0;right:0;background:#07120e;font-size:13px;padding:1px 4px 0;min-width:17px;text-align:center}
-.lp-h.dead .ch img{filter:grayscale(1) brightness(.55)}
-.lp-h .nm{display:flex;flex-direction:column;flex:1;min-width:0;line-height:1}
-.lp-h .nm b{font-size:22px;padding-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lp-h .nm small{font-size:15px;color:#b9c9bf}
-.lp-h .st{display:flex;flex-direction:column;align-items:flex-end;line-height:1;width:58px;flex:none}.lp-h.r .st{align-items:flex-start}
-.lp-h .st b{font-size:22px;padding-top:4px;font-weight:600}.lp-h .st small{font-size:14px;color:#9db3a8}
-.lp-d{display:grid;place-items:center;font-size:26px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(2,14,10,.96);color:#9db3a8;position:relative}
-.lp-d b{padding-top:4px;font-weight:600}
-.lp-d.l{color:var(--L,#FDC82F)}.lp-d.r{color:var(--R,#FDC82F)}
-.lp-d.l::before,.lp-d.r::before{content:"";position:absolute;top:8px;bottom:8px;width:3px;background:currentColor}
-.lp-d.l::before{left:0}.lp-d.r::before{right:0}
+/* ---------- League of Legends in-game (Worlds-style layout, classes l3-*). Colours and sizes come from the variables on .hud, so a new look is a variables change ---------- */
+.l3-bar{position:absolute;left:343px;top:0;width:var(--bar-w);height:62px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.4))}
+.l3-bar .rw1{display:flex;height:42px;background:var(--panel)}
+.l3-bar .rw2{display:grid;grid-template-columns:1fr 84px 1fr;height:20px;background:var(--panel);border-top:1px solid var(--rowline)}
+.l3-team{position:relative;width:112px;flex:none;display:flex;align-items:center;gap:5px;padding:0 6px 0 11px;min-width:0;background:linear-gradient(90deg,var(--L),transparent 85%) 0 0/100% 100% no-repeat,var(--panel)}
+.l3-team.r{flex-direction:row-reverse;padding:0 11px 0 6px;background:linear-gradient(270deg,var(--R),transparent 85%) 0 0/100% 100% no-repeat,var(--panel)}
+.l3-team .edge{position:absolute;top:0;bottom:0;left:0;width:4px;background:var(--L)}.l3-team.r .edge{left:auto;right:0;background:var(--R)}
+.l3-team .lgbox{width:30px;height:30px}
+.l3-team .tx{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;line-height:1}.l3-team.r .tx{align-items:flex-end}
+.l3-team .tg{font-size:24px;padding-top:3px;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+.l3-team .tx small{font-size:11px;color:var(--text2);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.04em}
+.l3-team .pips{display:flex;flex-direction:column;gap:3px;flex:none}
+.l3-team .pips i{width:6px;height:6px;border-radius:50%;border:1.5px solid rgba(255,255,255,.55)}.l3-team .pips i.on{background:var(--gold);border-color:var(--gold)}
+.l3-tw{width:40px;flex:none;display:flex;align-items:center;justify-content:center;gap:3px;color:var(--text2)}
+.l3-tw svg{width:14px;height:14px}.l3-tw img.oi{width:17px;height:17px}.l3-tw b{font-size:20px;padding-top:3px;font-weight:600;color:#fff}
+.l3-gd{position:relative;width:58px;flex:none;display:flex;align-items:center;justify-content:center;padding-bottom:7px}
+.l3-gd .g{display:flex;align-items:center;gap:3px;color:var(--text2)}.l3-gd .g svg{width:12px;height:12px}.l3-gd .g b{font-size:19px;padding-top:3px;font-weight:600;color:#fff}
+.l3-gd .est{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-style:normal;font-size:10px;letter-spacing:.16em;color:var(--muted)}
+.l3-kl{width:44px;flex:none;display:grid;place-items:center;background:var(--panel2)}
+.l3-kl b{font-size:36px;padding-top:4px;font-weight:600}.l3-kl.l b{color:var(--L)}.l3-kl.r b{color:var(--R)}
+.l3-logo{flex:1;min-width:84px;display:grid;place-items:center;background:var(--panel2)}.l3-logo .lgbox{width:34px;height:34px}
+.l3-ob{display:flex;align-items:center;gap:9px;padding:0 10px;min-width:0;overflow:hidden;font-size:15px;color:var(--text2)}.l3-ob.r{flex-direction:row-reverse}
+.l3-ob span{display:flex;align-items:center;gap:4px}.l3-ob .drk{gap:2px}
+.l3-ob svg,.l3-ob .drk i{width:13px;height:13px;display:block}.l3-ob img.oi{width:15px;height:15px}
+.l3-ob b{color:#fff;font-size:17px;padding-top:3px;font-weight:600}.l3-ob .bn{color:#b48cff}
+.l3-time{display:grid;place-items:center;background:var(--panel2);font-size:22px;color:#fff}.l3-time b{font-weight:500;padding-top:3px}
+.l3-note{position:absolute;left:343px;top:68px;width:var(--bar-w);display:flex;justify-content:center;pointer-events:none}
+.l3-note span{background:var(--gold);color:#07120e;font-size:22px;padding:5px 22px 1px;border-left:8px solid var(--c);letter-spacing:.04em;white-space:nowrap}.l3-note b{margin-right:6px}
+/* the two soonest objective timers, top-left */
+.l3-timers{position:absolute;left:12px;top:10px;display:flex;flex-direction:column;gap:4px;z-index:2}
+.l3-t{display:flex;align-items:center;gap:7px;width:104px;height:28px;padding:0 8px 0 6px;background:var(--panel);border-left:3px solid var(--gold)}
+.l3-t svg,.l3-t i{width:20px;height:20px;flex:none;font-style:normal}.l3-t img.oi{width:22px;height:22px}.l3-t.drake svg{color:var(--gold)}
+.l3-t b{font-size:22px;font-weight:600;line-height:1;padding-top:3px}.l3-t b.up{color:#7be3a3}
+.l3-t.grub svg{color:#9be15d}.l3-t.herald svg{color:#c8a2ff}.l3-t.elder svg{color:#b48cff}.l3-t.elder{border-left-color:#b48cff}
+.l3-t.baron i{display:grid;place-items:center;color:#b48cff;border:2px solid #b48cff;border-radius:50%;width:19px;height:19px;font-size:13px;padding-top:2px}
+/* Baron / Elder buff cards: down each side above the band, with who took it and a draining timer */
+.l3-buffs{position:absolute;top:400px;left:8px;display:flex;flex-direction:column;gap:6px;width:230px}.l3-buffs.r{left:auto;right:8px}
+.l3-buff{position:relative;display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:8px;padding:5px 10px 7px 5px;background:var(--panel2);border-left:4px solid var(--c);overflow:hidden}
+.l3-buff.r{grid-template-columns:auto 1fr 38px;border-left:0;border-right:4px solid var(--c);text-align:right}
+.l3-buff.r .pt{order:3}.l3-buff.r .cd{order:1}.l3-buff.r .tx{order:2}
+.l3-buff .pt{width:38px;height:38px;border:2px solid var(--c);display:grid;place-items:center;overflow:hidden;color:#fff}.l3-buff .pt img{width:100%;height:100%;object-fit:cover}
+.l3-buff .tx{min-width:0;display:flex;flex-direction:column;line-height:1.05}.l3-buff .tx small{font-size:11px;letter-spacing:.12em;color:var(--c)}
+.l3-buff .tx b{font-size:18px;padding-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l3-buff .cd{font-size:24px;font-weight:600;padding-top:3px;color:var(--c)}
+.l3-buff .dr{position:absolute;left:0;bottom:0;width:100%;height:3px;background:var(--c);transform-origin:left;transition:transform 1s linear}.l3-buff.r .dr{transform-origin:right}
+/* bottom band, y 547-720: every zone is placed inside it (left/top below are relative to the band) */
+.l3-band{position:absolute;left:0;top:547px;width:1280px;height:173px;pointer-events:none}
+.l3-focus{position:absolute;left:0;top:0;width:150px;height:93px;padding:5px 6px 0;background:var(--panel);border-bottom:3px solid var(--c)}
+.l3-focus .fh{display:flex;align-items:center;gap:4px;height:36px}
+.l3-band .l3-focus .ch{width:36px;height:36px}
+.l3-focus .sp{display:flex;flex-direction:column;gap:2px;flex:none}.l3-focus .sp img,.l3-focus .sp i{width:17px;height:17px;border-radius:2px;background:rgba(255,255,255,.07);display:block}
+.l3-focus .who{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.l3-focus .who b{font-size:17px;font-weight:500;padding-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.l3-focus .who small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l3-focus .rk{width:14px;height:14px;flex:none;object-fit:contain}
+.l3-focus .kd{display:flex;align-items:baseline;gap:7px;height:20px;margin-top:3px}
+.l3-focus .kd b{font-size:19px;font-weight:600}.l3-focus .kd span{font-size:13px;color:var(--text2)}
+.l3-focus .kd .vs{display:flex;align-items:center;gap:2px;color:#c9a64b}.l3-focus .kd .vs svg{width:11px;height:11px}
+.l3-focus .it{margin-top:2px}.l3-focus.dead .ch img{filter:grayscale(1) brightness(.55)}
+.l3-sp{position:absolute;left:0;top:93px;width:150px;height:80px;background:var(--panel2)}
+.l3-sp .in{position:absolute;inset:0;display:grid;place-items:center;padding:8px 10px}
+.l3-sp img{width:100%;height:100%;object-fit:contain}.l3-sp b{font-size:24px;font-weight:500;text-align:center;line-height:1.05}
+.l3-cam{position:absolute;top:0;width:var(--cam-w);height:var(--cam-h);background:var(--panel2)}
+.l3-cam span{position:absolute;left:0;top:100%;width:100%;height:26px;padding:3px 6px 0;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--panel);border-top:3px solid var(--c)}
+.l3-cam.r span{text-align:right}
+.l3-map{position:absolute;left:1087px;top:-20px;width:193px;height:193px;border:3px solid var(--line)}
+/* the board: five rows of two halves around a 56px centre column (lane gold difference) */
+.l3-board{position:absolute;left:267px;top:1px;width:703px;height:172px;display:grid;grid-template-columns:1fr 56px 1fr;grid-auto-rows:var(--row-h);background:var(--panel);border-top:2px solid var(--line)}
+.l3-h{position:relative;display:flex;align-items:center;height:var(--row-h);min-width:0;padding:0 3px;border-bottom:1px solid var(--rowline)}.l3-h.r{flex-direction:row-reverse}
+.l3-band .it{display:flex;gap:1px;flex:none}.l3-h.r .it{flex-direction:row-reverse}
+.l3-band .sl{position:relative;width:17px;height:17px;flex:none;border-radius:2px;background:rgba(255,255,255,.07)}
+.l3-band .sl img{display:block;width:100%;height:100%;object-fit:cover;border-radius:2px}
+.l3-band .sl em{position:absolute;right:0;bottom:0;font-style:normal;font-size:10px;line-height:1;padding:1px 2px 0;background:rgba(0,0,0,.78);color:#fff}
+.l3-band .it .sl:last-child{margin-left:3px;border-radius:50%}.it .sl:last-child img{border-radius:50%}.l3-h.r .it .sl:last-child{margin-left:0;margin-right:3px}
+.l3-h .sp{display:flex;flex-direction:column;gap:1px;flex:none;width:15px;margin:0 4px}
+.l3-h .sp img,.l3-h .sp i{width:15px;height:15px;border-radius:2px;background:rgba(255,255,255,.07);display:block}
+.l3-band .ch{position:relative;width:32px;height:32px;flex:none;background:#1a1d24;display:grid;place-items:center;font-size:13px;border:1px solid var(--line)}
+.l3-band .ch img{width:100%;height:100%;object-fit:cover}
+.l3-band .ch .lv{position:absolute;left:0;bottom:0;background:rgba(0,0,0,.82);font-size:10px;line-height:1;padding:2px 3px 0;min-width:11px;text-align:center}
+.l3-band .ch .rs{position:absolute;inset:0;display:grid;place-items:center;font-size:17px;color:#ff6a6a;background:rgba(0,0,0,.55)}
+.l3-h.dead .ch img,.l3-tp.dead .ch img{filter:grayscale(1) brightness(.55)}
+.l3-h .nm{flex:1;min-width:0;display:flex;align-items:center;gap:3px;padding:0 5px;line-height:1}.l3-h.r .nm{flex-direction:row-reverse}
+.l3-h .nm b{font-size:15px;font-weight:500;padding-top:3px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l3-band .rk{width:14px;height:14px;flex:none;object-fit:contain}
+.l3-h .st{width:62px;flex:none;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding-right:3px;line-height:1}.l3-h.r .st{align-items:flex-start;padding:0 0 0 3px}
+.l3-h .st b{font-size:18px;font-weight:600;padding-top:2px}.l3-h .st small{font-size:13px;color:var(--text2);margin-top:1px}
+.l3-h .bars{position:absolute;left:0;right:0;bottom:0;height:3px;display:flex;gap:1px}
+.l3-h .bars i{flex:1;height:100%;transform-origin:left;transition:transform .5s cubic-bezier(.2,.8,.2,1)}.l3-h.r .bars i{transform-origin:right}
+.l3-band .bars .hp{background:#5fd77a}.bars .mp{background:#4aa8ff}.bars .xp{background:#b48cff}
+.l3-d{display:flex;align-items:center;justify-content:center;gap:3px;background:var(--panel2);border-bottom:1px solid var(--rowline);font-size:17px;color:#e8e8ec}.l3-d b{font-weight:500;padding-top:3px}
+.l3-d .ar{display:block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.l3-d.l .ar{border-right:6px solid var(--L)}.l3-d.r .ar{border-left:6px solid var(--R)}
+/* teamfight strip (F9): takes the board's place, inside the same box */
+.l3-fight{position:absolute;left:267px;top:1px;width:703px;height:172px;display:flex;background:var(--panel);border-top:2px solid var(--line)}
+.l3-fight .sd{flex:1;display:flex;min-width:0}
+.l3-tp{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;padding:4px 1px 3px}
+.l3-fight>.sd:first-child .l3-tp{border-bottom:3px solid var(--L)}.l3-fight>.sd:last-child .l3-tp{border-bottom:3px solid var(--R)}
+.l3-tp .it{display:grid;grid-template-columns:repeat(3,17px)}.l3-band .l3-tp .it .sl:last-child{margin:0;border-radius:2px}.l3-band .l3-tp .it .sl:last-child img{border-radius:2px}.l3-tp .ch{width:44px;height:44px}
+.l3-tp .nm{font-size:15px;font-weight:500;padding-top:2px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.l3-tp small{font-size:13px;color:var(--text2)}
+.l3-fight .mid{width:96px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:var(--panel2)}
+.l3-fight .mid small{font-size:13px;letter-spacing:.14em;color:var(--gold)}.l3-fight .mid b{font-size:32px;font-weight:600;padding-top:2px}
 
 /* ---------- League of Legends player lists ---------- */
 .l-top{position:absolute;top:0;left:50%;transform:translateX(-50%);display:flex;height:58px;filter:drop-shadow(0 4px 0 rgba(0,0,0,.35))}
@@ -283,59 +307,6 @@
 .h-replay .info div{padding:10px 22px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .h-replay .info small{font-size:15px;color:#9a9ba3}
 
-/* compact objective timers: five chips fit above the player lists */
-.l2-timers{gap:4px}
-.l2-timers .tm{grid-template-columns:22px auto 1fr;grid-template-rows:auto;min-width:150px;padding:3px 10px 2px 6px;column-gap:7px}
-.l2-timers .tm svg,.l2-timers .tm i{grid-row:auto;width:20px;height:20px;font-size:15px}
-.l2-timers .tm.baron i{width:19px;height:19px;font-size:13px}
-.l2-timers .tm b{font-size:22px}
-.l2-timers .tm small{font-size:11px;white-space:nowrap}
-
-/* ---- League at the in-game broadcast size (1920x1080 reference scaled to this 1280x720 stage) ---- */
-.l2-bar{width:596px;height:40px;top:7px;display:grid;grid-template-columns:118px 40px 80px 120px 80px 40px 118px;align-items:stretch;filter:drop-shadow(0 3px 5px rgba(0,0,0,.4))}
-.l2-team{width:auto;gap:6px;padding:0 8px;font-size:24px;position:relative;min-width:0}
-.l2-team .lgbox{width:28px;height:28px}
-.l2-team .tg{padding-top:3px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
-.l2-team.r{justify-content:flex-end}
-.l2-team .pips{display:flex;gap:3px;flex-direction:column;margin-left:2px}.l2-team.r .pips{margin:0 2px 0 0}
-.l2-team .pips i{width:6px;height:6px;border-radius:50%;border:1.5px solid rgba(255,255,255,.55)}.l2-team .pips i.on{background:var(--gold,#FDC82F);border-color:var(--gold,#FDC82F)}
-.l2-tw{display:flex;align-items:center;justify-content:center;gap:3px;color:#cbd6cf;background:rgba(5,24,17,.5)}
-.l2-tw svg{width:14px;height:14px}.l2-tw b{font-size:20px;padding-top:3px;font-weight:600;color:#fff}
-.l2-gd{position:relative;display:flex;align-items:center;justify-content:center}
-.l2-gd .g{display:flex;align-items:center;gap:4px;color:#cbd6cf}.l2-gd .g svg{width:14px;height:14px}.l2-gd .g b{font-size:22px;padding-top:3px;font-weight:600;color:#fff}
-.l2-gd small{position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:12px;padding:1px 7px 0;color:#fff;white-space:nowrap;z-index:2;background:var(--L)}
-.l2-gd.r small{background:var(--R)}
-.l2-kc{display:grid;grid-template-columns:1fr 1fr;align-items:center;text-align:center;background:rgba(2,14,10,.97)}
-.l2-kc b{font-size:26px;padding-top:4px;font-weight:600}.l2-kc b:first-child{color:var(--L)}.l2-kc b:last-child{color:var(--R)}
-.l2-sub{width:596px;top:47px;height:25px;display:grid;grid-template-columns:1fr 100px 1fr}
-.l2-obj{height:25px;gap:9px;padding:0 10px;font-size:15px}
-.l2-obj svg{width:13px;height:13px}.l2-obj b{font-size:17px}
-.l2-obj .drk i{width:13px;height:13px}
-.l2-time{width:auto;font-size:20px;color:#fff}
-.l2-time b{font-weight:500;padding-top:3px}
-.l2-note{top:78px}
-/* objective timers: small icons across the top-left corner */
-.l2-timers{top:8px;left:8px;flex-direction:row;flex-wrap:wrap;gap:3px;max-width:326px}
-.l2-timers .tm{display:flex;align-items:center;gap:5px;min-width:0;height:28px;padding:2px 8px 1px 5px;border-left-width:3px}
-.l2-timers .tm svg,.l2-timers .tm i{width:18px;height:18px;font-size:13px}
-.l2-timers .tm.baron i{width:17px;height:17px;font-size:12px}
-.l2-timers .tm b{font-size:18px}
-.l2-timers .tm small{display:none}
-/* bottom stats board at the in-game width (it sits between the two camera slots) */
-.lp{width:660px;grid-template-columns:1fr 54px 1fr}
-.lp-h{height:34px;gap:6px;padding:0 6px}
-.lp-h .it{gap:1px}.lp-h .it img,.lp-h .it i{width:18px;height:18px}
-.lp-h .ch{width:30px;height:30px;font-size:14px}.lp-h .ch .lv{font-size:10px;padding:0 3px;min-width:12px}
-.lp-h .nm b{font-size:16px;padding-top:3px}.lp-h .nm small{font-size:12px}
-.lp-h .st{width:42px}.lp-h .st b{font-size:16px;padding-top:3px}.lp-h .st small{font-size:11px}
-.lp-d{font-size:18px}
-.tf{width:660px}
-.tf-p{padding:4px 1px 3px;gap:2px}
-.tf-p .it img,.tf-p .it i{width:10px;height:10px}
-.tf-p .ch{width:34px;height:34px;font-size:15px}.tf-p .ch .lv{font-size:10px;padding:0 3px;min-width:12px}.tf-p .ch .rs{font-size:18px}
-.tf-p .nm{font-size:12px}.tf-p small{font-size:11px}
-.tf-m{width:64px}.tf-m b{font-size:20px}.tf-m small{font-size:10px}
-
 /* ---------- Minecraft: Hunger Games and Build Battle ---------- */
 .hd{position:relative;display:inline-block;width:var(--hs,28px);height:var(--hs,28px);flex:none;background:#2a2d3a;border-radius:3px;overflow:hidden}
 .hd i{position:absolute;inset:0;display:grid;place-items:center;font-style:normal;font-size:16px;color:#9db3a8}
@@ -400,73 +371,12 @@
 .rb-log{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:3px;align-items:center}
 .rb-log div{background:rgba(5,24,17,.9);padding:4px 14px 1px;font-size:18px;white-space:nowrap}.rb-log b{color:var(--gold,#FDC82F);font-weight:500}
 
-/* the bar (and the gold-lead tab hanging below it) sits above the clock row */
-.l2-bar{z-index:3}.l2-sub{z-index:2}
-.l2-gd small{font-size:14px;line-height:1;padding:3px 9px 1px;font-weight:600;letter-spacing:.02em;border-radius:0 0 4px 4px;box-shadow:0 2px 4px rgba(0,0,0,.35)}
-
 /* uploaded objective icons */
 .oi{width:20px;height:20px;object-fit:contain;display:block;flex:none}
-.l2-timers .tm img.oi{width:22px;height:22px}
-.l2-obj img.oi{width:16px;height:16px}
-.l2-tw img.oi{width:17px;height:17px}
-
-/* ---- bottom scoreboard, 1:1 with the in-game board (990x255 on 1920x1080 -> 660x170 here) ---- */
-.lp{width:660px;grid-template-columns:1fr 40px 1fr;border-top:2px solid rgba(255,255,255,.18);background:rgba(8,12,16,.94)}
-.lp-h{height:34px;display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid rgba(255,255,255,.07);min-width:0}
-.lp-h.r{flex-direction:row-reverse}
-.lp-h .vs{width:30px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;color:#c9a64b}
-.lp-h .vs b{font-size:15px;color:#e8d9a8;font-weight:500;padding-top:2px}.lp-h .vs svg{width:11px;height:11px;margin-top:1px}
-.lp-h .it{display:flex;gap:1px;flex:none;width:130px;padding:0 3px}
-.lp-h .it img,.lp-h .it i{width:17px;height:17px;border-radius:2px;background:rgba(255,255,255,.07);display:block;object-fit:cover;flex:none}
-.lp-h .it :last-child{margin-left:3px;border-radius:50%}
-.lp-h .sp{display:flex;flex-direction:column;gap:1px;flex:none;width:14px;margin:0 4px 0 3px}
-.lp-h .sp img,.lp-h .sp i{width:14px;height:14px;border-radius:2px;background:rgba(255,255,255,.07);display:block}
-.lp-h .ch{position:relative;width:30px;height:30px;flex:none;background:#1a1d24;display:grid;place-items:center;font-size:13px;border:1px solid rgba(255,255,255,.25)}
-.lp-h .ch img{width:100%;height:100%;object-fit:cover}
-.lp-h .ch .lv{position:absolute;left:0;bottom:0;background:rgba(0,0,0,.82);font-size:10px;line-height:1;padding:2px 3px 0;min-width:11px;text-align:center}
-.lp-h .ch .rs{position:absolute;inset:0;display:grid;place-items:center;font-size:17px;color:#ff6a6a;background:rgba(0,0,0,.55)}
-.lp-h.dead .ch img{filter:grayscale(1) brightness(.55)}
-.lp-h .nm{flex:1;min-width:0;display:flex;align-items:center;gap:3px;padding:0 5px;line-height:1}
-.lp-h.r .nm{justify-content:flex-end}
-.lp-h .nm b{font-size:15px;font-weight:500;padding-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lp-h .nm .rk{width:15px;height:15px;flex:none;object-fit:contain}
-.lp-h.r .nm{flex-direction:row-reverse}
-.lp-h .st{width:42px;flex:none;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;line-height:1;padding-right:4px}
-.lp-h.r .st{align-items:flex-start;padding:0 0 0 4px}
-.lp-h .st b{font-size:17px;font-weight:500;padding-top:2px}.lp-h .st small{font-size:12px;color:#cfd6dc;margin-top:1px}
-.lp-d{display:grid;place-items:center;font-size:17px;font-weight:500;background:rgba(2,6,10,.97);border-bottom:1px solid rgba(255,255,255,.07);color:#e8e8ec;position:relative}
-.lp-d b{padding-top:3px;font-weight:500}
-.lp-d.l::before,.lp-d.r::before{content:"";position:absolute;top:6px;bottom:6px;width:3px;background:currentColor;border-radius:1px}
-.lp-d.l::before{left:0;background:var(--L)}.lp-d.r::before{right:0;background:var(--R)}
-
-/* scoreboard: make room for full names, like the in-game board */
-.lp-h .vs{width:24px}.lp-h .vs b{font-size:14px}
-.lp-h .it{width:120px;padding:0 2px}.lp-h .it img,.lp-h .it i{width:16px;height:16px}
-.lp-h .sp{margin:0 3px 0 2px}
-.lp-h .ch{width:28px;height:28px}
-.lp-h .nm{padding:0 4px;gap:2px}.lp-h .nm b{font-size:13px;padding-top:2px}.lp-h .nm .rk{width:12px;height:12px}
-.lp-h .st{width:36px}.lp-h .st b{font-size:15px}.lp-h .st small{font-size:11px}
-
-/* Baron / Elder buff cards: down each side under the broadcast bar, with who took it and a draining timer */
-.l2-buffs{position:absolute;top:446px;left:8px;display:flex;flex-direction:column;gap:6px;width:230px}
-.l2-buffs.r{left:auto;right:8px}
-.l2-buff{position:relative;display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:8px;padding:5px 10px 7px 5px;background:rgba(2,14,10,.9);border-left:4px solid var(--c);overflow:hidden;animation:hfade .35s}
-.l2-buff.r{grid-template-columns:auto 1fr 38px;border-left:0;border-right:4px solid var(--c);text-align:right}
-.l2-buff.r .pt{order:3}.l2-buff.r .cd{order:1}.l2-buff.r .tx{order:2}
-.l2-buff .pt{width:38px;height:38px;border:2px solid var(--c);display:grid;place-items:center;overflow:hidden;color:#fff}
-.l2-buff .pt img{width:100%;height:100%;object-fit:cover}
-.l2-buff .tx{min-width:0;display:flex;flex-direction:column;line-height:1.05}
-.l2-buff .tx small{font-size:11px;letter-spacing:.12em;color:var(--c)}
-.l2-buff .tx b{font-size:18px;padding-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.l2-buff .cd{font-size:24px;font-weight:600;padding-top:3px;color:var(--c)}
-.l2-buff .dr{position:absolute;left:0;bottom:0;height:3px;background:var(--c);transition:width 1s linear}
-.l2-buff.r .dr{left:auto;right:0}
-
 /* player webcams: a slot per player down both edges (the cam itself is an iframe above this plate) */
 .pc{position:absolute;width:150px;height:105px;background:rgba(5,24,17,.92);border-bottom:3px solid var(--c)}
 .pc span{position:absolute;left:0;right:0;bottom:3px;height:18px;padding:3px 8px 0;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pc.r span{text-align:right}
-.l2-buffs.pc{left:166px}.l2-buffs.pc.r{left:auto;right:166px}
 .h-cams.many .h-cam .h-plate .bar{background:var(--gold)}
 
 /* caster nameplates */

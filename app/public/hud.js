@@ -86,10 +86,10 @@
     const all = players[0].concat(players[1]);
     const find = w => w && all.find(p => (w.shortcut && p.shortcut === w.shortcut) || low(p.name) === low(w.name));
     // who is in the action on each side: the player in the latest kill, goal or demolition of the last 12 seconds (null when none)
-    const nowT = Date.now(), action = [0, 1].map(s => {
-      const it = (game && game.feed || []).slice().reverse().find(f => nowT - f.t < 12000 && f.main && f.main.team >= 0 && sideOfTeam(f.main.team) === s && /^(kill|multi|goal|demo|fb|ace)/.test(f.type));
-      const p = it && find(it.main); const i = p ? players[s].indexOf(p) : -1; return i >= 0 ? i : null;
-    });
+    const nowT = Date.now(), hit = [0, 1].map(s => (game && game.feed || []).slice().reverse().find(f => nowT - f.t < 12000 && f.main && f.main.team >= 0 && sideOfTeam(f.main.team) === s && /^(kill|multi|goal|demo|fb|ace)/.test(f.type)));
+    const action = hit.map((it, s) => { const p = it && find(it.main); const i = p ? players[s].indexOf(p) : -1; return i >= 0 ? i : null; });
+    const topS = [0, 1].filter(s => action[s] != null).sort((a, b) => hit[b].t - hit[a].t)[0]; // the most recent of the two sides (League's focus panel)
+    const actionLast = topS != null ? { side: topS, i: action[topS] } : null;
     const score = kind === "dbd" ? dbdScore(ev).total : l.autoScore && (live || hasScore) ? [game.teams[tn(0)].score, game.teams[tn(1)].score] : l.score;
     const colors = ev.hud.colorMode === "custom" ? ev.hud.custom : [sides[0] ? sides[0].color : "#2f7dff", sides[1] ? sides[1].color : "#ff9b1a"];
     const feed = (game && game.feed || []).filter(f => Date.now() - f.t < 9000).slice(-4).map(f => ({
@@ -105,7 +105,7 @@
     const mvp = all.slice().sort((a, b) => b.score - a.score)[0];
     return {
       ev, live, kind, lol: game && game.lol, mc: game && game.mc, mcOcr: game && game.mcOcr, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
-      series: l.series, focus: live ? find(game.target) : null, action,
+      series: l.series, focus: live ? find(game.target) : null, action, actionLast,
       clock: live || hasClock ? game.time : 300, clockLive: live || hasClock, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
       connected: !!(game && game.connected), source: game ? game.source : "",
     };
@@ -241,12 +241,27 @@
   S.statsteam = (m) => {
     const [L, R] = m.sides, cols = COLS[m.kind] || COLS.rl, lol = m.kind === "lol";
     const r = (p, c) => `<tr class="${c}"><td>${esc(p.display)}${lol && p.champion ? ` <span style="color:#9a9ba3;font-size:20px">${esc(p.champion)}</span>` : ""}</td>${cols.map(([k]) => `<td class="num">${p[k] || 0}</td>`).join("")}</tr>`;
-    return { html: `<div class="h-full"><div style="display:flex;align-items:center;gap:30px;font-size:52px">${lg(L, "lgbox h-l")}<span class="num">${esc(L ? L.tag : "BLU")} ${m.score[0]} – ${m.score[1]} ${esc(R ? R.tag : "ORG")}</span>${lg(R, "lgbox h-l")}</div>
+    return { html: `<div class="h-full"><div style="display:flex;align-items:center;gap:30px;font-size:52px">${lg(L, "lgbox h-l")}<span class="num">${esc(L ? L.tag : lol ? "BLUE" : "BLU")} ${m.score[0]} – ${m.score[1]} ${esc(R ? R.tag : lol ? "RED" : "ORG")}</span>${lg(R, "lgbox h-l")}</div>
     ${lol ? `<div class="h-eyebrow" style="font-size:22px">${m.live ? "TEAM KILLS · " + fmt(m.clock) : "TEAM KILLS"}</div>` : ""}
     <table class="h-table" style="width:${lol ? 1040 : 960}px;font-size:${lol ? 23 : 26}px"><thead><tr><th>PLAYER</th>${cols.map(([, n]) => `<th>${n}</th>`).join("")}</tr></thead>
     <tbody>${m.players[0].map(p => r(p, "l")).join("")}<tr class="sep"><td colspan="7"></td></tr>${m.players[1].map(p => r(p, "r")).join("")}</tbody></table></div>`.replace(/lgbox h-l"/g, 'lgbox" style="width:76px;height:76px"'), cams: [] };
   };
   const DRAKE = { Infernal: "#ff6b3d", Ocean: "#3dbbff", Mountain: "#b5835a", Cloud: "#d9e6f2", Hextech: "#3de0d0", Chemtech: "#8fd14f", Elder: "#b48cff" };
+  /* ---------------- League of Legends in-game scene (laid out like the Worlds broadcast; classes l3-*, look in hud.css variables) ----------------
+     Top: a two-row score bar and the two soonest objective timers. Bottom band (y 547-720): focus panel and sponsor box on the left, one big
+     camera per team either side of the board, the board in the middle, a transparent minimap frame on the right. Riot's spectator data has no
+     HP, mana, experience or gold, so none of those are invented: gold is the app's estimate (marked EST) and a bar only renders if a player
+     object ever carries hp / mp / xp. */
+  function lolCams(m) { // one big camera per team: same choice and keys as actionCams, but its own boxes in the band (y is relative to the band)
+    const w = 117, h = 147, cams = []; let html = "";
+    [0, 1].forEach(s => {
+      const x = s ? 970 : 150, act = actionIndex(m, s);
+      m.players[s].forEach((p, i) => { const u = camUrlOf(m.ev, p); if (u) cams.push({ key: "ac-" + s + "-" + i + u, url: u, x, y: 547, w, h, show: i === act }); });
+      const p = act >= 0 ? m.players[s][act] : null;
+      if (p) html += `<div class="l3-cam ${s ? "r" : "l"}" data-k="cam-${s}" style="left:${x}px;--c:${esc(m.colors[s])}"><span>${esc(p.display)}</span></div>`;
+    });
+    return { html, cams };
+  }
   S.lolingame = (m) => {
     const ev = m.ev, l = ev.live, sh = ev.hud.show, [L, R] = m.sides;
     const o = m.lol || { ddVersion: "", counters: { dragons: true, heralds: true, grubs: true }, timers: {}, buffs: {} };
@@ -254,13 +269,11 @@
       : `<span>${esc(String(p.champion || p.display || "?").slice(0, 2))}</span>`;
     // objective counts are stored per game side (0 = blue); the HUD's left/right may be swapped
     const gs = s => (l.swap ? 1 - s : s);
-    const K = n => (Math.max(0, n) / 1000).toFixed(1) + "K"; // gold is always shown as 12.0K, 0.5K, +0.3K
-    // team totals come from the server (estimated gold, kills); every array is per game side, so index it with gs(hudSide)
+    const K = n => (Math.max(0, +n || 0) / 1000).toFixed(1) + "K"; // gold is always shown as 12.0K, 0.5K (never NaNK)
     const kills = [0, 1].map(s => (o.kills ? o.kills[gs(s)] : m.players[s].reduce((a, p) => a + (p.kills || 0), 0)));
     const gold = [0, 1].map(s => (o.gold ? Math.round(o.gold[gs(s)]) : m.players[s].reduce((a, p) => a + (p.gold || 0), 0)));
-    const diff = gold[0] - gold[1], lead = diff >= 100 ? 0 : diff <= -100 ? 1 : -1; // the lead tab shows on the leading side only
+    const est = (o.goldMode || (ev.lol && ev.lol.goldMode) || "estimate") === "estimate"; // only the estimate gets the EST mark
     const ICON = {
-      sword: `<svg viewBox="0 0 24 24"><path d="M5 19 17 7M14 4h6v6M4 20l3-1-2-2z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
       coin: `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="9" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2.2"/></svg>`,
       tower: `<svg viewBox="0 0 24 24"><path d="M6 21V10h2V6h2v2h4V6h2v4h2v11zM10 21v-5h4v5" fill="currentColor"/></svg>`,
       drake: `<svg viewBox="0 0 24 24"><path d="M12 2 21 12 12 22 3 12z" fill="currentColor"/></svg>`,
@@ -268,77 +281,87 @@
       herald: `<svg viewBox="0 0 24 24"><path d="M2 12c3-5 7-7 10-7s7 2 10 7c-3 5-7 7-10 7S5 17 2 12z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>`,
     };
     ICON.elder = ICON.drake; ICON.baron = `<i>B</i>`;
+    const EYE = `<svg viewBox="0 0 24 24"><path d="M2 12c3-5 7-7 10-7s7 2 10 7c-3 5-7 7-10 7S5 17 2 12z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`;
     // Official objective icons are downloaded automatically (server.js); the shapes above are the fallback.
     const OI = k => (CTX.icons && CTX.icons[k] ? `<img class="oi" src="${esc(CTX.icons[k])}" alt="">` : "");
     const ic = (k, fallback) => OI(k) || fallback;
-    const stat = (s, right) =>
-      `<div class="l2-stat${right ? " r" : ""}"><span class="k">${ICON.sword}<b class="num">${kills[s]}</b></span><span class="g">${ICON.coin}<b class="num">${K(gold[s])}</b>${lead === s ? `<small>+${K(Math.abs(diff))}</small>` : ""}</span></div>`;
     const cnt = (k, s) => (o[k] ? o[k][gs(s)] : 0) || 0;
+    let h = "";
+
+    // --- top left: the two soonest objective timers (the per-timer switches in the League settings still apply)
+    if (sh.stats) {
+      const chips = [["dragon", "drake"], ["grubs", "grub"], ["herald", "herald"], ["elder", "elder"], ["baron", "baron"]].map(([k, cls]) => { const t = (o.timers || {})[k]; return t && t.label ? { k, cls, t } : null; })
+        .filter(Boolean).sort((a, b) => (a.t.secs == null ? 1e9 : a.t.secs) - (b.t.secs == null ? 1e9 : b.t.secs)).slice(0, 2);
+      if (chips.length) h += `<div class="l3-timers" data-k="l3-timers">${chips.map(({ k, cls, t }) => `<div class="l3-t ${cls}" data-k="tm-${k}">${ic(k, ICON[cls])}<b class="${t.label === "LIVE" ? "up" : "num"}">${t.label}</b></div>`).join("")}</div>`;
+    }
+
+    // --- top bar: row 1 = [team][towers][gold][kills][tournament logo][kills][gold][towers][team], row 2 = objectives and the clock
+    const need = Math.floor((+l.bestOf || 3) / 2) + 1;
+    const pipsOf = s => `<span class="pips">${Array.from({ length: need }, (_, i) => `<i class="${m.series[s] > i ? "on" : ""}"></i>`).join("")}</span>`;
+    const teamCell = (t, s) => `<div class="l3-team ${s ? "r" : "l"}" data-k="l3-team-${s}"><i class="edge"></i>${lg(t)}<div class="tx"><b class="tg">${esc(t ? t.tag : s ? "RED" : "BLUE")}</b>${t && String(t.seed || "").trim() ? `<small>${esc(String(t.seed).trim())}</small>` : ""}</div>${pipsOf(s)}</div>`;
+    const twCell = s => `<div class="l3-tw ${s ? "r" : "l"}" data-k="l3-tw-${s}">${ic("tower", ICON.tower)}<b class="num">${cnt("towers", s)}</b></div>`;
+    const gdCell = s => `<div class="l3-gd ${s ? "r" : "l"}" data-k="l3-gd-${s}"><span class="g">${ICON.coin}<b class="num">${K(gold[s])}</b></span>${est ? `<em class="est">EST</em>` : ""}</div>`;
+    const klCell = s => `<div class="l3-kl ${s ? "r" : "l"}" data-k="l3-kl-${s}"><b class="num">${+kills[s] || 0}</b></div>`;
     const objs = (s, right) => { const t = gs(s), C = o.counters || {}, drag = (o.dragons && o.dragons[t]) || [];
-      return `<div class="l2-obj${right ? " r" : ""}">`
-        + (C.dragons !== false ? `<span class="drk">${drag.slice(0, 4).map(d => ic(d.toLowerCase(), `<i style="color:${DRAKE[d] || "#888"}">${ICON.drake}</i>`)).join("")}${cnt("elders", s) ? ic("elder", `<i style="color:${DRAKE.Elder}">${ICON.drake}</i>`) : ""}</span>` : "")
-        + (C.heralds !== false ? `<span>${ic("herald", ICON.herald)}<b class="num">${cnt("heralds", s)}</b></span>` : "")
+      return `<div class="l3-ob${right ? " r" : ""}" data-k="l3-ob-${s}">`
         + (C.grubs !== false ? `<span>${ic("grubs", ICON.grub)}<b class="num">${cnt("grubs", s)}</b></span>` : "")
-        + (cnt("barons", s) ? `<span class="bar">B<b class="num">${cnt("barons", s)}</b></span>` : "") + `</div>`; };
-    // Buff cards down each side of the screen: the objective, who took it, and the buff's countdown. They sit under the team's
-    // own side (left or right of the HUD) and drain as the buff runs out.
+        + (C.heralds !== false ? `<span>${ic("herald", ICON.herald)}<b class="num">${cnt("heralds", s)}</b></span>` : "")
+        + (C.dragons !== false ? `<span class="drk">${drag.slice(0, 4).map(d => ic(d.toLowerCase(), `<i style="color:${DRAKE[d] || "#888"}">${ICON.drake}</i>`)).join("")}${cnt("elders", s) ? ic("elder", `<i style="color:${DRAKE.Elder}">${ICON.drake}</i>`) : ""}</span>` : "")
+        + (cnt("barons", s) ? `<span class="bn">B<b class="num">${cnt("barons", s)}</b></span>` : "") + `</div>`; };
+    const NOTE = { dragon: 1, baron: 1, herald: 1, tower: 1, inhib: 1, ace: 1, fb: 1, multi: 1 };
+    const note = m.feed.slice().reverse().find(x => NOTE[x.type]);
+    if (sh.score) h += `<div class="l3-bar" data-k="l3-bar"><div class="rw1">${teamCell(L, 0)}${twCell(0)}${gdCell(0)}${klCell(0)}<div class="l3-logo"><div class="lgbox"><img class="lg" src="${esc(tourLogo(ev))}" alt=""></div></div>${klCell(1)}${gdCell(1)}${twCell(1)}${teamCell(R, 1)}</div>
+      <div class="rw2">${objs(0, false)}<div class="l3-time"><b class="num">${fmt(m.clock)}</b></div>${objs(1, true)}</div></div>
+      ${note ? `<div class="l3-note" data-k="l3-note" style="--c:${m.colors[note.side] || "#FDC82F"}"><span><b>${esc(((note.main && note.main.name && m.sides[note.side]) ? m.sides[note.side].tag : ""))}</b> ${esc(note.label)}${note.main ? ` · ${esc(note.main.display || note.main.name)}` : ""}</span></div>` : ""}`;
+
+    // --- Baron / Elder buff cards, down each side above the band: the objective, who took it, and the buff's countdown
     const BUFF = { baron: ["BARON BUFF", "baron", "#b48cff"], elder: ["ELDER BUFF", "elder", DRAKE.Elder] };
     const buffCards = (s, right) => ["baron", "elder"].map(b => { const f = o.buffs && o.buffs[b]; if (!f || f.side !== gs(s)) return "";
       const who = f.player != null ? m.players[s].find(p => p.shortcut === f.player + 1) : null, [label, key, col] = BUFF[b];
-      return `<div class="l2-buff ${key}${right ? " r" : ""}" style="--c:${col}" data-k="bf-${key}"><div class="pt">${who ? icon(who) : ic(key, ICON[key])}${OI(key) && who ? "" : ""}</div>
-        <div class="tx"><small>${label}</small><b>${esc(who ? who.display : f.killer || "")}</b></div><b class="num cd">${fmt(f.secs)}</b><i class="dr" style="width:${Math.max(0, Math.min(100, (f.secs / (f.total || 1)) * 100))}%"></i></div>`; }).join("");
-    const buffSide = (s, right) => { const c = buffCards(s, right); return c ? `<div class="l2-buffs${right ? " r" : ""}${sh.playerCam ? " pc" : ""}">${c}</div>` : ""; };
-    const NOTE = { dragon: 1, baron: 1, herald: 1, tower: 1, inhib: 1, ace: 1, fb: 1, multi: 1 };
-    const note = m.feed.slice().reverse().find(x => NOTE[x.type]);
-    const row = p => `<div class="l-p${p.dead ? " dead" : ""}"><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div>
-      <div class="nm"><b>${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0} · ${p.cs || 0} CS · ${K(p.gold || 0)}</small></div></div>`;
-    // lower panel: each lane side by side with items, K/D/A, CS, gold and the lane's gold lead in the middle
-    const item = id => (o.ddVersion && id ? `<img src="/ddragon/cdn/${esc(o.ddVersion)}/img/item/${id}.png" alt="">` : `<i></i>`);
-    const slots = p => Array.from({ length: 6 }, (_, i) => item((p.items || [])[i])).join("");
-    const slots7 = p => Array.from({ length: 7 }, (_, i) => item((p.items || [])[i])).join(""); // six items and the trinket
-    const spell = k => (o.ddVersion && k ? `<img src="/ddragon/cdn/${esc(o.ddVersion)}/img/spell/${esc(k)}.png" alt="">` : `<i></i>`);
-    const EYE = `<svg viewBox="0 0 24 24"><path d="M2 12c3-5 7-7 10-7s7 2 10 7c-3 5-7 7-10 7S5 17 2 12z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`;
-    // One row of the board, laid out like the in-game scoreboard: vision, items, spells, portrait with level, name and keystone, CS over K/D/A.
-    // (Health and mana aren't in Riot's live data, so there are no bars.) The right side is the same row mirrored.
-    const half = (p, right) => !p ? `<div class="lp-h${right ? " r" : ""}"></div>` : `<div class="lp-h${right ? " r" : ""}${p.dead ? " dead" : ""}">
-      <div class="vs"><b class="num">${p.ward || 0}</b>${EYE}</div><div class="it">${slots7(p)}</div>
-      <div class="sp">${spell((p.spells || [])[0])}${spell((p.spells || [])[1])}</div>
-      <div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div>
-      <div class="nm"><b>${esc(p.display)}</b>${p.keystone ? `<img class="rk" src="/ddragon/cdn/img/${esc(p.keystone)}" alt="">` : ""}</div>
-      <div class="st"><b class="num">${p.cs || 0}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div></div>`;
-    const lanes = Math.max(m.players[0].length, m.players[1].length);
-    const panel = Array.from({ length: lanes }, (_, i) => { const a = m.players[0][i], b = m.players[1][i], d = ((a && a.gold) || 0) - ((b && b.gold) || 0);
-      return `${half(a, false)}<div class="lp-d${d > 0 ? " l" : d < 0 ? " r" : ""}"><b class="num">${Math.abs(d)}</b></div>${half(b, true)}`; }).join("");
-    let h = "";
-    if (sh.stats) { // objective timers, top-left corner: a countdown, LIVE, or hidden once the objective is gone for the game
-      const chips = [["dragon", "DRAGON", "drake"], ["grubs", "VOID GRUBS", "grub"], ["herald", "HERALD", "herald"], ["elder", "ELDER", "elder"], ["baron", "BARON", "baron"]].map(([k, n, cls]) => {
-        const t = (o.timers || {})[k]; if (!t || !t.label) return "";
-        return `<div class="tm ${cls}" data-k="tm-${k}">${ic(k, ICON[cls])}<b class="${t.label === "LIVE" ? "up" : "num"}">${t.label}</b><small>${n}${k === "dragon" && o.nextDragonIsElder ? " (ELDER)" : ""}</small></div>`;
-      }).join("");
-      if (chips) h += `<div class="l2-timers">${chips}</div>`;
-    }
-    // Same layout as the in-game broadcast bar: [team] [turrets] [gold] [kills | kills] [gold] [turrets] [team], the clock underneath,
-    // and the claimed objectives (dragons, herald, grubs, baron) in the row beside it.
-    const need = Math.floor((+l.bestOf || 3) / 2) + 1;
-    const pipsOf = s => `<span class="pips">${Array.from({ length: need }, (_, i) => `<i class="${m.series[s] > i ? "on" : ""}"></i>`).join("")}</span>`;
-    const gdBlock = s => `<div class="l2-gd ${s ? "r" : "l"}"><span class="g">${ICON.coin}<b class="num">${K(gold[s])}</b></span>${lead === s ? `<small>+${K(Math.abs(diff))}</small>` : ""}</div>`;
-    const twBlock = s => `<div class="l2-tw ${s ? "r" : "l"}">${ic("tower", ICON.tower)}<b class="num">${cnt("towers", s)}</b></div>`;
-    if (sh.score) h += `<div class="l2-bar"><div class="l2-team l">${lg(L)}<span class="tg">${esc(L ? L.tag : "BLUE")}</span>${pipsOf(0)}</div>${twBlock(0)}${gdBlock(0)}
-      <div class="l2-kc"><b class="num">${kills[0]}</b><b class="num">${kills[1]}</b></div>
-      ${gdBlock(1)}${twBlock(1)}<div class="l2-team r">${pipsOf(1)}<span class="tg">${esc(R ? R.tag : "RED")}</span>${lg(R)}</div></div>
-      <div class="l2-sub">${objs(0, false)}<div class="l2-time"><b class="num">${fmt(m.clock)}</b></div>${objs(1, true)}</div>
-      ${note ? `<div class="l2-note" style="--c:${m.colors[note.side] || "#FDC82F"}"><b>${esc(((note.main && note.main.name && m.sides[note.side]) ? m.sides[note.side].tag : "") )}</b> ${esc(note.label)}${note.main ? ` · ${esc(note.main.display || note.main.name)}` : ""}</div>` : ""}`;
+      return `<div class="l3-buff ${key}${right ? " r" : ""}" style="--c:${col}" data-k="bf-${key}"><div class="pt">${who ? icon(who) : ic(key, ICON[key])}</div>
+        <div class="tx"><small>${label}</small><b>${esc(who ? who.display : f.killer || "")}</b></div><b class="num cd">${fmt(f.secs)}</b><i class="dr" style="transform:scaleX(${Math.max(0, Math.min(1, f.secs / (f.total || 1)))})"></i></div>`; }).join("");
+    const buffSide = (s, right) => { const c = buffCards(s, right); return c ? `<div class="l3-buffs${right ? " r" : ""}" data-k="l3-buffs-${s}">${c}</div>` : ""; };
     if (sh.score) h += buffSide(0, false) + buffSide(1, true);
-    if (sh.boost) h += `<div class="l-side l" style="top:130px">${m.players[0].map(row).join("")}</div><div class="l-side r" style="top:130px">${m.players[1].map(row).join("")}</div>`; // optional: off by default, the board at the bottom has the same info
-    // Auto: the lane panel normally, a compact strip while a teamfight is on. Health, mana and ultimate timers
-    // aren't in Riot's live data, so the strip shows what is: level, items, K/D/A and death timers.
-    const fight = o.fight || { active: false, kills: [0, 0] }, showFight = ev.hud.lolPanel === "fight"; // switched by the operator (F9 or the dashboard), never automatic
-    const tile = p => !p ? "" : `<div class="tf-p${p.dead ? " dead" : ""}"><div class="it">${slots(p)}</div><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead ? `<b class="rs num">${p.respawn || ""}</b>` : ""}</div><b class="nm">${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}</small></div>`;
-    if (sh.card && showFight) h += `<div class="tf"><div class="tf-s">${m.players[0].map(tile).join("")}</div><div class="tf-m"><small>TEAMFIGHT</small><b class="num"><span style="color:var(--L)">${fight.kills[gs(0)]}</span> – <span style="color:var(--R)">${fight.kills[gs(1)]}</span></b></div><div class="tf-s">${m.players[1].map(tile).join("")}</div></div>`;
-    else if (sh.card) h += `<div class="lp">${panel}</div>`;
-    if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 420 : 110}px${sh.playerCam ? ";right:170px" : ""}">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
-    const pc = sh.playerCam ? playerCams(m, 100) : { html: "", cams: [] };
-    return { html: h + pc.html, cams: pc.cams };
+
+    // optional side player lists (off by default for League: the board has the same information)
+    const K1 = p => `<div class="l-p${p.dead ? " dead" : ""}"><div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead && p.respawn > 0 ? `<b class="rs num">${p.respawn}</b>` : ""}</div>
+      <div class="nm"><b>${esc(p.display)}</b><small class="num">${p.kills || 0}/${p.deaths || 0}/${p.assists || 0} · ${p.cs || 0} CS · ${K(p.gold || 0)}</small></div></div>`;
+    if (sh.boost) h += `<div class="l-side l" style="top:130px">${m.players[0].map(K1).join("")}</div><div class="l-side r" style="top:130px">${m.players[1].map(K1).join("")}</div>`;
+    if (sh.feed && m.feed.length) h += `<div class="h-feed" style="top:${sh.boost ? 420 : 110}px">${m.feed.map(x => `<div><span style="color:${m.colors[x.side]}">${esc(x.main ? x.main.display || x.main.name : "")}</span><i>${esc(x.label)}</i>${x.second ? `<span style="color:${m.colors[1 - x.side]}">${esc(x.second.display || x.second.name)}</span>` : ""}</div>`).join("")}</div>`;
+
+    // --- bottom band
+    const item = (id, n) => `<span class="sl">${o.ddVersion && id ? `<img src="/ddragon/cdn/${esc(o.ddVersion)}/img/item/${id}.png" alt="">` : ""}${n > 1 ? `<em>${n | 0}</em>` : ""}</span>`; // n: the stack size (potions, wards), drawn only above 1
+    const slots = (p, n) => Array.from({ length: n }, (_, i) => item((p.items || [])[i], (p.counts || [])[i])).join(""); // 7 = six items and the trinket
+    const spell = k => (o.ddVersion && k ? `<img src="/ddragon/cdn/${esc(o.ddVersion)}/img/spell/${esc(k)}.png" alt="">` : `<i></i>`);
+    const champ = p => `<div class="ch">${icon(p)}<b class="lv num">${p.level || 1}</b>${p.dead && p.respawn > 0 ? `<b class="rs num">${p.respawn}</b>` : ""}</div>`;
+    const kda = p => `${p.kills || 0}/${p.deaths || 0}/${p.assists || 0}`;
+    const frac = (v, mx) => Math.max(0, Math.min(1, +v / (+mx || 1)));
+    // health, mana and experience bars exist only if a player object carries them (never true for spectated games: Riot's feed has no such values)
+    const bars = p => p.hp == null ? "" : `<div class="bars"><i class="hp" style="transform:scaleX(${frac(p.hp, p.hpMax)})"></i>${p.mp != null ? `<i class="mp" style="transform:scaleX(${frac(p.mp, p.mpMax)})"></i>` : ""}${p.xp != null ? `<i class="xp" style="transform:scaleX(${frac(p.xp, p.xpMax || 1)})"></i>` : ""}</div>`;
+    const half = (p, right, i) => !p ? `<div class="l3-h${right ? " r" : ""}" data-k="h-${i}-${right ? 1 : 0}"></div>` : `<div class="l3-h${right ? " r" : ""}${p.dead ? " dead" : ""}" data-k="h-${i}-${right ? 1 : 0}">
+      <div class="it">${slots(p, 7)}</div><div class="sp">${spell((p.spells || [])[0])}${spell((p.spells || [])[1])}</div>${champ(p)}
+      <div class="nm"><b>${esc(p.display)}</b>${p.keystone ? `<img class="rk" src="/ddragon/cdn/img/${esc(p.keystone)}" alt="">` : ""}</div>
+      <div class="st"><b class="num">${p.cs || 0}</b><small class="num">${kda(p)}</small></div>${bars(p)}</div>`;
+    const lanes = Math.max(m.players[0].length, m.players[1].length);
+    const board = Array.from({ length: lanes }, (_, i) => { const a = m.players[0][i], b = m.players[1][i], d = ((a && a.gold) || 0) - ((b && b.gold) || 0), lead = d >= 50 ? 0 : d <= -50 ? 1 : -1; // lane gold difference (an estimate), the arrow points at the leader
+      return `${half(a, false, i)}<div class="l3-d${lead === 0 ? " l" : lead === 1 ? " r" : ""}" data-k="d-${i}">${lead === 0 ? `<i class="ar"></i>` : ""}<b class="num">${K(Math.abs(d))}</b>${lead === 1 ? `<i class="ar"></i>` : ""}</div>${half(b, true, i)}`; }).join("");
+    // teamfight strip (F9): replaces the board only, inside the same box
+    const fight = o.fight || { active: false, kills: [0, 0] };
+    const tile = p => !p ? "" : `<div class="l3-tp${p.dead ? " dead" : ""}"><div class="it">${slots(p, 6)}</div>${champ(p)}<b class="nm">${esc(p.display)}</b><small class="num">${kda(p)}</small></div>`;
+    const fv = String((ev.lol || {}).focus == null ? "auto" : ev.lol.focus);
+    const fp = /^\d$/.test(fv) ? (m.players[+fv >= 5 ? 1 : 0] || [])[+fv % 5] : m.actionLast ? m.players[m.actionLast.side][m.actionLast.i] : null; // chosen player, else the one in the latest kill (12 s), else none
+    const focus = fp ? `<div class="l3-focus${fp.dead ? " dead" : ""}" data-k="l3-focus" style="--c:${esc(m.colors[fp.side])}"><div class="fh">${champ(fp)}<div class="sp">${spell((fp.spells || [])[0])}${spell((fp.spells || [])[1])}</div>
+      <div class="who"><b>${esc(fp.display)}</b><small>${esc(fp.champion || "")}</small></div>${fp.keystone ? `<img class="rk" src="/ddragon/cdn/img/${esc(fp.keystone)}" alt="">` : ""}</div>
+      <div class="kd"><b class="num">${kda(fp)}</b><span class="num">${fp.cs || 0} CS</span><span class="vs num">${EYE}${fp.ward || 0}</span></div><div class="it">${slots(fp, 7)}</div></div>` : "";
+    const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), main = sp.find(x => x.type === "main"), order = main ? [main].concat(sp.filter(x => x !== main)) : sp;
+    const si = order.length ? Math.floor(Date.now() / 8000) % order.length : 0, cur = order[si]; // the main sponsor first, then each sponsor for 8 seconds
+    const sponsor = cur ? `<div class="l3-sp" data-k="l3-sp"><div class="in" data-k="sp-${si}">${cur.logo ? `<img src="${esc(cur.logo)}" alt="${esc(cur.name || "")}" onerror="this.style.display='none'">` : `<b>${esc(cur.name)}</b>`}</div></div>` : "";
+    const pc = sh.playerCam ? lolCams(m) : { html: "", cams: [] };
+    const band = (sh.focus !== false ? focus : "") + (sh.sponsor !== false ? sponsor : "") + pc.html
+      + (sh.card ? (ev.hud.lolPanel === "fight" ? `<div class="l3-fight" data-k="l3-fight"><div class="sd">${m.players[0].map(tile).join("")}</div><div class="mid"><small>TEAMFIGHT</small><b class="num"><span style="color:var(--L)">${fight.kills[gs(0)]}</span> – <span style="color:var(--R)">${fight.kills[gs(1)]}</span></b></div><div class="sd">${m.players[1].map(tile).join("")}</div></div>` : `<div class="l3-board" data-k="l3-board">${board}</div>`) : "")
+      + (sh.minimap !== false ? `<div class="l3-map" data-k="l3-map"></div>` : ""); // an empty frame: the game's own minimap shows through it
+    if (band) h += `<div class="l3-band" data-k="l3-band">${band}</div>`;
+    return { html: h, cams: pc.cams };
   };
   S.statsplayer = (m) => {
     const p = m.focus || m.mvp; if (!p) return { html: "", cams: [] };
@@ -426,7 +449,7 @@
     if (on("mcElim") && last && Date.now() - last.t < set.elimSecs * 1000 && state !== "winner")
       h += `<div class="mc-elim${sel("elim")}" data-el="elim" data-k="e${last.id}"><b>${esc(last.killer ? last.killer + " ELIMINATED " + last.victim : last.victim + " IS OUT")}</b><small>${left} REMAIN</small></div>`;
     if (on("mcSpot") && spot) h += `<div class="mc-spot${sel("spot")}" data-el="spot">${head(spot.name, "big")}<div class="nm"><b>${esc(spot.name)}</b><small>${spot.team ? esc(spot.team.tag) : ""}${spot.alive ? "" : " · OUT"}</small></div>
-      <div class="hearts">${hearts(spot.health)}</div><div class="r2"><span class="fd"><i style="width:${Math.max(0, Math.min(100, ((spot.food || 0) / 20) * 100))}%"></i></span><span class="kl num">${spot.kills} KILLS</span></div></div>`;
+      <div class="hearts">${hearts(spot.health)}</div><div class="rw2"><span class="fd"><i style="width:${Math.max(0, Math.min(100, ((spot.food || 0) / 20) * 100))}%"></i></span><span class="kl num">${spot.kills} KILLS</span></div></div>`;
     if (on("mcCam") && spot) { // the spotlight player's camera, from their roster entry
       const r = ev.teams.flatMap(t => t.players).find(p => low(p.ign) === low(spot.name));
       if (r && r.cam) cams.push({ key: "mccam-" + r.cam, url: r.cam, x: 324, y: 480, w: 256, h: 144 });

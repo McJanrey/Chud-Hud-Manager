@@ -27,7 +27,7 @@ const log = (...a) => console.log(new Date().toLocaleTimeString(), ...a);
 
 /* ------------------------------------------------------------------ data */
 const blankTeam = (name, tag, color, color2, igns = []) => ({
-  id: uid(), name, tag, division: "", color, color2: color2 || "#ffffff", logos: ["", "", ""],
+  id: uid(), name, tag, division: "", seed: "", color, color2: color2 || "#ffffff", logos: ["", "", ""],
   players: igns.map(ign => ({ id: uid(), ign, alias: "", country: "", avatar: "", cam: "" })),
 });
 const talent = (name, role, socials = []) => ({ id: uid(), name, role, portrait: "", socials });
@@ -36,7 +36,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
   return {
     id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(), source: "auto", cover: "", // cover: an uploaded image for the event card // source: which live feed the event reads (auto = its game's own)
     hud: { scene: "ingame", colorMode: "team", custom: ["#2f7dff", "#ff9b1a"], bg: "pitch", autoBoard: true,
-      show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false,
+      show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false, focus: true, sponsor: true, minimap: true, // focus, sponsor, minimap: League's bottom band
         mcTop: true, mcKills: true, mcFeed: true, mcElim: true, mcSpot: true, mcGrid: true, mcSponsors: true, mcCam: false }, // Hunger Games elements
       mcSet: { killRows: 5, feedRows: 4, bars: true, elimSecs: 6, showBorder: true }, mcState: "main" }, // their settings, and the HUD state: main, final or winner
     teams: [],
@@ -94,6 +94,9 @@ function upgrade(ev) {
   if (ev.game === "League of Legends") ev.lol = require("./league.js").merge(require("./league.js").DEFAULTS, ev.lol || {}); // every League setting has a visible value
   // League now follows the in-game layout: the stats board is at the bottom, so the side player lists start switched off (once)
   if (ev.game === "League of Legends" && !ev.hud.lolLayout2) { ev.hud.show.boost = false; ev.hud.lolLayout2 = true; }
+  // the Worlds-style band (focus panel, sponsor box, minimap frame) starts switched on for existing League events (once)
+  if (ev.game === "League of Legends" && !ev.hud.lolLayout3) { ev.hud.show.focus = ev.hud.show.sponsor = ev.hud.show.minimap = true; ev.hud.lolLayout3 = true; }
+  ev.teams.forEach(t => { if (t.seed === undefined) t.seed = ""; });
   // the St. Clair team shows the app's logo until a team logo is uploaded (older saves had the Saints emblem filled in)
   ev.teams.forEach(t => { if (t.tag === "SCC" && t.logos && (!t.logos[0] || t.logos[0] === "/brand/saints-emblem.png")) t.logos[0] = "/brand/chud-hud.png"; });
   return ev;
@@ -441,6 +444,7 @@ function handleLoL(d) {
       gold: Math.round(lol.playerGold[i]), itemGold: league.itemValue(p, dd), position: p.position || "",
       dead: !!p.isDead, respawn: Math.round(p.respawnTimer || 0),
       items: (p.items || []).reduce((a, x) => { a[x.slot != null ? x.slot : a.filter(Boolean).length] = x.itemID; return a; }, Array(7).fill(0)), // by slot: 6 items + trinket
+      counts: (p.items || []).reduce((a, x) => { const i = x.slot != null ? x.slot : -1; if (i >= 0 && i < 7) a[i] = Math.max(0, x.count | 0); return a; }, Array(7).fill(0)), // stack size per slot (potions, wards); 0 when empty
       spells: [p.summonerSpells && p.summonerSpells.summonerSpellOne, p.summonerSpells && p.summonerSpells.summonerSpellTwo]
         .map(s => { const m = /SummonerSpell_(\w+?)_DisplayName/.exec((s && s.rawDisplayName) || ""); return m ? m[1] : ""; }),
       keystone: (p.runes && p.runes.keystone && dd.runes[p.runes.keystone.id]) || "",

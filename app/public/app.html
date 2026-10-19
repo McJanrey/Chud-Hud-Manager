@@ -304,7 +304,7 @@ hud(e){
     ${inGame?`<div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>`:""}
     ${inGame&&h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div></div>
-  ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="sec"><div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (5 a team)":"Player webcams (3 a team)")}${F.chk("hud.autoBoard","Team stats on podium")}</div>${camControls(e)}</div>
+  ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="sec"><div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (one big camera per team)":"Player webcams (3 a team)")}${e.game==="League of Legends"?F.chk("hud.show.focus","Focus panel")+F.chk("hud.show.sponsor","Sponsor box")+F.chk("hud.show.minimap","Minimap frame"):""}${F.chk("hud.autoBoard","Team stats on podium")}</div>${camControls(e)}</div>
   ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="sec"><div class="chks">${F.chk("hud.show.playerCam","Player webcams")}</div>${camControls(e)}</div>`:""}
   ${e.game==="League of Legends"?lolSettings(e):""}`:""}
   ${e.game==="Minecraft"&&h.scene==="ingame"&&e.mc.mode!=="buildbattle"?hgEditor(e):""}
@@ -322,7 +322,7 @@ teams(e){
       <button class="btn icon danger" type="button" data-act="delTeam" aria-label="Delete team">${ico("trash")}</button></div>
     <div class="halves" style="gap:24px"><div><h2>Team details</h2><p class="sub">Used across the broadcast and designs.</p>
       <div class="fld" style="margin-top:18px"><span>Team colours</span><div class="row c" style="gap:8px"><input type="color" id="${fid(P+".color")}" data-bind="${P}.color" value="${esc(t.color)}" aria-label="Primary colour"><input type="color" id="${fid(P+".color2")}" data-bind="${P}.color2" value="${esc(t.color2)}" aria-label="Secondary colour"></div></div></div>
-      <div class="sec" style="gap:10px">${F.text(P+".name","","Team name")}${F.text(P+".tag","","Short tag",'maxlength="5" data-upper')}${F.text(P+".division","","Division, e.g. Varsity Premier")}</div></div>
+      <div class="sec" style="gap:10px">${F.text(P+".name","","Team name")}${F.text(P+".tag","","Short tag",'maxlength="5" data-upper')}${F.text(P+".division","","Division, e.g. Varsity Premier")}${F.text(P+".seed","","Seed or subtitle, e.g. LCK #3 (League score bar)")}</div></div>
     <div class="sec"><div><h2>Team logo</h2><p class="sub">Upload your team's primary, secondary and tertiary logos. The HUD uses the primary.</p></div>
       <div class="cols" style="--n:3">${["Primary","Secondary","Tertiary"].map((l,j)=>F.dz(`${P}.logos.${j}`,l)).join("")}</div></div>
     <div class="sec"><div class="sechead"><div><h2>Team members</h2><p class="sub">The in-game name must match the IGN exactly for auto team tracking.</p></div><button class="btn" type="button" data-act="addPlayer">+ Add player</button></div>
@@ -577,8 +577,8 @@ function gameOcrHtml(e){
 }
 function camControls(e){
   if(!e.hud.show.playerCam)return"";
-  const c=e.camera,act=c.director==="action",pinOpts=s=>{const t=sideTeam(e,s);return[[0,"Whoever is in the action"],...((t?t.players:[]).map((p,i)=>[i+1,p.alias||p.ign||"Player "+(i+1)]))]};
-  return`<div class="cols" style="--n:3;margin-top:12px">${F.sel("camera.director","Webcams show",[["all","Every player's webcam"],["action","Only the player in the action"]],"data-rerender")}${act?F.sel("camera.pin.0","Left team stays on",pinOpts(0),"data-num"):""}${act?F.sel("camera.pin.1","Right team stays on",pinOpts(1),"data-num"):""}</div>${act?`<p class="note">The camera follows the latest kill or goal for 12 seconds, then the player you're spectating. Pick a player to keep a team's camera on them.</p>`:""}`;
+  const c=e.camera,lol=e.game==="League of Legends",act=lol||c.director==="action",pinOpts=s=>{const t=sideTeam(e,s);return[[0,"Whoever is in the action"],...((t?t.players:[]).map((p,i)=>[i+1,p.alias||p.ign||"Player "+(i+1)]))]};
+  return`<div class="cols" style="--n:3;margin-top:12px">${lol?"":F.sel("camera.director","Webcams show",[["all","Every player's webcam"],["action","Only the player in the action"]],"data-rerender")}${act?F.sel("camera.pin.0","Left team stays on",pinOpts(0),"data-num"):""}${act?F.sel("camera.pin.1","Right team stays on",pinOpts(1),"data-num"):""}</div>${act?`<p class="note">The camera follows the latest kill or goal for 12 seconds, then the player you're spectating. Pick a player to keep a team's camera on them.</p>`:""}`;
 }
 /* League champion select: status, the stream delay, the client's lockfile if it is installed elsewhere, a demo, and the series bans */
 let DRAFTST=null;setInterval(()=>{if(ui.view!=="live"||!DB||!ev()||ev().game!=="League of Legends")return;fetch("/api/draft/state").then(r=>r.json()).then(j=>{DRAFTST=j;const b=$("#draftBox");if(b)b.innerHTML=draftBoxHtml()}).catch(()=>{})},2000);
@@ -655,6 +655,7 @@ function lolSettings(e){
   const L=e.lol||{};
   return`<details class="sec" open><summary style="cursor:pointer;font:700 15px var(--f-head)">League settings</summary><div class="sec" style="gap:18px;margin-top:14px">
     <div class="cols" style="--n:3">${F.sel("lol.goldMode","Gold",[["estimate","Estimated (recommended)"],["items","Value of items held"],["manual","Typed in"]])}${F.num("lol.goldScale","Estimate scale (1 = as modelled)",'step="0.01"')}${F.num("lol.passiveStart","Passive gold starts (s)")}</div>
+    <div class="cols" style="--n:3">${F.sel("lol.focus","Focus player (bottom-left panel)",[["auto","Auto: the player in the latest kill"],...[0,1].flatMap(s=>{const t=sideTeam(e,s);return Array.from({length:5},(_,i)=>[String(s*5+i),`${t?t.tag||t.name:s?"Right":"Left"} · ${(t&&t.players[i]&&(t.players[i].alias||t.players[i].ign))||"Player "+(i+1)}`])})])}</div>
     ${L.goldMode==="manual"?`<div class="cols">${F.num("lol.manualGold.0","Blue side gold")}${F.num("lol.manualGold.1","Red side gold")}</div>`:""}
     <div><b style="font:700 13px var(--f-head)">Timers shown (top-left)</b><div class="chks" style="margin-top:8px">${[["dragon","Dragon"],["grubs","Void grubs"],["herald","Rift Herald"],["elder","Elder"],["baron","Baron"]].map(([k,l])=>F.chk(`lol.showTimers.${k}`,l)).join("")}</div></div>
     <div><b style="font:700 13px var(--f-head)">Claimed objectives shown (under the bar)</b><div class="chks" style="margin-top:8px">${[["dragons","Dragons"],["heralds","Heralds"],["grubs","Void grubs"]].map(([k,l])=>F.chk(`lol.counters.${k}`,l)).join("")}</div></div>
@@ -778,7 +779,7 @@ async function upload(input,file){
     render()}
   catch(e){toast("Upload failed. Is the server running?")}
 }
-const blankTeam=()=>({id:uid(),name:"New Team",tag:"NEW",division:"",color:"#7c83f5",color2:"#ffffff",logos:["","",""],players:[]});
+const blankTeam=()=>({id:uid(),name:"New Team",tag:"NEW",division:"",seed:"",color:"#7c83f5",color2:"#ffffff",logos:["","",""],players:[]});
 const blankPlayer=()=>({id:uid(),ign:"",alias:"",country:"",avatar:"",cam:""});
 
 document.addEventListener("click",async ev0=>{
