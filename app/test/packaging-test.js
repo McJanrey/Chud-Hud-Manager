@@ -8,7 +8,7 @@ const pkg = require("../package.json");
 let bad = 0;
 const ok = (c, m, x = "") => { console.log(`  ${c ? "ok  " : "FAIL"} ${m} ${c ? "" : x}`); if (!c) bad++; };
 
-const lotd = require("../electron-builder.lotd.js");
+const lotd = require("../electron-builder.lotd.js"), wwl = require("../electron-builder.wwl.js");
 const listFor = cfg => cfg.files.filter(p => !p.startsWith("!"));
 const covered = (file, list) => list.some(p => p === file || (p.endsWith("/**/*") && file.startsWith(p.slice(0, -4))));
 
@@ -26,7 +26,7 @@ while (stack.length) {
     if (hit) stack.push(hit); else ok(false, `${f} requires ${m[1]} which does not exist`);
   }
 }
-for (const [name, cfg] of [["standard", pkg.build], ["LOTD", lotd]]) {
+for (const [name, cfg] of [["standard", pkg.build], ["LOTD", lotd], ["WWL", wwl]]) {
   const missing = [...seen].filter(f => f !== "test/ocr-selftest.js" && !covered(f, listFor(cfg)));
   ok(!missing.length, `the ${name} installer contains every file the app requires`, "missing: " + missing.join(", "));
 }
