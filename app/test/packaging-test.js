@@ -21,8 +21,8 @@ while (stack.length) {
   if (!f.endsWith(".js")) continue;
   const src = fs.readFileSync(path.join(ROOT, f), "utf8");
   for (const m of src.matchAll(/require\(\s*["'](\.[^"']+)["']\s*\)/g)) {
-    const p = path.normalize(path.join(path.dirname(f), m[1]));
-    const hit = [p, p + ".js", p + ".json", path.join(p, "index.js")].find(c => fs.existsSync(path.join(ROOT, c)) && fs.statSync(path.join(ROOT, c)).isFile());
+    const p = path.posix.normalize(path.posix.join(path.posix.dirname(f), m[1])); // forward slashes on Windows too, like the "files" list
+    const hit = [p, p + ".js", p + ".json", p + "/index.js"].find(c => fs.existsSync(path.join(ROOT, c)) && fs.statSync(path.join(ROOT, c)).isFile());
     if (hit) stack.push(hit); else ok(false, `${f} requires ${m[1]} which does not exist`);
   }
 }
