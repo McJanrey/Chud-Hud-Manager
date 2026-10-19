@@ -85,7 +85,7 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     check("VALORANT: odd scores print as whole numbers, never as markup or NaN", (() => { const h = vh(vmk(e => { e.live.score = ["<i>x</i>", "4.6"]; e.live.autoScore = false; })); return /sc l num">0</.test(h) && /sc r num">5</.test(h) && !/<i>x/.test(h); })());
     check("VALORANT: the timer shows while the clock is fresh", /class="tm num">1:35</.test(vh(vmk(), gClock(Date.now() - 1000))));
     // players left: a chip per side under the score, always there
-    const chip = (h, s) => ((h.match(new RegExp(`data-k="cp-${s}"[^>]*><b class="num">(\\d+)<`)) || [])[1]);
+    const chip = (h, s) => ((h.match(new RegExp(`data-k="cp-${s}"[^>]*><b class="num[^"]*" data-k="[^"]*">(\\d+)<`)) || [])[1]);
     check("VALORANT: players-left chips show the full squad when nobody is out", chip(vv, 0) === "2" && chip(vv, 1) === "2" && /PLAYERS LEFT/.test(text(vv)));
     vv = vh(vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[0].players[0].id]: true }; }));
     check("VALORANT 2v2: one out on the left makes the chips 1 and 2", chip(vv, 0) === "1" && chip(vv, 1) === "2");
@@ -138,6 +138,11 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     vcam.camera.director = "action"; vc = HUD.sceneOut(vcam, null, "ingame");
     check("VALORANT cameras (action): 240 x 135 at x 245 / 795, y 564, all loaded, exactly one shown a side, name plate under it", vc.cams.length === 4 && vc.cams.every(c => /^ac-[01]-\d/.test(c.key) && c.w === 240 && c.h === 135 && c.y === 564) && vc.cams.filter(c => c.key.startsWith("ac-0-")).every(c => c.x === 245) && vc.cams.filter(c => c.key.startsWith("ac-1-")).every(c => c.x === 795) && vc.cams.filter(c => c.show).length === 2 && /pc act l[\s\S]*pc act r/.test(vc.html), JSON.stringify(vc.cams.map(c => [c.key.slice(0, 5), c.show])));
     check("VALORANT cameras: five a side follow the panel rows (y 393 first)", (() => { const e5 = vmk(e => { e.hud.show.playerCam = true; e.teams.forEach((t, ti) => t.players.forEach((p, i) => { p.cam = "https://cam.example/w" + ti + i; })); }, 5); const o = HUD.sceneOut(e5, null, "ingame"); return o.cams.length === 10 && o.cams.find(c => c.key.startsWith("pc-0-0")).y === 393 && o.cams.find(c => c.key.startsWith("pc-1-4")).y === 655; })());
+    check("VALORANT killfeed: recent kills show top right with both agents and the gun, old ones drop off, names escaped", (() => { const W = "9c82e19d-4575-0200-1a81-3eacf00cf872", n = Date.now();
+      const h = vh(vmk(e => { e.val.feed = [{ k: "<i>Ann</i>", ka: AG, ks: 0, v: "Bob", va: "", vs: 1, gun: W, t: n }, { k: "Old", v: "Gone", t: n - 60000 }]; }));
+      return /v3-kf[^]*?&lt;i&gt;Ann&lt;\/i&gt;[^]*?val-weapon\/9c82e19d[^]*?Bob/.test(h) && !h.includes("Gone") && !h.includes("<i>Ann"); })());
+    check("VALORANT: the spectated player's panel is marked", /class="v3-p l spec"/.test(vh(vmk(e => { e.val.spec = e.teams[0].players[0].id; }))));
+    check("VALORANT: a players-left number that drops gets the jump", (() => { vh(vmk()); const h = vh(vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[0].players[0].id]: true }; })); return /class="num dn" data-k="cpn-0-1"/.test(h); })());
 
     /* Map selection and Agent Select (VALORANT) */
     const MAPA = "7eaecc1b-4337-bbf6-6ab9-04b8f06b3319", MAPB = "756da597-416b-c0f2-f47b-afbdf28670bc";

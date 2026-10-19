@@ -666,6 +666,14 @@
 .v3-p .pt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;border-radius:0}
 .v3-p .pt .in{position:absolute;left:4px;right:4px;top:8.9px;bottom:0;display:grid;place-items:center;background:var(--c);font-family:var(--v3-cond);font-size:26px;font-weight:600;padding-top:4px;color:#fff}
 .v3-p.dead{opacity:.55;filter:grayscale(1)}.v3-p.dead .nm{text-decoration:line-through}
+.v3-top .cp b.dn{display:inline-block;animation:fn3-jump .55s cubic-bezier(.3,1.6,.5,1)}
+.v3-p.spec .st,.v3-p.spec .lo{box-shadow:inset 0 0 0 1.5px #fff}.v3-p.spec .nm{color:#fff;text-shadow:0 0 6px rgba(255,255,255,.6)}
+.v3-kf{position:absolute;right:12px;top:76px;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.v3-kf .kr{height:24px;display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--v3-plate);border-left:3px solid var(--k);border-right:3px solid var(--v)}
+.v3-kf .kn,.v3-kf .vn{font-family:var(--v3-cond);font-size:15px;font-weight:600;line-height:24px;padding-top:3px;color:#fff;text-transform:none;white-space:nowrap}
+.v3-kf .kn{color:var(--k)}.v3-kf .vn{color:var(--v)}
+.v3-kf .ka,.v3-kf .va{width:20px;height:20px;object-fit:cover;border-radius:0}
+.v3-kf .gn{height:14px;max-width:56px;object-fit:contain;transform:scaleX(-1);margin:0 2px}.v3-kf .gx{width:14px;height:2px;background:#fff;margin:0 4px}
 /* Map selection (v3-veto), on MJ's reference: a 1490 x 362 panel at 1080p, centred low on the screen; cards share the strip evenly. */
 .hud{--vt-gold:#c9b27c;--vt-panel:rgba(22,22,22,.94);--vt-head:#1c1c1c;--vt-strip:#1e1e1e}
 .v3-veto{position:absolute;left:143.3px;top:452px;width:993.3px;height:241.3px;background:var(--vt-panel);border-radius:6px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.45)}

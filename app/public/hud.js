@@ -723,7 +723,7 @@
       const half = (t, s) => `<div class="hf ${s ? "r" : "l"}" data-k="v3-hf-${s}" style="--c:${esc(m.colors[s])}"><div class="mx"><i class="fill"></i><svg class="ol" viewBox="0 0 294 49" preserveAspectRatio="none"><polyline points="${s ? "3,48.5 3,26 26,4.5 175,4.5" : "94,4 3,4 3,23.5 26,45 291,45"}"/></svg><i class="sl"><b></b><b></b></i></div>
         <b class="wm">${esc(wm(t, s))}</b>${lg(t)}<div class="nw"><b class="nm">${esc(nm(t, s))}</b><i class="ln"></i></div><i class="mk"></i></div>`;
       const media = !bg ? "" : /\.(mp4|webm|mov)$/i.test(bg) ? `<video src="${esc(bg)}" autoplay muted loop playsinline disablepictureinpicture></video>` : `<img src="${esc(bg)}" alt="" onerror="this.style.display='none'">`;
-      const chip = s => `<span class="cp ${s ? "r" : "l"}" data-k="cp-${s}" style="--c:${esc(m.colors[s])}"><b class="num">${info.left[s]}</b></span>`;
+      const chip = s => `<span class="cp ${s ? "r" : "l"}" data-k="cp-${s}" style="--c:${esc(m.colors[s])}"><b class="num${fnDrop("vcp" + s, info.left[s]) ? " dn" : ""}" data-k="cpn-${s}-${info.left[s]}">${info.left[s]}</b></span>`; // the number jumps when it drops
       h += `<div class="v3-top ${style}" data-k="v3-top-${style}">${media ? `<div class="v3-bg" data-k="v3-bg-${esc(bg)}">${media}</div>` : ""}<i class="hl"></i>${half(L, 0)}${half(R, 1)}
         <div class="ct" data-k="v3-ct"><b class="sc l num">${Math.max(0, Math.round(+m.score[0]) || 0)}</b><div class="mid" data-k="v3-mid">${info.fresh ? `<b class="tm num">${fmt(m.clock)}</b>` : ""}<small>${esc(info.label)}</small></div><b class="sc r num">${Math.max(0, Math.round(+m.score[1]) || 0)}</b>
         ${chip(0)}<small class="pl">PLAYERS LEFT</small>${chip(1)}</div>
@@ -753,12 +753,18 @@
         const agent = VAL_UUID.test(String(p.agent || "")) ? `/val-agent/${p.agent}/displayicon.png` : "";
         const art = (agent ? artImg(agent, "ag") : "") || (p.avatar ? artImg(p.avatar, "av") : "");
         const pips = Array.from({ length: um }, (_, k) => `<i class="${k >= um - ul ? "on" : ""}"></i>`).join(""); // lit from the centre side
-        h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}" data-k="vp-${s}-${i}" style="top:${(top + i * VAL_PITCH).toFixed(2)}px;--c:${esc(m.colors[s])}"><div class="mx">
+        h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}${p.pid && v.spec === p.pid ? " spec" : ""}" data-k="vp-${s}-${i}" style="top:${(top + i * VAL_PITCH).toFixed(2)}px;--c:${esc(m.colors[s])}"><div class="mx">
           <i class="st"></i><i class="lo"></i><span class="hb"><i class="ht"></i><i class="hl" style="transform:scaleX(${(Math.min(100, hp) / 100).toFixed(3)})"></i><i class="he"></i></span>
           <b class="nm t">${esc(name)}</b><span class="ul" data-k="ul-${s}-${i}">${pips}</span><em class="hv t num">${hp}</em>
           ${gun ? artImg(gun, "gn") : ""}<span class="cr"><small class="t num">${esc(String(cr).slice(0, 6))}</small></span>
           <div class="pt">${art || `<span class="in t">${esc(initials(name))}</span>`}</div></div></div>`;
       }));
+    }
+    // killfeed, top right like the game's own: killer, their agent, the gun, the victim's agent and name; each row stays 10 seconds
+    const feed = (Array.isArray(v.feed) ? v.feed : []).filter(x => x && Date.now() - (+x.t || 0) < 10000).slice(-4);
+    if (sh.feed !== false && feed.length) {
+      const ag = (u, cls) => (VAL_UUID.test(String(u || "")) ? artImg(`/val-agent/${u}/displayicon.png`, cls) : "");
+      h += `<div class="v3-kf" data-k="v3-kf">${feed.map(x => `<div class="kr" data-k="kf-${+x.t || 0}" style="--k:${esc(m.colors[x.ks ? 1 : 0])};--v:${esc(m.colors[x.vs ? 1 : 0])}"><span class="kn">${esc(x.k)}</span>${ag(x.ka, "ka")}${VAL_UUID.test(String(x.gun || "")) ? artImg(`/val-weapon/${x.gun}.png`, "gn") : `<i class="gx"></i>`}${ag(x.va, "va")}<span class="vn">${esc(x.v)}</span></div>`).join("")}</div>`;
     }
     const pc = sh.playerCam ? valCams(m) : { html: "", cams: [] };
     return { html: h + pc.html, cams: pc.cams };
