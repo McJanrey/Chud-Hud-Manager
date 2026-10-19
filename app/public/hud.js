@@ -494,21 +494,50 @@
   }
 
   /* ---------------- Riftbound (card game): operator-driven ---------------- */
+  /* Riftbound, laid out on MJ's Regional Qualifier references (1080p pixels / 1.5): a column per player (name, legend, camera, battlefield
+     with 1ST/2ND and game markers, then the hand list or the featured card), the 1-8 score track on top, the showdown bar at the bottom and
+     the event with the clock. Cards are Riftcodex ids with their name, energy, might and domain saved alongside, so the overlay needs no list. */
+  const RB_DOM = { fury: "#c8323c", calm: "#3f9a4a", mind: "#2f6fc4", body: "#d9822b", chaos: "#7b3fbf", order: "#c9a227" };
+  const rbCard = x => (x && typeof x === "object" && /^[a-z0-9-]{3,40}$/.test(String(x.id || "")) ? x : null);
+  const rbImg = (c, cls) => (c ? artImg(`/rb-card/${c.id}.png`, cls) : "");
   S.rbingame = (m) => {
-    const ev = m.ev, rb = ev.rb || {}, cards = new Map((rb.cards || []).map(c => [c.id, c]));
+    const ev = m.ev, rb = ev.rb || {}, A = (k, s) => (Array.isArray(rb[k]) ? rb[k][s] : null);
     const elapsed = clk(rb.clock), shown = rb.limitMinutes ? Math.max(0, rb.limitMinutes * 60 - elapsed) : elapsed;
     const nm = s => (rb.names && rb.names[s]) || (m.sides[s] && m.sides[s].name) || `PLAYER ${s + 1}`, col = s => (rb.colors && rb.colors[s]) || m.colors[s];
-    const pts = s => (rb.points && rb.points[s]) || 0, target = rb.target || 8;
-    const pips = s => Array.from({ length: target }, (_, i) => `<i class="${i < pts(s) ? "on" : ""}"></i>`).join("");
-    const tile = (id, key) => { const k = cards.get(id); if (!k) return ""; return `<div class="rb-card" data-k="${key}">${k.image ? `<img src="${esc(k.image)}" alt="${esc(k.name)}">` : `<b>${esc(k.name)}</b>`}</div>`; };
-    const panel = s => `<div class="rb-p${(rb.active || 0) === s ? " act" : ""}" style="--c:${esc(col(s))}"><div class="nm"><b>${esc(nm(s))}</b><small>${esc((rb.legends && rb.legends[s]) || "")}</small></div><div class="pt"><b class="num">${pts(s)}</b><small>/ ${target}</small></div><div class="pips">${pips(s)}</div></div>`;
-    let h = `<div class="rb-top">${panel(0)}<div class="mid"><div class="gw num">${(rb.games && rb.games[0]) || 0} – ${(rb.games && rb.games[1]) || 0}</div><small>${esc(rb.roundTitle || ev.live.gameSeries || "")}</small><div class="ck num">${fmt(shown)}</div><small>TURN ${rb.turn || 1}</small></div>${panel(1)}</div>`;
-    [0, 1].forEach(s => { const ids = ((rb.play && rb.play[s]) || []).slice(0, 10); if (ids.length) h += `<div class="rb-play ${s ? "r" : "l"}">${ids.map((id, i) => tile(id, `c${s}-${i}-${id}`)).join("")}</div>`; });
-    const sp = rb.spotlight && rb.spotlight.show ? cards.get(rb.spotlight.cardId) : null;
-    if (sp) h += `<div class="rb-spot" data-k="spot-${esc(sp.id)}">${sp.image ? `<img src="${esc(sp.image)}" alt="${esc(sp.name)}">` : `<div class="txt"><b>${esc(sp.name)}</b></div>`}<div class="cap">${esc(sp.name)}</div></div>`;
-    const log = (rb.log || []).slice(-3).reverse();
-    if (log.length) h += `<div class="rb-log">${log.map(l => { const k = cards.get(l.cardId); return k ? `<div data-k="l${l.t}"><span style="color:${esc(col(l.player))}">${esc(nm(l.player))}</span> played <b>${esc(k.name)}</b></div>` : ""; }).join("")}</div>`;
-    return { html: h, cams: [] };
+    const pts = s => Math.max(0, Math.round(+((rb.points || [])[s]) || 0)), target = Math.max(1, Math.round(+rb.target) || 8);
+    const need = Math.max(1, Math.ceil((+rb.bestOf || 3) / 2)), won = s => Math.max(0, Math.round(+((rb.games || [])[s]) || 0));
+    const feat = rbCard(rb.feat) && (rb.feat.side === 0 || rb.feat.side === 1) ? rb.feat : null;
+    let h = "";
+    const side = s => {
+      const lgd = rbCard(A("legend", s)), ch = rbCard(A("champ", s)), bf = rbCard(A("bf", s)), first = (rb.first === 1 ? 1 : 0) === s;
+      let x = `<div class="rb3-col ${s ? "r" : "l"}" data-k="rb3-col-${s}" style="--c:${esc(col(s))}"><b class="nm${String(nm(s)).length > 16 ? " xs" : String(nm(s)).length > 11 ? " sm" : ""}">${esc(String(nm(s)).toUpperCase())}</b><i class="dv"></i>
+        <div class="lg" data-k="rb3-lg-${s}-${lgd ? lgd.id : "x"}">${rbImg(lgd, "art")}<span class="t1">${esc(String(lgd ? lgd.name : (rb.legends || [])[s] || "").toUpperCase())}</span>${ch ? `<span class="t2">${esc(String(ch.name).toUpperCase())}</span>` : ""}</div>
+        <div class="cm"></div>
+        <div class="bf" data-k="rb3-bf-${s}-${bf ? bf.id : "x"}">${rbImg(bf, "art")}${bf ? `<span class="t1">${esc(String(bf.name).toUpperCase())}</span>` : ""}</div><b class="bft">${first ? "1ST" : "2ND"}</b>
+        <div class="gm">${Array.from({ length: need }, (_, k) => `<i class="${k < won(s) ? "on" : ""}"></i>`).join("")}</div>`;
+      const hand = (A("hand", s) || []).map(rbCard).filter(Boolean).slice(0, 6);
+      if (feat && feat.side === s) x += `<div class="ft" data-k="rb3-ft-${feat.id}">${rbImg(feat, "card")}</div>`;
+      else if (hand.length) x += `<div class="hd" data-k="rb3-hd-${s}">${hand.map((c, i) => { const d = RB_DOM[String(c.d || "").toLowerCase()] || "#4a5568";
+        return `<div class="hr" data-k="hr-${s}-${i}-${c.id}" style="--d:${d}">${rbImg(c, "art")}<i class="sh"></i><span class="ct num">&times;${Math.max(1, Math.round(+c.n) || 1)}</span>${c.e != null && c.e !== "" ? `<b class="en num">${+c.e}</b>` : ""}<span class="cn">${esc(c.name)}</span>${c.m != null && c.m !== "" ? `<b class="mi num">${+c.m}</b>` : ""}</div>`; }).join("")}</div>`;
+      else if (!s) { // the event and the clock fill the left column when nobody's hand is listed there
+        const emb = (ev.tournament.logos || []).find(Boolean), tn = String(ev.tournament.name || "").trim();
+        x += `<div class="evt">${emb ? `<img src="${esc(emb)}" alt="" onerror="this.style.display='none'">` : ""}${tn ? `<b>${esc(tn.toUpperCase())}</b>` : ""}${rb.roundTitle ? `<span class="rt">${esc(String(rb.roundTitle).toUpperCase())}</span>` : ""}<span class="ck num">${fmt(shown)}</span></div>`;
+      }
+      return x + `</div>`;
+    };
+    h += side(0) + side(1);
+    // the score track: 1..7 from each end and the target in the middle; each player's points light up from their own end
+    const half = target - 1, step = 26;
+    const dot = (n, lit, cls, k) => `<i class="${cls}${lit ? " on" : ""}" data-k="${k}"><b class="num">${n}</b></i>`;
+    h += `<div class="rb3-track" data-k="rb3-track" style="width:${(2 * half) * step + 32}px;margin-left:${-((2 * half) * step + 32) / 2}px">${Array.from({ length: half }, (_, i) => dot(i + 1, pts(0) >= i + 1, "d l", "tl" + i)).join("")}${dot(target, pts(0) >= target || pts(1) >= target, "d mid", "tm")}${Array.from({ length: half }, (_, i) => dot(half - i, pts(1) >= half - i, "d r", "tr" + i)).join("")}</div>`;
+    // the showdown on a battlefield, with each side's might
+    const sd = rb.sd && typeof rb.sd === "object" ? rb.sd : {}, sbf = rbCard(sd.bf);
+    if (sd.on) h += `<div class="rb3-sd" data-k="rb3-sd">${rbImg(sbf, "art")}<b class="tag">SHOWDOWN</b><span class="t1">${esc(String(sbf ? sbf.name : "").toUpperCase())}</span>${[0, 1].map(s => `<b class="mt ${s ? "r" : "l"} num" style="--c:${esc(col(s))}">${Math.max(0, Math.round(+((sd.might || [])[s]) || 0))}</b>`).join("")}</div>`;
+    // cameras: the player's own camera link, else their team's first player's
+    const cams = [];
+    [0, 1].forEach(s => { const t = m.sides[s], p = t && t.players && t.players[0], u = String((rb.cams || [])[s] || "") || (p && (p.cam || ownCam(ev, p.id))) || "";
+      if (/^https?:\/\//i.test(u)) cams.push({ key: "pc-rb-" + s + u, url: u, x: s ? 1070 : 26.7, y: 166, w: 184, h: 196 }); });
+    return { html: h, cams };
   };
 
   /* ---------------- scenes for the games that are not Rocket League ----------------

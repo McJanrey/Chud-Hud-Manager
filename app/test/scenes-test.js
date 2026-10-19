@@ -199,6 +199,21 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     check("Fortnite: the spectated player card shows name, elims, shield 40, health 62, mats 147, and the teammate row", /fn3-card[^]*?P20[^]*?class="num">3<[^]*?>40<[^]*?>62<[^]*?>147</.test(fnh) && /fn3-team[^]*?P21/.test(fnh));
     check("Fortnite: nobody spectated means no card", !HUD.sceneHtml(Object.assign(JSON.parse(JSON.stringify(fk)), { fn: Object.assign({}, fk.fn, { live: { } }) }), null, "ingame").includes("fn3-card"));
     check("Fortnite: each part can be switched off", (() => { const x = JSON.parse(JSON.stringify(fk)); x.fn.live.show = { counts: false, feed: false, board: false, thr: false, storm: false, card: false, team: false, event: false, sponsor: false }; const h = HUD.sceneHtml(x, null, "ingame"); return !/fn3-(ct|feed|lb|th|st|card|team|ev|sp)/.test(h); })());
+    /* Riftbound (Regional Qualifier reference): columns, score track, hands, featured card, showdown */
+    const rbE = await (await fetch(`${base}/api/event-template?game=Riftbound`)).json();
+    const C = (id, name, x) => Object.assign({ id, name }, x || {});
+    Object.assign(rbE.rb, { names: ["Xeno", "<b>DSG</b>"], legend: [C("ogn-001-298", "Irelia, Blade Dancer"), ""], champ: [C("ogn-002-298", "Irelia, Fervent"), ""], bf: [C("unl-205-219", "Abandoned Hall"), C("ogn-300-298", "Star Spring")],
+      first: 1, points: [5, 3], target: 8, games: [1, 0], bestOf: 3, hand: [[C("ogn-010-298", "Defy", { e: 1, d: "Calm", n: 2 }), C("ogn-011-298", "Pit Rookie", { e: 2, m: 2, d: "Body" })], []], sd: { on: true, bf: C("ogn-300-298", "Star Spring"), might: [8, 4] }, feat: { id: "", side: 1 } });
+    let rh = HUD.sceneHtml(rbE, null, "ingame");
+    check("Riftbound: a column a side with name, legend and champion, battlefield and who went first", /rb3-col l[^]*?XENO[^]*?IRELIA, BLADE DANCER[^]*?IRELIA, FERVENT[^]*?ABANDONED HALL[^]*?class="bft">2ND/.test(rh) && /rb3-col r[^]*?class="bft">1ST/.test(rh));
+    check("Riftbound: names are escaped", rh.includes("&lt;B&gt;DSG&lt;/B&gt;") && !rh.includes("<b>DSG"));
+    check("Riftbound: game markers light per game won (best of 3 = two markers a side)", /rb3-col l[^]*?class="gm"><i class="on"><\/i><i class=""><\/i>/.test(rh));
+    check("Riftbound: the score track lights 5 from the left and 3 from the right, 8 in the middle", (rh.match(/class="d l on"/g) || []).length === 5 && (rh.match(/class="d r on"/g) || []).length === 3 && /class="d mid"[^>]*><b class="num">8</.test(rh));
+    check("Riftbound: the hand list shows count, energy, name and might in the domain colour", /class="hr"[^>]*style="--d:#3f9a4a"[^]*?&times;2[^]*?class="en num">1<[^]*?Defy/.test(rh) && /Pit Rookie<\/span><b class="mi num">2</.test(rh));
+    check("Riftbound: the left column shows the event and clock only when no hand is listed there", !/class="evt"/.test(rh) && /class="evt"/.test(HUD.sceneHtml(Object.assign(JSON.parse(JSON.stringify(rbE)), { rb: Object.assign({}, rbE.rb, { hand: [[], []] }) }), null, "ingame")));
+    check("Riftbound: a featured card replaces that side's list with the card picture", (() => { const x = JSON.parse(JSON.stringify(rbE)); x.rb.feat = C("ogn-011-298", "Pit Rookie", { side: 0 }); const h = HUD.sceneHtml(x, null, "ingame"); return /class="ft"[^]*?\/rb-card\/ogn-011-298\.png/.test(h) && !/class="hd" data-k="rb3-hd-0"/.test(h); })());
+    check("Riftbound: the showdown bar shows the battlefield and both sides' might", /rb3-sd[^]*?SHOWDOWN[^]*?STAR SPRING[^]*?mt l num[^>]*>8<[^]*?mt r num[^>]*>4</.test(rh));
+    check("Riftbound: card ids outside the safe pattern are dropped", !/rb-card\/\.\./.test(HUD.sceneHtml(Object.assign(JSON.parse(JSON.stringify(rbE)), { rb: Object.assign({}, rbE.rb, { legend: [C("../../x", "Bad"), ""] }) }), null, "ingame")));
     check("webcams stay off unless switched on", HUD.sceneOut(JSON.parse(JSON.stringify(vEv)), null, "ingame").cams.length === 0);
 
     /* League of Legends in-game scene (Worlds-style): bottom band, board, focus panel, sponsor box, minimap frame, stacks, EST, bars, cameras */

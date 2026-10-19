@@ -441,6 +441,53 @@
 .hud .bar,.hud .fill,.hud .hp i{transition:width .5s cubic-bezier(.2,.8,.2,1),height .5s cubic-bezier(.2,.8,.2,1)}
 
 /* Fortnite leaderboard strip */
+/* Riftbound (rb3-*), on MJ's Regional Qualifier references: every number is the 1080p pixel / 1.5. The look is the variables. */
+.hud{--rb-gold:#c8aa6e;--rb-gold2:#f0b030;--rb-navy:#0e2340;--rb-navy2:#173a63;--rb-serif:Georgia,"Times New Roman",serif}
+.rb3-col{position:absolute;top:0;width:236.7px;height:720px;background:linear-gradient(160deg,rgba(23,58,99,.96),rgba(14,35,64,.97) 60%,rgba(10,26,50,.98))}
+.rb3-col.l{left:0;border-right:1.5px solid var(--rb-gold)}.rb3-col.r{right:0;border-left:1.5px solid var(--rb-gold)}
+.rb3-col .nm{position:absolute;left:0;right:0;top:20px;text-align:center;font-family:var(--rb-serif);font-size:20px;font-weight:700;letter-spacing:.02em;color:#f4efe3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+.rb3-col .dv{position:absolute;left:30px;right:30px;top:45px;height:1px;background:linear-gradient(90deg,transparent,var(--rb-gold),transparent)}
+.rb3-col .lg,.rb3-col .bf,.rb3-col .cm{position:absolute;left:25.3px;width:186.7px;border:1.5px solid var(--rb-gold);overflow:hidden;background:#0a1830}
+.rb3-col .lg{top:58.7px;height:94.7px}.rb3-col .cm{top:164.7px;height:198.7px;background:rgba(5,15,30,.5)}.rb3-col .bf{top:363.3px;height:60px}
+.rb3-col .art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 22%;border-radius:0}
+.rb3-col .bf .art{object-position:center 40%;overflow:hidden}
+.rb3-col .lg::after,.rb3-col .bf::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(5,12,28,.82))}
+.rb3-col .t1,.rb3-col .t2{position:absolute;left:4px;right:4px;z-index:1;text-align:center;font-family:var(--rb-serif);font-size:8.7px;font-weight:700;letter-spacing:.03em;color:#f4efe3;text-shadow:0 1px 2px rgba(0,0,0,.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb3-col .lg .t1{top:63px}.rb3-col .lg .t2{top:80px;font-size:8px}.rb3-col .bf .t1{top:26px;font-size:9.3px}
+.rb3-col .bft{position:absolute;left:25.3px;top:355.3px;z-index:2;padding:1px 6px 0;background:var(--rb-gold2);color:#111;font-family:var(--rb-serif);font-size:10px;font-weight:700;line-height:13px}
+
+.rb3-col .gm{position:absolute;left:0;right:0;top:410px;display:flex;justify-content:center;gap:10px}
+.rb3-col .gm i{width:26.7px;height:26.7px;border-radius:50%;background:var(--rb-navy);border:2px solid var(--rb-gold);box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.rb3-col .gm i.on{background:radial-gradient(circle,#f6d58a 0 30%,var(--rb-gold) 32% 55%,#8d6f33 58%)}
+.rb3-col .hd{position:absolute;left:23.3px;top:474.7px;width:185.3px;height:214px;border:1px solid rgba(200,170,110,.7);background:rgba(8,20,40,.75)}
+.rb3-col .hr{position:relative;height:35.3px;margin:1.3px 1.3px 0;overflow:hidden;display:flex;align-items:center;background:var(--d)}
+.rb3-col .hr .art{object-position:center 28%;opacity:.85}
+.rb3-col .hr .sh{position:absolute;inset:0;background:linear-gradient(90deg,var(--d) 0,var(--d) 22%,rgba(0,0,0,0) 70%)}
+.rb3-col .hr .ct{position:relative;z-index:1;width:20px;margin-left:5px;font-family:var(--v3-ui);font-size:8.5px;font-weight:700;color:#fff}
+.rb3-col .hr .en{position:relative;z-index:1;width:15px;height:15px;flex:none;border-radius:50%;background:#fff;color:#111;border:1.5px solid rgba(0,0,0,.35);display:grid;place-items:center;font-family:var(--v3-ui);font-size:9px;font-weight:800;margin-right:5px}
+.rb3-col .hr .cn{position:relative;z-index:1;flex:1;min-width:0;font-family:var(--rb-serif);font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.95);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb3-col .hr .mi{position:relative;z-index:1;width:13px;height:13px;flex:none;margin:0 5px;background:#111;color:#fff;display:grid;place-items:center;font-family:var(--v3-ui);font-size:8.5px;font-weight:800}
+.rb3-col .ft{position:absolute;left:24px;top:443.3px;width:186.7px;height:260px;display:grid;place-items:center}
+.rb3-col .ft .card{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+.rb3-col .evt{position:absolute;left:0;right:0;top:470px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.rb3-col .evt img{width:63px;height:63px;object-fit:contain}
+.rb3-col .evt b{margin-top:8px;padding:0 14px;font-family:var(--rb-serif);font-size:19px;font-weight:700;line-height:20px;color:#f4efe3}
+.rb3-col .evt .rt{margin-top:14px;font-family:var(--rb-serif);font-size:15px;font-weight:700;color:#f4efe3}
+.rb3-col .evt .ck{margin-top:4px;width:106.7px;height:33.3px;background:var(--rb-gold2);color:#111;display:grid;place-items:center;font-family:var(--v3-ui);font-size:26px;font-weight:800;box-shadow:0 0 0 1.5px #111,0 0 0 2.5px var(--rb-gold2)}
+.rb3-col .hr .cn{text-transform:none}.rb3-col .nm.sm{font-size:16px;top:23px}.rb3-col .nm.xs{font-size:13px;top:25px}
+.rb3-col,.rb3-track,.rb3-sd{font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1}
+.rb3-col .lg .art{transform:scale(1.35);transform-origin:50% 18%}.rb3-col .bf .art{transform:scale(1.28);transform-origin:50% 45%}
+.rb3-track{position:absolute;left:640px;top:7px;height:26.7px;display:flex;align-items:center;justify-content:space-between;padding:0 3px;background:linear-gradient(90deg,transparent,rgba(8,20,40,.55) 8%,rgba(8,20,40,.55) 92%,transparent)}
+.rb3-track .d{width:21.3px;height:21.3px;border-radius:50%;flex:none;background:var(--rb-navy);border:1.5px solid var(--rb-gold);display:grid;place-items:center}
+.rb3-track .d b{font-family:var(--v3-ui);font-size:11px;font-weight:800;color:#f4efe3}
+.rb3-track .d.mid{width:26.7px;height:26.7px;border-width:2px}.rb3-track .d.mid b{font-size:14px}
+.rb3-track .d.on{background:var(--rb-gold2)}.rb3-track .d.on b{color:#111}
+.rb3-sd{position:absolute;left:456.7px;top:674.7px;width:366.7px;height:45.3px;border:1.5px solid var(--rb-gold);border-bottom:0;overflow:visible;background:#0a1830}
+.rb3-sd .art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 40%;filter:brightness(.6);border-radius:0}
+.rb3-sd .tag{position:absolute;left:50%;top:-8px;transform:translateX(-50%);padding:1px 6px 0;background:var(--rb-gold2);color:#111;font-family:var(--rb-serif);font-size:10px;font-weight:700;line-height:13px;z-index:1}
+.rb3-sd .t1{position:absolute;left:40px;right:40px;top:17px;text-align:center;font-family:var(--rb-serif);font-size:12px;font-weight:700;color:#f4efe3;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.rb3-sd .mt{position:absolute;top:9px;width:26px;height:28px;display:grid;place-items:center;background:var(--rb-navy);border:1.5px solid var(--rb-gold);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);font-family:var(--v3-ui);font-size:17px;font-weight:800;color:#fff}
+.rb3-sd .mt.l{left:6px;background:var(--c)}.rb3-sd .mt.r{right:6px;background:var(--c)}
 /* Fortnite in-game (fn3-*), on MJ's FNCS 2026 references: every number is the 1080p pixel / 1.5. Colours are the variables. */
 .hud{--fn-blue:#2d6ad8;--fn-blue2:#3d8cf0;--fn-pink:#e8195a;--fn-green:#5dd33f;--fn-ink:#111;--fn-ui:"Inter","Teko",sans-serif;--fn-cond:"Teko","Arial Narrow",sans-serif}
 .fn3-ct{position:absolute;top:22px;height:35.3px;display:flex;align-items:center;gap:6px;padding:0 0 0 14px;color:#fff}

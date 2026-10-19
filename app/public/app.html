@@ -150,6 +150,14 @@ function valMapList(){
   if(VALMP===null){VALMP=[];fetch("/api/val/maps").then(r=>r.ok?r.json():[]).then(a=>{if(Array.isArray(a)&&a.length){VALMP=a;if(ui.view==="val"&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)))render()}else setTimeout(()=>{VALMP=null},30000)}).catch(()=>setTimeout(()=>{VALMP=null},30000))}
   return VALMP;
 }
+/* Riftbound cards (Riftcodex), fetched and kept by the server the same way */
+let RBC=null;
+function rbCardList(){
+  if(RBC===null){RBC=[];fetch("/api/rb/cards").then(r=>r.ok?r.json():[]).then(a=>{if(Array.isArray(a)&&a.length){RBC=a;if(ui.view==="rb"&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)))render()}else setTimeout(()=>{RBC=null},30000)}).catch(()=>setTimeout(()=>{RBC=null},30000))}
+  return RBC;
+}
+const rbFind=n=>{const k=String(n||"").trim().toLowerCase();return k?(RBC||[]).find(c=>c.name.toLowerCase()===k)||null:null};
+const rbEntry=(c,n)=>({id:c.id,name:c.name,e:c.energy,m:c.might,d:(c.domain||[])[0]||"",n:n||1}); // what the overlay needs, saved with the event
 /* the guns for the player panels, fetched and kept by the server the same way */
 let VALWP=null;
 function valWeaponList(){
@@ -557,22 +565,27 @@ mc(e){
   </div><div class="sec">${stage("ingame")}</div></div>`;
 },
 rb(e){
-  const r=e.rb,cards=r.cards||[],play=r.play||[[],[]],nm=s=>r.names[s]||`Player ${s+1}`,byId=id=>cards.find(c=>c.id===id);
-  return`<div class="halves"><div class="sec" style="gap:24px">
-    <div class="sec"><div class="sechead"><h2>Match</h2><span class="pill ok" data-rbwin hidden></span></div>
-      <div class="cols">${[0,1].map(s=>`<div class="box"><b>Player ${s+1}</b>${F.text(`rb.names.${s}`,"Name","Player "+(s+1))}${F.text(`rb.legends.${s}`,"Legend","e.g. Jinx")}
-        <div class="fld"><span>Colour</span><input type="color" id="${fid(`rb.colors.${s}`)}" data-bind="rb.colors.${s}" value="${esc(r.colors[s])}" aria-label="Colour"></div>
+  const r=e.rb,nm=s=>r.names[s]||`Player ${s+1}`,C=rbCardList(),is=(c,t)=>c.type===t,cardName=x=>x&&x.name?x.name:"";
+  const lists=`<datalist id="rbLegends">${C.filter(c=>is(c,"Legend")).map(c=>`<option value="${esc(c.name)}">`).join("")}</datalist><datalist id="rbUnits">${C.filter(c=>is(c,"Unit")||is(c,"Champion")).map(c=>`<option value="${esc(c.name)}">`).join("")}</datalist><datalist id="rbBfs">${C.filter(c=>is(c,"Battlefield")).map(c=>`<option value="${esc(c.name)}">`).join("")}</datalist><datalist id="rbPlay">${C.filter(c=>!is(c,"Legend")&&!is(c,"Battlefield")).map(c=>`<option value="${esc(c.name)}">`).join("")}</datalist>`;
+  const pick=(k,s,list,label)=>`<label class="fld"><span>${label}</span><input list="${list}" data-rbpick="${k}|${s}" value="${esc(cardName((r[k]||[])[s]))}" placeholder="Type to search"></label>`;
+  const hand=s=>(r.hand[s]||[]).map((c,i)=>`<div class="row c" style="gap:5px;margin-top:5px"><span class="step"><button type="button" data-act="rbHandN" data-arg="${s}|${i}|-1" aria-label="One less">−</button><output>×${Math.max(1,+c.n||1)}</output><button type="button" data-act="rbHandN" data-arg="${s}|${i}|1" aria-label="One more">+</button></span><span style="flex:1">${esc(c.name)}${c.e!=null?` <span class="sub">(${c.e})</span>`:""}</span><button class="btn sm" type="button" data-act="rbFeat" data-arg="${s}|${i}"${r.feat&&r.feat.id===c.id?' aria-pressed="true"':""}>Feature</button><button class="btn icon sm" type="button" data-act="rbHandDel" data-arg="${s}|${i}" aria-label="Played or gone: take it out of the hand">${ico("x")}</button></div>`).join("")||`<p class="note">Empty. Add cards as you see them on the hand camera.</p>`;
+  const deck=s=>(r.deck[s]||[]).length?`<div class="chks" style="margin-top:6px">${r.deck[s].map((c,i)=>`<button class="btn sm" type="button" data-act="rbFromDeck" data-arg="${s}|${i}">${esc(c.name)}</button>`).join("")}</div>`:"";
+  return`${lists}<div class="halves"><div class="sec" style="gap:24px">
+    <div class="sec"><div class="sechead"><div><h2>Players</h2><p class="sub">Cards come from Riftcodex (riftcodex.com, a free community card list; the pictures are Riot's). ${C.length?`${C.length} cards loaded.`:"The list loads the first time the app is online and is kept for offline use."}</p></div></div>
+      <div class="cols">${[0,1].map(s=>`<div class="box"><b>Player ${s+1}</b>${F.text(`rb.names.${s}`,"Name","Player "+(s+1))}${pick("legend",s,"rbLegends","Legend")}${pick("champ",s,"rbUnits","Champion")}${pick("bf",s,"rbBfs","Battlefield")}
+        <div class="fld"><span>Colour</span><input type="color" id="${fid(`rb.colors.${s}`)}" data-bind="rb.colors.${s}" value="${esc(r.colors[s])}" aria-label="Colour"></div>${F.text(`rb.cams.${s}`,"Camera link (blank = the team's first player's)","https://…")}
         <div class="fld"><span>Points</span>${F.step(`rb.points.${s}`)}</div><div class="fld"><span>Games won</span>${F.step(`rb.games.${s}`)}</div></div>`).join("")}</div>
-      <div class="cols" style="--n:3">${F.num("rb.target","Points to win")}${F.sel("rb.bestOf","Best of",[[1,"1"],[3,"3"],[5,"5"]],"data-num")}${F.text("rb.roundTitle","Round title","Grand Final")}</div>
-      <div class="row c"><span class="note">Turn</span>${F.step("rb.turn")}<span class="seg">${[0,1].map(s=>`<button type="button" data-act="rbActive" data-arg="${s}" aria-pressed="${(r.active||0)===s}">${esc(nm(s))}</button>`).join("")}</span><button class="btn sm" type="button" data-act="rbNext">Next turn</button></div>
-      <div class="row"><div class="fld" style="flex:none"><span>Match clock</span>${clockBtns("rb.clock")}</div><label class="fld" style="max-width:190px"><span>Time limit (minutes, 0 counts up)</span><input type="number" min="0" max="240" id="rbLimit" value="${r.limitMinutes||0}"></label></div>
+      <div class="row c"><span class="note">Went first</span><span class="seg">${[0,1].map(s=>`<button type="button" data-act="rbFirst" data-arg="${s}" aria-pressed="${(r.first||0)===s}">${esc(nm(s))}</button>`).join("")}</span></div>
+      <div class="cols" style="--n:3">${F.num("rb.target","Points to win")}${F.sel("rb.bestOf","Best of",[[1,"1"],[3,"3"],[5,"5"]],"data-num")}${F.text("rb.roundTitle","Round title","Finals")}</div>
+      <div class="row"><div class="fld" style="flex:none"><span>Match clock</span>${clockBtns("rb.clock")}</div><label class="fld" style="max-width:190px"><span>Time limit (minutes, 0 counts up)</span><input type="number" min="0" max="240" id="rbLimit" value="${+r.limitMinutes||0}"></label></div>
       <div class="row c">${[0,1].map(s=>`<button class="btn" type="button" data-act="rbAward" data-arg="${s}">${esc(nm(s))} wins the game</button>`).join("")}<button class="btn danger" type="button" data-act="rbResetGame">Reset the board</button></div>
-      <p class="note">"Wins the game" adds a game win, then clears points, cards, the log and the clock for the next game. The loser goes first.</p></div>
-    <div class="sec"><h2>In play</h2><div class="cols">${[0,1].map(s=>`<div class="box"><b>${esc(nm(s))}</b><div class="chks">${(play[s]||[]).map((id,j)=>{const c=byId(id);return`<button class="btn sm" type="button" data-act="rbUnplay" data-arg="${s}|${j}">${esc(c?c.name:"?")} ×</button>`}).join("")||`<span class="note">Nothing in play</span>`}</div><div><button class="btn sm" type="button" data-act="rbClearPlay" data-arg="${s}">Clear</button></div></div>`).join("")}</div></div>
-    <div class="sec"><div class="sechead"><h2>Spotlight</h2>${F.sw("rb.spotlight.show","Show on screen")}</div>${F.sel("rb.spotlight.cardId","Card",[["","None"],...cards.map(c=>[c.id,c.name])])}</div>
-  </div><div class="sec">
-    <div class="sechead"><div><h2>Cards</h2><p class="sub">Upload the card images you want on screen. Played cards appear beside each player, and a spotlight card shows large in the middle.</p></div><button class="btn" type="button" data-act="rbAddCard">+ Add card</button></div>
-    ${cards.map((c,i)=>`<div class="row c nowrap">${F.dz(`rb.cards.${i}.image`,"Image","mini")}${F.text(`rb.cards.${i}.name`,"","Card name")}<button class="btn sm" type="button" data-act="rbPlay" data-arg="${i}|0" title="Play for ${esc(nm(0))}">→ ${esc(nm(0))}</button><button class="btn sm" type="button" data-act="rbPlay" data-arg="${i}|1" title="Play for ${esc(nm(1))}">→ ${esc(nm(1))}</button><button class="btn sm" type="button" data-act="rbSpot" data-arg="${i}">Spotlight</button><button class="btn icon" type="button" data-act="rbDelCard" data-arg="${i}" aria-label="Delete card">${ico("x")}</button></div>`).join("")||`<p class="sub">No cards yet.</p>`}
+      <p class="note">"Wins the game" adds a game win, then clears points, hands, the showdown and the clock for the next game.</p></div>
+    <div class="sec"><div class="sechead"><div><h2>Showdown</h2><p class="sub">The bar at the bottom: the battlefield being fought over and each side's might.</p></div>${F.sw("rb.sd.on","Show on screen")}</div>
+      <div class="cols" style="--n:3"><label class="fld"><span>Battlefield</span><select data-rbsdbf>${[0,1].map(s=>(r.bf||[])[s]&&r.bf[s].id?`<option value="${s}"${r.sd.bf&&r.sd.bf.id===r.bf[s].id?" selected":""}>${esc(r.bf[s].name)}</option>`:"").join("")||`<option value="">Pick the battlefields first</option>`}</select></label>${[0,1].map(s=>`<div class="fld"><span>${esc(nm(s))} might</span>${F.step(`rb.sd.might.${s}`)}</div>`).join("")}</div></div>
+  </div><div class="sec" style="gap:24px">
+    <div class="sec"><div class="sechead"><div><h2>Hands</h2><p class="sub">What each player holds, as seen on the hand camera. Featuring a card shows it large in that player's column instead of the list.</p></div>${r.feat&&r.feat.id?`<button class="btn" type="button" data-act="rbFeatOff">Stop featuring ${esc(r.feat.name||"")}</button>`:""}</div>
+      <div class="cols">${[0,1].map(s=>`<div class="box"><b>${esc(nm(s))}</b><div class="row c" style="gap:6px;margin-top:6px"><input list="rbPlay" id="rbAdd${s}" placeholder="Card name" style="flex:1"><button class="btn sm" type="button" data-act="rbHandAdd" data-arg="${s}">Add</button></div>${hand(s)}
+        <details style="margin-top:10px"><summary class="note" style="cursor:pointer">Decklist (${(r.deck[s]||[]).length} cards): paste "2 Defy" lines, then tap a card to put it in the hand</summary><textarea id="rbDeck${s}" rows="5" style="width:100%;margin-top:6px" placeholder="3 Defy&#10;2 Charm">${esc((r.deck[s]||[]).map(c=>`${c.n||1} ${c.name}`).join("\n"))}</textarea><button class="btn sm" type="button" data-act="rbDeckLoad" data-arg="${s}">Load decklist</button></details>${deck(s)}</div>`).join("")}</div></div>
     ${stage("ingame")}</div></div>`;
 }});
 /* ---------- VALORANT 2v2 Skirmish, Dead by Daylight and Fortnite: scored by hand ---------- */
@@ -948,7 +961,17 @@ document.addEventListener("click",async ev0=>{
     case "rbActive":put("rb.active",+arg);break;
     case "rbNext":put("rb.turn",(e.rb.turn||1)+1);put("rb.active",(e.rb.active||0)?0:1);break;
     case "rbAward":case "rbResetGame":{const r=e.rb,g=[...(r.games||[0,0])],w=a==="rbAward"?+arg:-1;if(w>=0)g[w]=(g[w]||0)+1;
-      put("rb",Object.assign({},r,{games:g,points:[0,0],turn:1,active:w>=0?1-w:0,play:[[],[]],log:[],clock:{running:false,base:0,startedAt:0}}));break}
+      put("rb",Object.assign({},r,{games:g,points:[0,0],turn:1,active:w>=0?1-w:0,play:[[],[]],log:[],hand:[[],[]],sd:{on:false,bf:"",might:[0,0]},feat:{id:"",side:1},first:w>=0?1-w:(r.first||0),clock:{running:false,base:0,startedAt:0}}));render();break}
+    case "rbFirst":put("rb.first",+arg);render();break;
+    case "rbHandAdd":case "rbFromDeck":{const[s,i]=String(arg).split("|").map(Number),c=a==="rbHandAdd"?rbFind(($("#rbAdd"+s)||{}).value):rbFind(((e.rb.deck[s]||[])[i]||{}).name);if(!c){toast("No card by that name. Pick one from the list.");break}
+      const H=e.rb.hand.map(x=>x.map(y=>Object.assign({},y))),hit=H[s].find(y=>y.id===c.id);if(hit)hit.n=(+hit.n||1)+1;else H[s].push(rbEntry(c,1));put("rb.hand",H);render();break}
+    case "rbHandN":{const[s,i,d]=String(arg).split("|").map(Number),H=e.rb.hand.map(x=>x.map(y=>Object.assign({},y)));if(!H[s][i])break;H[s][i].n=Math.max(1,(+H[s][i].n||1)+d);put("rb.hand",H);render();break}
+    case "rbHandDel":{const[s,i]=String(arg).split("|").map(Number),H=e.rb.hand.map(x=>x.slice());H[s].splice(i,1);put("rb.hand",H);render();break}
+    case "rbFeat":{const[s,i]=String(arg).split("|").map(Number),c=(e.rb.hand[s]||[])[i];if(c)put("rb.feat",Object.assign({},c,{side:s}));render();break}
+    case "rbFeatOff":put("rb.feat",{id:"",side:1});render();break;
+    case "rbDeckLoad":{const s=+arg,lines=String(($("#rbDeck"+s)||{}).value||"").split(/\r?\n/),D=[],miss=[];
+      lines.forEach(l=>{const mt=/^\s*(\d+)?\s*x?\s*(.+?)\s*$/i.exec(l);if(!mt||!mt[2])return;const c=rbFind(mt[2]);if(c)D.push(Object.assign(rbEntry(c,+mt[1]||1)));else miss.push(mt[2])});
+      const all=e.rb.deck.map(x=>x.slice());all[s]=D;put("rb.deck",all);toast(miss.length?`Loaded ${D.length}; not found: ${miss.slice(0,4).join(", ")}${miss.length>4?"…":""}`:`Loaded ${D.length} cards`);render();break}
     case "rbAddCard":put("rb.cards",[...(e.rb.cards||[]),{id:uid(),name:"New card",image:""}]);break;
     case "rbDelCard":{const r=e.rb,id=r.cards[+arg].id;put("rb",Object.assign({},r,{cards:r.cards.filter((_,i)=>i!==+arg),play:(r.play||[[],[]]).map(a=>a.filter(x=>x!==id)),spotlight:r.spotlight.cardId===id?{cardId:"",show:false}:r.spotlight}));break}
     case "rbPlay":{const[i,s]=arg.split("|").map(Number),r=e.rb,id=r.cards[i].id,play=(r.play||[[],[]]).map(a=>[...a]);
@@ -1034,6 +1057,8 @@ document.addEventListener("change",ev0=>{
     if(el.dataset.fnshow){L.show=Object.assign({},L.show);if(el.checked)delete L.show[el.dataset.fnshow];else L.show[el.dataset.fnshow]=false}
     else{const ks=el.dataset.fnl.split("."),last=ks.pop();let o=L;for(const k of ks){if(k==="__proto__"||k==="constructor")return;o=o[k]=Object.assign({},o[k])}o[last]=el.type==="number"?(el.value===""?"":Math.max(0,parseInt(el.value)||0)):el.value}
     put("fn.live",L);updateStages();return}
+  if(el.dataset.rbpick){const e=ev();if(!e)return;const[k,s]=el.dataset.rbpick.split("|"),c=rbFind(el.value),A=(e.rb[k]||["",""]).slice();if(el.value&&!c)return;A[+s]=c?{id:c.id,name:c.name}:"";put("rb."+k,A);updateStages();return}
+  if(el.dataset.rbsdbf!==undefined){const e=ev();if(!e)return;const b=(e.rb.bf||[])[+el.value];put("rb.sd",Object.assign({},e.rb.sd,{bf:b&&b.id?b:""}));updateStages();return}
   if(el.dataset.valp){const e=ev();if(!e)return;const P=Object.assign({},e.val.p||{}),q=Object.assign({},P[el.dataset.valp]||{}),k=el.dataset.k; // one player's panel numbers, saved as a whole map (the server only sets existing paths)
     q[k]=k==="gun"?el.value:el.value===""?"":Math.max(0,parseInt(el.value)||0);P[el.dataset.valp]=q;put("val.p",P);updateStages();return}
   if(el.id==="ocrLayout"){if(OCR_LAYOUTS[el.value]){ocrCfg().regions=OCR_LAYOUTS[el.value].map(([key,x,y,w,h])=>({id:uid(),key,label:"",type:OCR_ROLES[key][1],polarity:"auto",x,y,w,h}));OCR.sel=null;ocrBoxes();ocrRows();ocrSave()}el.value="";return}

@@ -67,7 +67,9 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     fn: { elimPts: 1, spotlight: "", placePts: [{ to: 1, pts: 10 }, { to: 2, pts: 7 }, { to: 3, pts: 5 }, { to: 5, pts: 3 }, { to: 10, pts: 1 }], matches: [], games: 6, live: {} }, // live: the game being played now (see hud.js fnLive)
     // Riftbound (trading card game): operator-driven scoring
     rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
-      limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "", play: [[], []], log: [] },
+      limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "", play: [[], []], log: [],
+      // the broadcast layout (Riot card ids): legend and champion, battlefield, who went first, the hand lists, decklists, the showdown, the cameras
+      legend: ["", ""], champ: ["", ""], bf: ["", ""], first: 0, hand: [[], []], deck: [[], []], sd: { on: false, bf: "", might: [0, 0] }, feat: { id: "", side: 1 }, cams: ["", ""] }, // card entries carry Riot's card id
   };
 }
 // Older saved data may predate some fields: fill them in.
@@ -89,6 +91,8 @@ function upgrade(ev) {
   if (!ev.val.p || typeof ev.val.p !== "object" || Array.isArray(ev.val.p)) ev.val.p = {}; if (!["solid", "clear", "media"].includes(ev.val.barStyle)) ev.val.barStyle = "solid";
   ev.val.veto = require("./public/hud.js").vetoFix(ev.val.veto, ev.val.squad); // map selection: format, pool and one step per map
   if (ev.game === "Valorant") ev.teams.forEach(t => t.players.forEach(p => { if (p.agent === undefined) p.agent = ""; })); // the agent a player picks (a valorant-api.com uuid)
+  if (ev.rb) { const D = d.rb; ["legend", "champ", "bf", "hand", "deck", "cams"].forEach(k => { if (!Array.isArray(ev.rb[k]) || ev.rb[k].length !== 2) ev.rb[k] = JSON.parse(JSON.stringify(D[k])); });
+    if (!ev.rb.sd || typeof ev.rb.sd !== "object") ev.rb.sd = JSON.parse(JSON.stringify(D.sd)); if (!ev.rb.feat || typeof ev.rb.feat !== "object") ev.rb.feat = { id: "", side: 1 }; if (ev.rb.first !== 1) ev.rb.first = 0; }
   ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn); if (!ev.fn.live || typeof ev.fn.live !== "object" || Array.isArray(ev.fn.live)) ev.fn.live = {};
   ev.fn.matches.forEach(m => { m.place = m.place || []; m.elims = m.elims || []; });
   ev.rb.play = ev.rb.play || [[], []]; ev.rb.log = ev.rb.log || []; // Riftbound cards in play and what was played
@@ -754,6 +758,64 @@ async function valMapImage(uuid, kind) {
   fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(f, got.buf);
   return got.buf;
 }
+// Riftbound cards from Riot's own card gallery (riftbound.leagueoflegends.com/card-gallery: every card, in one page). The list is read once
+// and re-checked every 3 days; each picture (on Riot's CDN) is fetched the first time the overlay shows it and kept in <data>/rb-cards/.
+const RB_DIR = path.join(DATA, "rb-cards"), RB_ID = /^[a-z0-9-]{3,40}$/;
+let rbCards = null;
+function rbCardCache() {
+  if (rbCards) return rbCards;
+  try { const a = JSON.parse(fs.readFileSync(path.join(RB_DIR, "cards.json"), "utf8")); if (Array.isArray(a) && a.length) rbCards = a; } catch { /* not fetched yet */ }
+  return rbCards;
+}
+const rbFresh = () => { try { return Date.now() - fs.statSync(path.join(RB_DIR, "cards.json")).mtimeMs < 3 * 864e5; } catch { return false; } };
+const getText = (url, max = 16e6, hops = 3) => new Promise((resolve, reject) => https.get(url, { timeout: 30000, headers: { "user-agent": "SaintsHUD" } }, r => {
+  if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && hops > 0) { r.resume(); return resolve(getText(new URL(r.headers.location, url).href, max, hops - 1)); }
+  if (r.statusCode !== 200) { r.resume(); return reject(new Error("HTTP " + r.statusCode)); }
+  const chunks = []; let size = 0;
+  r.on("data", c => { size += c.length; if (size > max) { r.destroy(); reject(new Error("page too large")); } else chunks.push(c); });
+  r.on("end", () => resolve(Buffer.concat(chunks).toString("utf8"))); r.on("error", reject);
+}).on("error", reject).on("timeout", function () { this.destroy(new Error("timed out")); }));
+function rbParseGallery(html) { // the card list the gallery page carries for its own search (Next.js page data)
+  const mt = /<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/.exec(html);
+  if (!mt) throw new Error("no card data on the page");
+  let items = null;
+  (function walk(o, d) { if (items || d > 14 || !o || typeof o !== "object") return; if (Array.isArray(o)) { if (o.length > 100 && o[0] && o[0].cardType && o[0].name) items = o; else o.forEach(x => walk(x, d + 1)); return; } for (const k in o) walk(o[k], d + 1); })(JSON.parse(mt[1]), 0);
+  if (!items) throw new Error("no cards in the page data");
+  const num = v => (v && v.value && v.value.id != null && isFinite(+v.value.id) ? +v.value.id : null);
+  const base = id => /^[a-z]+-\d+-\d+$/.test(id); // the first printing (no a/star/alt suffix) wins a name
+  const list = items.map(c => {
+    const id = String(c.id || ""), type = String(((c.cardType && c.cardType.type) || [])[0] && c.cardType.type[0].id || ""), tags = (c.tags && Array.isArray(c.tags.tags) ? c.tags.tags : []).map(String);
+    let name = String(c.name || "").trim(); const sub = String(c.subtitle || "").trim();
+    if (sub) name += ", " + sub; else if (type === "legend" && tags[0] && !name.toLowerCase().includes(tags[0].toLowerCase())) name = tags[0] + ", " + name;
+    const img = String((c.cardImage && c.cardImage.url) || "");
+    return { id, name: name.slice(0, 70), type: type.charAt(0).toUpperCase() + type.slice(1), domain: ((c.domain && c.domain.values) || []).map(x => String(x.label || x.id || "")).slice(0, 3),
+      energy: num(c.energy), might: num(c.might), power: num(c.power), land: c.orientation === "landscape", img: /^https:\/\/cmsassets\.rgpub\.io\//.test(img) ? img : "", base: base(id) };
+  }).filter(c => RB_ID.test(c.id) && c.name && c.img).sort((x, y) => (y.base - x.base) || x.id.localeCompare(y.id));
+  const seen = new Set();
+  return list.filter(c => !seen.has(c.name.toLowerCase()) && seen.add(c.name.toLowerCase())).map(c => { delete c.base; return c; }).sort((x, y) => x.name.localeCompare(y.name));
+}
+let rbLoading = null;
+async function rbCardList() {
+  const have = rbCardCache(); if (have && rbFresh()) return have;
+  if (rbLoading) return rbLoading;
+  rbLoading = getText("https://riftbound.leagueoflegends.com/en-us/card-gallery/").then(html => {
+    const list = rbParseGallery(html);
+    if (list.length < 50) throw new Error("only " + list.length + " cards found");
+    fs.mkdirSync(RB_DIR, { recursive: true }); fs.writeFileSync(path.join(RB_DIR, "cards.json"), JSON.stringify(list));
+    rbCards = list; return list;
+  }).catch(e => { if (have) return have; throw e; }).finally(() => { rbLoading = null; });
+  return rbLoading;
+}
+async function rbCardImage(id) {
+  const file = path.join(RB_DIR, id + ".png");
+  if (fs.existsSync(file)) return fs.readFileSync(file);
+  const c = (await rbCardList()).find(x => x.id === id);
+  if (!c || !c.img) throw new Error("unknown card");
+  const got = await fetchImage(c.img, 3, 16e6);
+  if (got.type !== "image/png" && got.type !== "image/jpeg" && got.type !== "image/webp") throw new Error("not an image");
+  fs.mkdirSync(RB_DIR, { recursive: true }); fs.writeFileSync(file, got.buf);
+  return got.buf;
+}
 const valWeaponNames = () => Object.fromEntries((valWeaponCache() || []).map(w => [w.uuid, w.name]));
 async function valWeaponImage(uuid) {
   const f = path.join(VAL_DIR, "w_" + uuid + ".png");
@@ -1252,6 +1314,13 @@ const server = http.createServer((req, res) => {
       }).catch(e => json(res, 502, { error: e.message }));
     }
     if (p === "/api/val/agents") return valAgentList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the agent list: " + e.message }));
+    if (p === "/api/rb/cards") return rbCardList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the Riftbound cards: " + e.message }));
+    if (p.startsWith("/rb-card/")) { // a card picture: a strict card id, fetched once, then served from the data folder
+      const mt = /^\/rb-card\/([a-z0-9-]{3,40})\.png$/.exec(p);
+      if (!mt) return json(res, 400, { error: "bad path" });
+      return rbCardImage(mt[1]).then(buf => { res.writeHead(200, { "content-type": buf[0] === 0x89 ? "image/png" : buf[0] === 0xff ? "image/jpeg" : "image/webp", "cache-control": "max-age=86400" }); res.end(buf); })
+        .catch(e => json(res, 502, { error: e.message }));
+    }
     if (p === "/api/val/maps") return valMapList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the map list: " + e.message }));
     if (p.startsWith("/val-map/")) { // a map's card art: strict uuid and kind, fetched once, then served from the data folder
       const mt = /^\/val-map\/([^/]+)\/([a-z]+)\.png$/.exec(p);
