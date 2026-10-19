@@ -661,7 +661,7 @@
      the clock only while a screen-read clock keeps arriving), a players-left tab, sponsor boxes, and a bottom-anchored panel per player.
      Nothing is invented: HP, ultimate points and credits are drawn only if a player object ever carries them (none does today). */
   const VAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-  const VAL_FRESH = 5000; // a screen-read clock older than this is not drawn
+  const VAL_FRESH = 5000, VAL_PITCH = 196 / 3; // VAL_PITCH: one player row, 98 px at 1080p; // a screen-read clock older than this is not drawn
   const artBad = new Map(); // picture url -> when it failed to load; left out of the markup for a minute (the initials tile shows), then tried again
   const artFail = url => { artBad.set(String(url), Date.now()); };
   const artImg = (url, cls) => (artBad.get(url) > Date.now() - 60000 ? "" : `<img class="${cls}" src="${esc(url)}" alt="" onerror="SaintsHUD.artFail(this.getAttribute('src'))">`);
@@ -672,7 +672,8 @@
     const v = m.ev.val || {}, t = Math.max(1, Math.round(+v.target) || 10), n = m.squad || 2, dead = v.dead || {};
     const left = [0, 1].map(s => Math.max(0, n - m.players[s].filter(p => p.shortcut !== 0 && p.pid && dead[p.pid]).length));
     const sum = (+m.score[0] || 0) + (+m.score[1] || 0);
-    return { target: t, squad: n, round: Math.max(1, Math.min(sum + 1, 2 * t - 1)), left, used: !!v.aliveUsed, dead,
+    const round = Math.max(1, Math.min(sum + 1, 2 * t - 1)), reg = Math.max(1, 2 * t - 2); // first to 13 is ROUND n/24; past that it is overtime
+    return { target: t, squad: n, round, label: n === 2 ? `ROUND ${round}/${2 * t - 1}` : t > 1 && round > reg ? "OVERTIME" : `ROUND ${round}/${reg}`, left, used: !!v.aliveUsed, dead, // 2v2 Skirmish: no halves, no overtime
       fresh: !!(m.clockLive && m.clockAt && Date.now() - m.clockAt <= VAL_FRESH) };
   }
   /* cameras: "all" = a 116 x 65 tile on the inner side of each player's panel row; "action" = one 240 x 135 box a side near the bottom.
@@ -689,46 +690,57 @@
       });
       return { html, cams };
     }
-    const top = 720 - (m.squad || 2) * 65;
-    [0, 1].forEach(s => m.players[s].forEach((p, i) => { const u = camUrlOf(m.ev, p); if (u) cams.push({ key: "pc-" + s + "-" + i + u, url: u, x: s ? 927 : 237, y: top + i * 65, w: 116, h: 65 }); }));
+    const top = 720 - (m.squad || 2) * VAL_PITCH;
+    [0, 1].forEach(s => m.players[s].forEach((p, i) => { const u = camUrlOf(m.ev, p); if (u) cams.push({ key: "pc-" + s + "-" + i + u, url: u, x: s ? 928 : 236, y: Math.round(top + i * VAL_PITCH), w: 116, h: 65 }); }));
     return { html, cams };
   }
   S.valingame = (m) => {
-    const ev = m.ev, l = ev.live, sh = ev.hud.show, [L, R] = m.sides, info = valInfo(m);
+    const ev = m.ev, sh = ev.hud.show, v = ev.val || {}, [L, R] = m.sides, info = valInfo(m);
     let h = "";
     if (sh.score !== false) {
+      // top bar, laid out on MJ's reference: two team halves, a centre plate with the score, clock and round, the players-left chips
+      // and the ornament under it. Style: solid (the reference look), clear (no fills), or media (the operator's picture or video behind it).
+      const style = ["solid", "clear", "media"].includes(v.barStyle) ? v.barStyle : "solid", bg = style === "media" ? String(v.barBg || "") : "";
       const nm = (t, s) => noTag(t ? t.name || (t.players[0] && t.players[0].ign) || t.tag : "") || (s ? "TEAM B" : "TEAM A");
-      const half = (t, s) => { const x = nm(t, s); return `<div class="hf ${s ? "r" : "l"}" data-k="v3-hf-${s}" style="--c:${esc(m.colors[s])}">${lg(t)}<b class="nm${x.length > 13 ? " long" : ""}">${esc(x)}</b></div>`; };
-      const line = `ROUND ${info.round} · FIRST TO ${info.target}`;
-      h += `<div class="v3-bar" data-k="v3-bar">${half(L, 0)}${half(R, 1)}<div class="ct" data-k="v3-ct"><b class="sc l num">${Math.max(0, Math.round(+m.score[0]) || 0)}</b><div class="mid" data-k="v3-mid">${info.fresh ? `<b class="tm num">${fmt(m.clock)}</b>` : ""}<small>${esc(line)}</small></div><b class="sc r num">${Math.max(0, Math.round(+m.score[1]) || 0)}</b></div></div>`;
+      const wm = (t, s) => String((t && (t.tag || t.name)) || (s ? "B" : "A")).slice(0, 4).toUpperCase();
+      const half = (t, s) => `<div class="hf ${s ? "r" : "l"}" data-k="v3-hf-${s}" style="--c:${esc(m.colors[s])}"><div class="mx"><i class="fill"></i><svg class="ol" viewBox="0 0 294 49" preserveAspectRatio="none"><polyline points="${s ? "3,48.5 3,26 26,4.5 175,4.5" : "94,4 3,4 3,23.5 26,45 291,45"}"/></svg><i class="sl"><b></b><b></b></i></div>
+        <b class="wm">${esc(wm(t, s))}</b>${lg(t)}<div class="nw"><b class="nm">${esc(nm(t, s))}</b><i class="ln"></i></div><i class="mk"></i></div>`;
+      const media = !bg ? "" : /\.(mp4|webm|mov)$/i.test(bg) ? `<video src="${esc(bg)}" autoplay muted loop playsinline disablepictureinpicture></video>` : `<img src="${esc(bg)}" alt="" onerror="this.style.display='none'">`;
+      const chip = s => `<span class="cp ${s ? "r" : "l"}" data-k="cp-${s}" style="--c:${esc(m.colors[s])}"><b class="num">${info.left[s]}</b></span>`;
+      h += `<div class="v3-top ${style}" data-k="v3-top-${style}">${media ? `<div class="v3-bg" data-k="v3-bg-${esc(bg)}">${media}</div>` : ""}<i class="hl"></i>${half(L, 0)}${half(R, 1)}
+        <div class="ct" data-k="v3-ct"><b class="sc l num">${Math.max(0, Math.round(+m.score[0]) || 0)}</b><div class="mid" data-k="v3-mid">${info.fresh ? `<b class="tm num">${fmt(m.clock)}</b>` : ""}<small>${esc(info.label)}</small></div><b class="sc r num">${Math.max(0, Math.round(+m.score[1]) || 0)}</b>
+        ${chip(0)}<small class="pl">PLAYERS LEFT</small>${chip(1)}</div>
+        <svg class="orn" viewBox="0 0 80 40"><path d="M3 6 L13 10 L67 10 L77 6 M24 10 L40 20 L56 10 M13 10 C21 12 25 16 29 22 L37 30 L40 34 L43 30 L51 22 C55 16 59 12 67 10 M40 34 L40 39"/></svg></div>`;
       const emb = (ev.tournament.logos || []).find(Boolean);
       if (emb) h += `<div class="v3-emb" data-k="v3-emb"><img src="${esc(emb)}" alt="" onerror="this.style.display='none'"></div>`;
-      // players left: pips (and a digit from four a side up) for each side, once an alive toggle has been used
-      if (info.used) {
-        const side = s => `<span class="sd ${s ? "r" : "l"}" data-k="pl-${s}" style="--c:${esc(m.colors[s])}">${info.squad >= 4 ? `<b class="num">${info.left[s]}</b>` : ""}<span class="pp">${Array.from({ length: info.squad }, (_, i) => `<i class="${i < info.left[s] ? "on" : ""}"></i>`).join("")}</span></span>`;
-        h += `<div class="v3-pl${info.squad >= 4 ? " w" : ""}" data-k="v3-pl"><small>PLAYERS LEFT</small><div class="rw">${side(0)}${side(1)}</div></div>`;
-      }
     }
     // sponsor boxes: the main sponsor on the left, the others (one at a time, 8 seconds each) on the right
     if (sh.sponsor !== false) {
       const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), main = sp.find(x => x.type === "main"), rest = sp.filter(x => x !== main);
       const body = (x, k) => `<div class="in" data-k="${k}">${x.logo ? `<img src="${esc(x.logo)}" alt="${esc(x.name || "")}" onerror="this.style.display='none'">` : `<b>${esc(x.name)}</b>`}</div>`;
-      if (main) h += `<div class="v3-sp l" data-k="v3-sp-l"><small>PRESENTED BY</small>${body(main, "spm")}</div>`;
-      if (rest.length) { const si = Math.floor(Date.now() / 8000) % rest.length; h += `<div class="v3-sp r" data-k="v3-sp-r">${body(rest[si], "sp-" + si)}</div>`; }
+      const spTop = (720 - info.squad * VAL_PITCH - 60 - 110 / 3).toFixed(2); // the reference gap above the first panel: 5v5 lands on its 445 px, 2v2 sits just over its two panels
+      if (main) h += `<div class="v3-sp l" data-k="v3-sp-l" style="top:${spTop}px">${body(main, "spm")}</div>`;
+      if (rest.length) { const si = Math.floor(Date.now() / 8000) % rest.length; h += `<div class="v3-sp r" data-k="v3-sp-r" style="top:${spTop}px">${body(rest[si], "sp-" + si)}</div>`; }
     }
-    // player panels, bottom-anchored; a padded "Player N" seat (shortcut 0) is never drawn
+    // player panels, bottom-anchored; a padded "Player N" seat (shortcut 0) is never drawn. HP, ultimate, gun and credits are what the
+    // operator types on the Skirmish page (a live feed's own values win if one ever sends them); HP starts at 100 and is 0 when out.
     if (sh.boost !== false) {
-      const top = 720 - info.squad * 65, frac = (a, b) => Math.max(0, Math.min(1, +a / (+b || 100)));
+      const top = 720 - info.squad * VAL_PITCH, stats = (v.p && typeof v.p === "object") ? v.p : {};
       [0, 1].forEach(s => m.players[s].forEach((p, i) => {
         const name = p ? noTag(p.display) : "";
         if (!name || p.shortcut === 0) return; // no padded seat, and no seat nobody has named yet
-        const dead = !!(p.pid && info.dead[p.pid]);
+        const dead = !!(p.pid && info.dead[p.pid]), st = (p.pid && stats[p.pid]) || {}, has = x => x != null && x !== "";
+        const hp = dead ? 0 : Math.max(0, Math.min(150, Math.round(+(has(p.hp) ? p.hp : has(st.hp) ? st.hp : 100)) || 0));
+        const um = Math.max(1, Math.min(9, Math.round(+(p.ultMax || st.ultMax)) || 8)), ul = Math.max(0, Math.min(um, Math.round(+(has(p.ult) ? p.ult : st.ult)) || 0));
+        const cr = has(p.credits) ? p.credits : has(st.cr) ? st.cr : "", gun = VAL_UUID.test(String(st.gun || "")) ? `/val-weapon/${st.gun}.png` : "";
         const agent = VAL_UUID.test(String(p.agent || "")) ? `/val-agent/${p.agent}/displayicon.png` : "";
         const art = (agent ? artImg(agent, "ag") : "") || (p.avatar ? artImg(p.avatar, "av") : "");
-        const ult = p.ult != null ? `<span class="ul" data-k="ul-${s}-${i}">${Array.from({ length: Math.max(1, Math.min(9, +p.ultMax || 8)) }, (_, k) => `<i class="${k < +p.ult ? "on" : ""}"></i>`).join("")}</span>` : "";
-        h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}" data-k="vp-${s}-${i}" style="top:${top + i * 65}px;--c:${esc(m.colors[s])}"><div class="pt">${art || `<span class="in">${esc(initials(name))}</span>`}</div>
-          <div class="bd"><b class="nm">${esc(name)}</b>${ult}${p.hp != null ? `<em class="hv num">${Math.round(+p.hp) || 0}</em>` : ""}${p.credits != null ? `<small class="cr num">${esc(p.credits)}</small>` : ""}
-          <span class="ac${p.hp != null ? "" : " solid"}">${p.hp != null ? `<i style="transform:scaleX(${frac(p.hp, p.hpMax)})"></i>` : ""}</span></div></div>`;
+        const pips = Array.from({ length: um }, (_, k) => `<i class="${k >= um - ul ? "on" : ""}"></i>`).join(""); // lit from the centre side
+        h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}" data-k="vp-${s}-${i}" style="top:${(top + i * VAL_PITCH).toFixed(2)}px;--c:${esc(m.colors[s])}"><div class="mx">
+          <i class="st"></i><i class="lo"></i><span class="hb"><i class="ht"></i><i class="hl" style="transform:scaleX(${(Math.min(100, hp) / 100).toFixed(3)})"></i><i class="he"></i></span>
+          <b class="nm t">${esc(name)}</b><span class="ul" data-k="ul-${s}-${i}">${pips}</span><em class="hv t num">${hp}</em>
+          ${gun ? artImg(gun, "gn") : ""}<span class="cr"><small class="t num">${esc(String(cr).slice(0, 6))}</small></span>
+          <div class="pt">${art || `<span class="in t">${esc(initials(name))}</span>`}</div></div></div>`;
       }));
     }
     const pc = sh.playerCam ? valCams(m) : { html: "", cams: [] };

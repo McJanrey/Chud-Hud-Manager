@@ -59,7 +59,8 @@ function newEvent(name, game = "Rocket League", organiser = "") {
         judges: [], judgeScores: {}, audience: { open: false, weight: 0, scores: {} } },
       poll: { question: "", options: ["", ""], open: false, show: false, counts: [0, 0], total: 0 } },
     // VALORANT 2v2 Skirmish: first to "target" rounds, scored by hand
-    val: { target: 10, squad: 2, dead: {}, aliveUsed: false }, // squad: players a side (2 to 5); dead: player id -> true while out this round; aliveUsed: a toggle was used since the last reset
+    val: { target: 10, squad: 2, dead: {}, aliveUsed: false, p: {}, barBg: "", barStyle: "solid" }, // squad: players a side (2 to 5); dead: player id -> true while out this round; aliveUsed: a toggle was used since the last reset;
+    // p: player id -> { hp, ult, ultMax, gun, cr } typed by the operator (VALORANT has no live feed); barStyle: solid | clear | media, barBg: the picture or video behind the top bar
     // Dead by Daylight: one trial is a killer against survivors; points per kill, per escape and per generator
     dbd: { killPts: 1, escapePts: 1, genPts: 0, trials: [] },
     // Fortnite: points for the placement tier a team lands in plus points per elimination, over a number of matches
@@ -85,6 +86,7 @@ function upgrade(ev) {
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
   ev.val = Object.assign({}, d.val, ev.val); ev.val.squad = Math.max(2, Math.min(5, Math.round(+ev.val.squad) || 2)); if (!ev.val.dead || typeof ev.val.dead !== "object" || Array.isArray(ev.val.dead)) ev.val.dead = {};
+  if (!ev.val.p || typeof ev.val.p !== "object" || Array.isArray(ev.val.p)) ev.val.p = {}; if (!["solid", "clear", "media"].includes(ev.val.barStyle)) ev.val.barStyle = "solid";
   if (ev.game === "Valorant") ev.teams.forEach(t => t.players.forEach(p => { if (p.agent === undefined) p.agent = ""; })); // the agent a player picks (a valorant-api.com uuid)
   ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn);
   ev.fn.matches.forEach(m => { m.place = m.place || []; m.elims = m.elims || []; });
@@ -704,6 +706,32 @@ async function valAgentList() {
   fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(path.join(VAL_DIR, "agents.json"), JSON.stringify(list));
   valAgents = list; return list;
 }
+let valWeapons = null;
+function valWeaponCache() {
+  if (valWeapons) return valWeapons;
+  try { const a = JSON.parse(fs.readFileSync(path.join(VAL_DIR, "weapons.json"), "utf8")); if (Array.isArray(a) && a.length) valWeapons = a; } catch { /* not fetched yet */ }
+  return valWeapons;
+}
+async function valWeaponList() { // every gun (and the knife) with its shop category, for the loadout picker on the Skirmish page
+  const have = valWeaponCache(); if (have) return have;
+  const j = await getJson("https://valorant-api.com/v1/weapons");
+  if (!j || !Array.isArray(j.data)) throw new Error("unexpected answer");
+  const order = ["Sidearms", "SMGs", "Shotguns", "Rifles", "Sniper Rifles", "Heavy Weapons", ""];
+  const list = j.data.filter(w => w && VAL_UUID.test(String(w.uuid))).map(w => ({ uuid: w.uuid, name: String(w.displayName || "").slice(0, 30), cat: String((w.shopData && w.shopData.category) || "").slice(0, 30), cost: +(w.shopData && w.shopData.cost) || 0 }))
+    .filter(w => w.name).sort((a, b) => (order.indexOf(a.cat) + 7) % 7 - (order.indexOf(b.cat) + 7) % 7 || a.cost - b.cost || a.name.localeCompare(b.name));
+  if (!list.length) throw new Error("no weapons in the answer");
+  fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(path.join(VAL_DIR, "weapons.json"), JSON.stringify(list));
+  valWeapons = list; return list;
+}
+const valWeaponNames = () => Object.fromEntries((valWeaponCache() || []).map(w => [w.uuid, w.name]));
+async function valWeaponImage(uuid) {
+  const f = path.join(VAL_DIR, "w_" + uuid + ".png");
+  if (fs.existsSync(f)) return fs.readFileSync(f);
+  const got = await fetchImage(`https://media.valorant-api.com/weapons/${uuid}/killstreamicon.png`);
+  if (got.type !== "image/png") throw new Error("not a PNG");
+  fs.mkdirSync(VAL_DIR, { recursive: true }); fs.writeFileSync(f, got.buf);
+  return got.buf;
+}
 const valAgentNames = () => Object.fromEntries((valAgentCache() || []).map(a => [a.uuid, a.name]));
 async function valAgentImage(uuid, kind) {
   const f = path.join(VAL_DIR, uuid + "_" + kind + ".png");
@@ -767,7 +795,7 @@ const fieldsLib = require("./fields.js");
 const OUT_DIR = path.join(DATA, "output");
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const eventById = id => DB.events.find(e => e.id === id) || onAirEvent(); // the on-air event is only the fallback for old links that name no event
-function fieldsOf(ev, query = {}, base = "") { return fieldsLib.build(DB, ev, ev ? feedOf(feedKeyOf(ev)).game : null, { dataDir: DATA, appDir: ROOT, images: query.images, base, agents: valAgentNames() }); }
+function fieldsOf(ev, query = {}, base = "") { return fieldsLib.build(DB, ev, ev ? feedOf(feedKeyOf(ev)).game : null, { dataDir: DATA, appDir: ROOT, images: query.images, base, agents: valAgentNames(), weapons: valWeaponNames() }); }
 function currentFields(query = {}, base = "") { return fieldsOf(eventById(query.event), query, base); }
 let lastCsv = "", lastJson = "";
 const lastOut = new Map();
@@ -900,7 +928,20 @@ setInterval(() => clients.forEach(c => c.res.write(": ping\n\n")), 15000);
 
 /* ------------------------------------------------------------------ http */
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
-  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml", ".json": "application/json" };
+  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml", ".json": "application/json",
+  ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/mp4" }; // a .mov (H.264) plays in Chromium when it is labelled as MP4
+const VIDEO_EXT = new Set([".mp4", ".webm", ".mov"]);
+function sendVideo(req, res, file) { // byte ranges, so OBS and vMix can loop and seek a background video without loading it whole
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404, { "content-type": "text/plain" }); return res.end("Not found"); }
+    const type = MIME[path.extname(file).toLowerCase()], m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+    if (!m || (m[1] === "" && m[2] === "")) { res.writeHead(200, { "content-type": type, "content-length": st.size, "accept-ranges": "bytes", "cache-control": "no-cache" }); return fs.createReadStream(file).pipe(res); }
+    let a = m[1] === "" ? Math.max(0, st.size - +m[2]) : +m[1], b = m[1] !== "" && m[2] !== "" ? Math.min(+m[2], st.size - 1) : st.size - 1;
+    if (a > b || a >= st.size) { res.writeHead(416, { "content-range": "bytes */" + st.size }); return res.end(); }
+    res.writeHead(206, { "content-type": type, "content-length": b - a + 1, "content-range": `bytes ${a}-${b}/${st.size}`, "accept-ranges": "bytes", "cache-control": "no-cache" });
+    fs.createReadStream(file, { start: a, end: b }).pipe(res);
+  });
+}
 
 function sendFile(res, file) {
   const norm = file.replace(/\\/g, "/");
@@ -1178,6 +1219,13 @@ const server = http.createServer((req, res) => {
       }).catch(e => json(res, 502, { error: e.message }));
     }
     if (p === "/api/val/agents") return valAgentList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the agent list: " + e.message }));
+    if (p === "/api/val/weapons") return valWeaponList().then(list => json(res, 200, list)).catch(e => json(res, 502, { error: "Couldn't load the weapon list: " + e.message }));
+    if (p.startsWith("/val-weapon/")) { // a gun's white kill-feed silhouette, same rules as the agent pictures
+      const mt = /^\/val-weapon\/([^/]+)\.png$/.exec(p);
+      if (!mt || !VAL_UUID.test(mt[1])) return json(res, 400, { error: "bad path" });
+      return valWeaponImage(mt[1]).then(buf => { res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" }); res.end(buf); })
+        .catch(e => json(res, 502, { error: e.message }));
+    }
     if (p.startsWith("/val-agent/")) { // an agent's picture: strict uuid and kind, fetched once, then served from the data folder; an error status makes the panel fall back to an initials tile
       const mt = /^\/val-agent\/([^/]+)\/([a-z]+)\.png$/.exec(p);
       if (!mt || !VAL_UUID.test(mt[1]) || !VAL_KINDS.has(mt[2])) return json(res, 400, { error: "bad path" });
@@ -1191,7 +1239,7 @@ const server = http.createServer((req, res) => {
       }).catch(e => json(res, 404, { error: e.message }));
     }
     if (p.startsWith("/objective-icons/")) { const f = safeJoin(ICON_DIR, p.slice(17)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
-    if (p.startsWith("/uploads/")) { const f = safeJoin(UPLOADS, p.slice(9)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
+    if (p.startsWith("/uploads/")) { const f = safeJoin(UPLOADS, p.slice(9)); return !f ? json(res, 400, { error: "bad path" }) : VIDEO_EXT.has(path.extname(f).toLowerCase()) ? sendVideo(req, res, f) : sendFile(res, f); }
     const f = safeJoin(PUB, p.slice(1));
     return f ? sendFile(res, f) : json(res, 404, { error: "not found" });
   }
@@ -1199,10 +1247,11 @@ const server = http.createServer((req, res) => {
   if (req.method === "POST") {
     if (!originOk(req)) return json(res, 403, { error: "Cross-site request refused" });
     if (p === "/api/upload") {
-      const ext = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif", "image/svg+xml": ".svg" }[req.headers["content-type"]];
-      if (!ext) return json(res, 415, { error: "Use a PNG, JPG, WebP, GIF or SVG image." });
-      return readBody(req, 15e6, (err, buf) => {
-        if (err) return json(res, 413, { error: "That image is over 15 MB." });
+      const ext = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif", "image/svg+xml": ".svg", "video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov" }[req.headers["content-type"]];
+      if (!ext) return json(res, 415, { error: "Use a PNG, JPG, WebP, GIF or SVG image, or an MP4, WebM or MOV video." });
+      const video = VIDEO_EXT.has(ext), max = video ? 150e6 : 15e6; // a looping background video may be bigger than a logo
+      return readBody(req, max, (err, buf) => {
+        if (err) return json(res, 413, { error: video ? "That video is over 150 MB." : "That image is over 15 MB." });
         const name = uid() + ext;
         fs.writeFile(path.join(UPLOADS, name), buf, e => e ? json(res, 500, { error: e.message }) : json(res, 200, { url: "/uploads/" + name }));
       });

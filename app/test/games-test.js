@@ -83,6 +83,29 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     const cp = await fetch(`${base}/val-agent/${AG}/displayicon.png`);
     check("a cached agent picture is served from disk as a PNG", cp.status === 200 && cp.headers.get("content-type") === "image/png" && (await cp.arrayBuffer()).byteLength === PNG.length, String(cp.status));
     const ag = await fetch(base + "/api/val/agents"), agl = await ag.json();
+    // panel numbers, guns and the top bar background
+    check("VALORANT events start with no typed panel numbers and the built-in top bar", JSON.stringify(val.val.p) === "{}" && val.val.barStyle === "solid" && val.val.barBg === "");
+    const W = "9c82e19d-4575-0200-1a81-3eacf00cf872";
+    fs.writeFileSync(path.join(dataDir, "val-agents", `w_${W}.png`), PNG);
+    fs.writeFileSync(path.join(dataDir, "val-agents", "weapons.json"), JSON.stringify([{ uuid: W, name: "Vandal", cat: "Rifles", cost: 2900 }]));
+    for (const bad of ["/val-weapon/not-a-uuid.png", `/val-weapon/${W}.jpg`, `/val-weapon/${W}`, `/val-weapon/${W.toUpperCase()}.png`, `/val-weapon/..%2F..%2Fdb.png`, `/val-weapon/${W}/x.png`])
+      check("gun route refuses " + bad, (await status(bad)) === 400, String(await status(bad)));
+    const wp = await fetch(`${base}/val-weapon/${W}.png`);
+    check("a cached gun silhouette is served from disk as a PNG", wp.status === 200 && wp.headers.get("content-type") === "image/png" && (await wp.arrayBuffer()).byteLength === PNG.length);
+    await post("/api/set", { event: val.id, path: "val.p", value: { [id0]: { hp: 40, ult: 2, cr: 3900, gun: W } }, by: "test" });
+    await post("/api/set", { event: val.id, path: "val.dead", value: {}, by: "test" });
+    const fv = await (await fetch(`${base}/hud.json?event=${val.id}`)).json();
+    check("vMix fields carry the typed HP, ult, credits and gun name; untouched players read 100 HP", fv["P1 HP"] === 40 && fv["P1 ULT"] === 2 && fv["P1 CREDITS"] === 3900 && fv["P1 GUN"] === "Vandal" && fv["P6 HP"] === 100 && fv["P6 GUN"] === "", JSON.stringify([fv["P1 HP"], fv["P1 ULT"], fv["P1 CREDITS"], fv["P1 GUN"], fv["P6 HP"]]));
+    // a background video uploads and streams in byte ranges (a .mov is served as MP4, which Chromium plays)
+    const vidBuf = Buffer.alloc(4096, 7), hdr = t => ({ method: "POST", headers: { "content-type": t, origin: base }, body: vidBuf });
+    const up = await (await fetch(base + "/api/upload", hdr("video/quicktime"))).json();
+    check("a MOV background uploads", /^\/uploads\/[\w]+\.mov$/.test(up.url || ""), JSON.stringify(up));
+    const rg = await fetch(base + up.url, { headers: { range: "bytes=100-199" } });
+    check("the video is served in byte ranges as MP4", rg.status === 206 && rg.headers.get("content-type") === "video/mp4" && rg.headers.get("content-range") === "bytes 100-199/4096" && (await rg.arrayBuffer()).byteLength === 100, String(rg.status));
+    const all = await fetch(base + up.url);
+    check("without a range the whole video comes back with accept-ranges", all.status === 200 && all.headers.get("accept-ranges") === "bytes" && (await all.arrayBuffer()).byteLength === 4096);
+    check("an impossible range is refused with 416", (await fetch(base + up.url, { headers: { range: "bytes=5000-6000" } })).status === 416);
+    check("other file types are still refused", (await fetch(base + "/api/upload", hdr("application/x-msdownload"))).status === 415);
     check("the cached agent list is served (uuid, name, role)", ag.status === 200 && Array.isArray(agl) && agl[0].uuid === AG && agl[0].name === "Jett" && agl[0].role === "Duelist");
   } catch (e) { check("test ran", false, e.stack || e.message); }
   srv.kill(); try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* temp folder */ }

@@ -62,7 +62,7 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     check("Dead by Daylight scorebug shows those points", /\b15\b/.test(text(HUD.sceneHtml(dbEv, null, "ingame"))) && /TRIAL 2/.test(text(HUD.sceneHtml(dbEv, null, "ingame"))));
 
     const vEv = JSON.parse(JSON.stringify(await (await fetch(`${base}/api/event-template?game=Valorant`)).json()));
-    check("VALORANT 2v2 Skirmish has two players a side and plays first to 10", vEv.teams.every(t => t.players.length === 2) && vEv.val.target === 10 && /FIRST TO 10/.test(text(HUD.sceneHtml(vEv, null, "ingame"))));
+    check("VALORANT 2v2 Skirmish has two players a side and plays first to 10", vEv.teams.every(t => t.players.length === 2) && vEv.val.target === 10 && /ROUND 1\/19/.test(text(HUD.sceneHtml(vEv, null, "ingame"))));
 
     /* VALORANT in-game scene (phase C2): top bar, players-left tab, sponsor boxes, player panels */
     const AG = "add6443a-41bd-e414-f6ad-e58d267f4e95";
@@ -75,58 +75,69 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     const vh = (e, g) => HUD.sceneHtml(e, g || null, "ingame"), cnt = (h, re) => (h.match(re) || []).length;
     let vv = vh(vmk(e => { e.live.score = [3, 2]; e.live.autoScore = false; }));
     check("VALORANT: one score per side and no leftover scorebug (the score was printed twice before)", cnt(vv, /class="sc [lr] num"/g) === 2 && !/h-bug|h-series|h-team/.test(vv) && /sc l num">3</.test(vv) && /sc r num">2</.test(vv), vv.slice(0, 200));
-    check("VALORANT: the round line says ROUND n · FIRST TO N (scores + 1)", /ROUND 6 · FIRST TO 10/.test(text(vv)), text(vv).slice(0, 160));
-    check("VALORANT: the round number never passes what first-to-N allows", /ROUND 19 · FIRST TO 10/.test(text(vh(vmk(e => { e.live.score = [10, 9]; e.live.autoScore = false; })))) && /ROUND 1 · FIRST TO 3/.test(text(vh(vmk(e => { e.val.target = 3; })))));
+    check("VALORANT 2v2 Skirmish: the round line reads ROUND n/max with no overtime (first to 10 = at most 19 rounds)", /ROUND 6\/19/.test(text(vv)) && /ROUND 19\/19/.test(text(vh(vmk(e => { e.live.score = [10, 9]; e.live.autoScore = false; })))), text(vv).slice(0, 160));
+    check("VALORANT 5v5: ROUND n/24 for first to 13 like the reference, OVERTIME past it", /ROUND 6\/24/.test(text(vh(vmk(e => { e.val.target = 13; e.live.score = [3, 2]; e.live.autoScore = false; }, 5)))) && /OVERTIME/.test(text(vh(vmk(e => { e.val.target = 13; e.live.score = [12, 12]; e.live.autoScore = false; }, 5)))));
     check("VALORANT: team names print without a #TAG when the name comes from a Riot ID", (() => { const h = vh(vmk(e => { e.teams[0].name = ""; e.teams[0].players[0].ign = "Zed#EUW"; })); return /Zed<\/b>/.test(h) && !/#EUW/.test(h); })());
+    check("VALORANT: the team tag sits behind each half as an outlined watermark", cnt(vv, /class="wm">[^<]{1,4}</g) === 2);
     // the clock only while it keeps arriving
     const gClock = at => ({ players: [], teams: [{ score: 0 }, { score: 0 }], feed: [], time: 95, clockLive: true, clockAt: at, connected: true, source: "ocr" });
     check("VALORANT: no timer without a clock, or with a stale one", !/class="tm/.test(vv) && !/class="tm/.test(vh(vmk(), gClock(Date.now() - 9000))) && !/class="tm/.test(vh(vmk(), Object.assign(gClock(0), { clockAt: undefined }))));
     check("VALORANT: odd scores print as whole numbers, never as markup or NaN", (() => { const h = vh(vmk(e => { e.live.score = ["<i>x</i>", "4.6"]; e.live.autoScore = false; })); return /sc l num">0</.test(h) && /sc r num">5</.test(h) && !/<i>x/.test(h); })());
-    check("VALORANT 4v4 and 5v5: the players-left tab widens so both sides fit", vh(vmk(e => { e.val.aliveUsed = true; }, 5)).includes('class="v3-pl w"') && !vh(vmk(e => { e.val.aliveUsed = true; }, 3)).includes('class="v3-pl w"'));
     check("VALORANT: the timer shows while the clock is fresh", /class="tm num">1:35</.test(vh(vmk(), gClock(Date.now() - 1000))));
-    // players left: hidden until a toggle has been used, then the alive count per side
-    check("VALORANT: players-left is hidden until an alive toggle has been used", !vv.includes("v3-pl") && !vh(vmk(e => { e.val.aliveUsed = false; e.val.dead = {}; })).includes("v3-pl"));
-    const dv = vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[0].players[0].id]: true }; });
-    vv = vh(dv);
-    const side = (h, s) => (h.match(new RegExp(`data-k="pl-${s}"[\\s\\S]*?</span></span>`)) || [""])[0];
-    check("VALORANT 2v2: pips show one of two alive on the left and two of two on the right, no digit", vv.includes("v3-pl") && cnt(side(vv, 0), /<i class="on">/g) === 1 && cnt(side(vv, 0), /<i class="">/g) === 1 && cnt(side(vv, 1), /<i class="on">/g) === 2 && !/<b class="num">\d<\/b><span class="pp">/.test(vv), side(vv, 0));
-    const d5 = vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[0].players[0].id]: true, [e.teams[0].players[1].id]: true }; }, 5);
-    vv = vh(d5);
-    check("VALORANT 5v5: a digit plus pips (3 left of 5)", cnt(side(vv, 0), /<i class="on">/g) === 3 && /<b class="num">3<\/b><span class="pp">/.test(vv) && /<b class="num">5<\/b><span class="pp">/.test(vv));
-    check("VALORANT: nothing is hidden when the toggle is used but all are alive", vh(vmk(e => { e.val.aliveUsed = true; })).includes("v3-pl"));
+    // players left: a chip per side under the score, always there
+    const chip = (h, s) => ((h.match(new RegExp(`data-k="cp-${s}"[^>]*><b class="num">(\\d+)<`)) || [])[1]);
+    check("VALORANT: players-left chips show the full squad when nobody is out", chip(vv, 0) === "2" && chip(vv, 1) === "2" && /PLAYERS LEFT/.test(text(vv)));
+    vv = vh(vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[0].players[0].id]: true }; }));
+    check("VALORANT 2v2: one out on the left makes the chips 1 and 2", chip(vv, 0) === "1" && chip(vv, 1) === "2");
+    vv = vh(vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[0].players[0].id]: true, [e.teams[0].players[1].id]: true }; }, 5));
+    check("VALORANT 5v5: two out on the left makes the chips 3 and 5", chip(vv, 0) === "3" && chip(vv, 1) === "5");
+    // top bar styles: the reference look, transparent, or the operator's picture or video
+    check("VALORANT: the top bar is the built-in look by default, with no background media", vh(vmk()).includes('class="v3-top solid"') && !vh(vmk()).includes("v3-bg"));
+    check("VALORANT: Transparent drops the fills and draws no media", (() => { const h = vh(vmk(e => { e.val.barStyle = "clear"; e.val.barBg = "/uploads/x.png"; })); return h.includes('class="v3-top clear"') && !h.includes("v3-bg"); })());
+    check("VALORANT: a picture goes behind the bar as an image, a video as a muted looping video", (() => { const a = vh(vmk(e => { e.val.barStyle = "media"; e.val.barBg = "/uploads/a.png"; })), b = vh(vmk(e => { e.val.barStyle = "media"; e.val.barBg = "/uploads/b.mov"; }));
+      return /v3-bg[^>]*><img src="\/uploads\/a.png"/.test(a) && /<video src="\/uploads\/b.mov" autoplay muted loop playsinline/.test(b); })());
+    check("VALORANT: a background path is escaped and an unknown style falls back to the built-in look", (() => { const h = vh(vmk(e => { e.val.barStyle = "media"; e.val.barBg = '/uploads/"><b>x.mp4'; })); return !/"><b>x/.test(h) && vh(vmk(e => { e.val.barStyle = "nope"; })).includes('class="v3-top solid"'); })());
     // sponsor boxes
     check("VALORANT: no sponsor boxes without sponsors", !vh(vmk()).includes("v3-sp"));
     const spV = vmk(e => { e.tournament.sponsors = [{ name: "SIDEKICK", logo: "", type: "secondary" }, { name: "MAINCO", logo: "/x/main.png", type: "main" }, { name: "THIRD", logo: "/x/third.png", type: "secondary" }]; });
     const dnow = Date.now; Date.now = () => 0; const s0 = vh(spV); Date.now = () => 8000; const s1 = vh(spV); Date.now = dnow;
-    check("VALORANT: the main sponsor sits on the left under PRESENTED BY, as an image that hides itself if it breaks", /v3-sp l[\s\S]*PRESENTED BY[\s\S]*src="\/x\/main.png"[^>]*onerror/.test(s0));
+    check("VALORANT: the main sponsor sits on the left as an image that hides itself if it breaks", /v3-sp l[\s\S]*src="\/x\/main.png"[^>]*onerror/.test(s0));
+    check("VALORANT: the sponsor boxes sit the reference gap above the first panel (5v5 at 296.67 = 445 px at 1080p, 2v2 at 492.67)", /v3-sp l" data-k="v3-sp-l" style="top:492.67px"/.test(s0) && /v3-sp l" data-k="v3-sp-l" style="top:296.67px"/.test(vh(vmk(e => { e.tournament.sponsors = [{ name: "M", logo: "", type: "main" }]; }, 5))));
     check("VALORANT: the other sponsors rotate every 8 s on the right", /v3-sp r[\s\S]*SIDEKICK/.test(s0) && !/v3-sp r[\s\S]*third/.test(s0) && /v3-sp r[\s\S]*\/x\/third.png/.test(s1) && !/v3-sp r[\s\S]*SIDEKICK/.test(s1));
     check("VALORANT: only a main sponsor means only the left box; the sponsor switch hides both", (() => { const h = vh(vmk(e => { e.tournament.sponsors = [{ name: "ONLY", logo: "", type: "main" }]; })); return h.includes("v3-sp l") && !h.includes("v3-sp r"); })() && !vh(vmk(e => { e.tournament.sponsors = [{ name: "A", logo: "" }]; e.hud.show.sponsor = false; })).includes("v3-sp"));
-    // player panels
+    // player panels: 98 px rows at 1080p, bottom-anchored
     vv = vh(vmk());
-    check("VALORANT squad 2: four panels, bottom-anchored (590 and 655), 237 wide, no 'Player N'", cnt(vv, /class="v3-p /g) === 4 && vv.includes("top:590px") && vv.includes("top:655px") && !/PLAYER \d/i.test(text(vv)), vv.slice(0, 100));
+    check("VALORANT squad 2: four panels, bottom-anchored (589.33 and 654.67), no 'Player N'", cnt(vv, /class="v3-p /g) === 4 && vv.includes("top:589.33px") && vv.includes("top:654.67px") && !/PLAYER \d/i.test(text(vv)), vv.slice(0, 100));
     vv = vh(vmk(null, 5));
-    check("VALORANT squad 5: ten panels from y 395 to the bottom", cnt(vv, /class="v3-p /g) === 10 && vv.includes("top:395px") && vv.includes("top:655px") && !/PLAYER \d/i.test(text(vv)));
+    check("VALORANT squad 5: ten panels from y 393.33 to the bottom", cnt(vv, /class="v3-p /g) === 10 && vv.includes("top:393.33px") && vv.includes("top:654.67px") && !/PLAYER \d/i.test(text(vv)));
     check("VALORANT: a squad bigger than the roster draws no padded or blank seats", (() => { const h = vh(vmk(e => { e.teams[0].players.splice(1); e.teams[1].players[1].ign = ""; e.teams[1].players[1].alias = ""; }, 3)); return cnt(h, /class="v3-p /g) === 3 && !/PLAYER \d|Player \d/.test(h); })());
     check("VALORANT: names lose their #TAG and the alias wins", (() => { const h = vh(vmk(e => { e.teams[0].players[1].alias = "Bobby"; })); return />Ann<\/b>/.test(h) && />Bobby<\/b>/.test(h) && !/#EU/.test(h); })());
-    check("VALORANT: an initials tile in the team colour when a player has no art", /class="in">AN</.test(vv) && !/class="ag"/.test(vv));
+    vv = vh(vmk());
+    check("VALORANT: an initials tile in the team colour when a player has no art", /class="in t">AN</.test(vv) && !/class="ag"/.test(vv));
     vv = vh(vmk(e => { e.teams[0].players[0].agent = AG; e.teams[0].players[1].avatar = "/uploads/b.png"; e.teams[1].players[0].agent = "../../x"; }));
-    check("VALORANT: an agent shows its cached icon, else the player's avatar, else initials; a bad agent value is ignored", vv.includes(`src="/val-agent/${AG}/displayicon.png"`) && vv.includes('class="av"') && vv.includes('src="/uploads/b.png"') && !/val-agent\/\.\./.test(vv) && cnt(vv, /class="in">AN</g) === 1 && cnt(vv, /class="in">BO</g) === 1);
+    check("VALORANT: an agent shows its cached icon, else the player's avatar, else initials; a bad agent value is ignored", vv.includes(`src="/val-agent/${AG}/displayicon.png"`) && vv.includes('class="av"') && vv.includes('src="/uploads/b.png"') && !/val-agent\/\.\./.test(vv) && cnt(vv, /class="in t">AN</g) === 1 && cnt(vv, /class="in t">BO</g) === 1);
     HUD.artFail(`/val-agent/${AG}/displayicon.png`);
-    check("VALORANT: a picture that failed to load falls back to the initials tile", !vh(vmk(e => { e.teams[0].players[0].agent = AG; })).includes("val-agent") && /class="in">AN</.test(vh(vmk(e => { e.teams[0].players[0].agent = AG; }))));
+    check("VALORANT: a picture that failed to load falls back to the initials tile", !vh(vmk(e => { e.teams[0].players[0].agent = AG; })).includes("val-agent") && /class="in t">AN</.test(vh(vmk(e => { e.teams[0].players[0].agent = AG; }))));
     vv = vh(vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[1].players[0].id]: true }; }));
-    check("VALORANT: a dead player is dimmed (class dead) and the others are not", cnt(vv, /class="v3-p [lr] dead"/g) === 1 && /vp-1-0"/.test(vv.match(/class="v3-p r dead"[^>]*>/)[0]) && cnt(vv, /class="v3-p [lr]"/g) === 3);
-    check("VALORANT: no HP, ultimate or credits are drawn without values", !/class="hv|class="cr|class="ul|<i style="transform/.test(vv));
-    check("VALORANT: HP, ultimate and credits appear only for a player object that carries them", (() => { const g = { players: [{ name: "Ann#EU1", team: 0, shortcut: 1, hp: 80, hpMax: 100, ult: 3, ultMax: 7, credits: 3900 }], teams: [{ score: 0 }, { score: 0 }], feed: [], time: 0, source: "ocr" };
-      const m = HUD.model(vmk(), g), h = HUD.sceneHtml(vmk(), g, "ingame"); return m.players[0][0].hp === 80 && /class="hv num">80</.test(h) && /class="cr num">3900</.test(h) && cnt(h, /<span class="ul"[\s\S]*?<\/span>/g) === 1; })());
+    check("VALORANT: a dead player is dimmed (class dead), shows 0 HP and an empty bar; the others are not", cnt(vv, /class="v3-p [lr] dead"/g) === 1 && /vp-1-0"/.test(vv.match(/class="v3-p r dead"[^>]*>/)[0]) && cnt(vv, /class="v3-p [lr]"/g) === 3 && /dead"[\s\S]*?scaleX\(0\.000\)[\s\S]*?class="hv t num">0</.test(vv));
+    const hvs = h => (h.match(/class="hv t num">(\d+)</g) || []).map(x => x.replace(/\D/g, ""));
+    vv = vh(vmk());
+    check("VALORANT: with nothing typed every panel shows 100 HP, a full bar, 8 empty ult pips, no gun and an empty credits box", hvs(vv).every(x => x === "100") && hvs(vv).length === 4 && cnt(vv, /scaleX\(1\.000\)/g) === 4 && cnt(vv, /<span class="ul"[^>]*>(<i class=""><\/i>){8}<\/span>/g) === 4 && !/class="gn"/.test(vv) && cnt(vv, /class="cr"><small class="t num"><\/small>/g) === 4);
+    const W = "9c82e19d-4575-0200-1a81-3eacf00cf872";
+    vv = vh(vmk(e => { e.val.p = { [e.teams[0].players[0].id]: { hp: 62, ult: 3, ultMax: 7, gun: W, cr: 3900 }, [e.teams[1].players[1].id]: { gun: "../../x", cr: "<b>" } }; }));
+    check("VALORANT: typed numbers reach the panel: HP 62 (bar 0.62), 3 of 7 ult lit from the centre side, the gun's silhouette, 3900 credits", /class="hv t num">62</.test(vv) && vv.includes("scaleX(0.620)") && /<span class="ul" data-k="ul-0-0">(<i class=""><\/i>){4}(<i class="on"><\/i>){3}<\/span>/.test(vv) && vv.includes(`src="/val-weapon/${W}.png"`) && /class="cr"><small class="t num">3900</.test(vv));
+    check("VALORANT: a bad gun value is ignored and typed credits are escaped", !/val-weapon\/\.\./.test(vv) && !/<small class="t num"><b>/.test(vv) && vv.includes("&lt;b&gt;"));
+    check("VALORANT: a live feed's own values win over typed ones", (() => { const g = { players: [{ name: "Ann#EU1", team: 0, shortcut: 1, hp: 80, hpMax: 100, ult: 3, ultMax: 7, credits: 3900 }], teams: [{ score: 0 }, { score: 0 }], feed: [], time: 0, source: "ocr" };
+      const e = vmk(x => { x.val.p = { [x.teams[0].players[0].id]: { hp: 10 } }; }), m = HUD.model(e, g), h = HUD.sceneHtml(e, g, "ingame"); return m.players[0][0].hp === 80 && /class="hv t num">80</.test(h) && /class="cr"><small class="t num">3900</.test(h); })());
     check("VALORANT: no Rocket League words and no BLU/ORG anywhere in the scene", !RL_WORDS.test(text(vh(spV))) && !/\b(BLU|ORG)\b/.test(text(vh(spV))));
     check("VALORANT: the scene reads the squad setting (model)", HUD.model(vmk(null, 5), null).players[0].length === 5 && HUD.model(vmk(null, 3), null).players[1].length === 3);
     // cameras: unchanged keys and counts, VALORANT's own boxes
     const vcam = vmk(e => { e.hud.show.playerCam = true; e.teams.forEach((t, ti) => t.players.forEach((p, i) => { p.cam = "https://cam.example/v" + ti + i; })); });
     let vc = HUD.sceneOut(vcam, null, "ingame");
-    check("VALORANT cameras (all): 116 x 65 tile on the inner side of each panel row, keys pc-<side>-<i>, every one shown", vc.cams.length === 4 && vc.cams.every(c => c.show === undefined && c.w === 116 && c.h === 65 && /^pc-[01]-\d/.test(c.key)) && vc.cams.find(c => c.key.startsWith("pc-0-0")).x === 237 && vc.cams.find(c => c.key.startsWith("pc-0-0")).y === 590 && vc.cams.find(c => c.key.startsWith("pc-1-1")).x === 927 && vc.cams.find(c => c.key.startsWith("pc-1-1")).y === 655, JSON.stringify(vc.cams.map(c => [c.key.slice(0, 6), c.x, c.y])));
+    check("VALORANT cameras (all): 116 x 65 tile on the inner side of each panel row, keys pc-<side>-<i>, every one shown", vc.cams.length === 4 && vc.cams.every(c => c.show === undefined && c.w === 116 && c.h === 65 && /^pc-[01]-\d/.test(c.key)) && vc.cams.find(c => c.key.startsWith("pc-0-0")).x === 236 && vc.cams.find(c => c.key.startsWith("pc-0-0")).y === 589 && vc.cams.find(c => c.key.startsWith("pc-1-1")).x === 928 && vc.cams.find(c => c.key.startsWith("pc-1-1")).y === 655, JSON.stringify(vc.cams.map(c => [c.key.slice(0, 6), c.x, c.y])));
     vcam.camera.director = "action"; vc = HUD.sceneOut(vcam, null, "ingame");
     check("VALORANT cameras (action): 240 x 135 at x 245 / 795, y 564, all loaded, exactly one shown a side, name plate under it", vc.cams.length === 4 && vc.cams.every(c => /^ac-[01]-\d/.test(c.key) && c.w === 240 && c.h === 135 && c.y === 564) && vc.cams.filter(c => c.key.startsWith("ac-0-")).every(c => c.x === 245) && vc.cams.filter(c => c.key.startsWith("ac-1-")).every(c => c.x === 795) && vc.cams.filter(c => c.show).length === 2 && /pc act l[\s\S]*pc act r/.test(vc.html), JSON.stringify(vc.cams.map(c => [c.key.slice(0, 5), c.show])));
-    check("VALORANT cameras: five a side follow the panel rows (y 395 first)", (() => { const e5 = vmk(e => { e.hud.show.playerCam = true; e.teams.forEach((t, ti) => t.players.forEach((p, i) => { p.cam = "https://cam.example/w" + ti + i; })); }, 5); const o = HUD.sceneOut(e5, null, "ingame"); return o.cams.length === 10 && o.cams.find(c => c.key.startsWith("pc-0-0")).y === 395 && o.cams.find(c => c.key.startsWith("pc-1-4")).y === 655; })());
+    check("VALORANT cameras: five a side follow the panel rows (y 393 first)", (() => { const e5 = vmk(e => { e.hud.show.playerCam = true; e.teams.forEach((t, ti) => t.players.forEach((p, i) => { p.cam = "https://cam.example/w" + ti + i; })); }, 5); const o = HUD.sceneOut(e5, null, "ingame"); return o.cams.length === 10 && o.cams.find(c => c.key.startsWith("pc-0-0")).y === 393 && o.cams.find(c => c.key.startsWith("pc-1-4")).y === 655; })());
 
     /* player webcams: on the newer games too, and "only the player in the action" */
     const camEv = JSON.parse(JSON.stringify(vEv)); camEv.hud.show.playerCam = true;

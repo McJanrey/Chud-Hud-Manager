@@ -92,6 +92,9 @@ function genericFields(m, ev, game, ctx, f) { // games read by screen OCR or ent
     for (let s = 0; s < 2; s++) for (let i = 0; i < 5; i++) { // P1..P5 left team, P6..P10 right team; seats the squad does not use stay empty
       const p = m.players[s][i], real = p && p.shortcut !== 0, n = s * 5 + i + 1;
       f[`P${n} NAME`] = real ? String(p.display || "").replace(/#[^#]*$/, "").trim() : ""; f[`P${n} AGENT`] = real && p.agent ? names[p.agent] || p.agent : ""; f[`P${n} ALIVE`] = real ? (p.pid && vi.dead[p.pid] ? 0 : 1) : "";
+      const q = (real && p.pid && ev.val && ev.val.p && ev.val.p[p.pid]) || {}, out = real && p.pid && vi.dead[p.pid]; // the panel numbers the operator typed
+      f[`P${n} HP`] = !real ? "" : out ? 0 : q.hp === "" || q.hp == null ? 100 : q.hp; f[`P${n} ULT`] = real ? (q.ult === "" || q.ult == null ? 0 : q.ult) : "";
+      f[`P${n} CREDITS`] = real && q.cr != null ? q.cr : ""; f[`P${n} GUN`] = real && q.gun ? (ctx.weapons || {})[q.gun] || "" : "";
     }
   }
   if (m.kind === "dbd") { const d = HUD.dbdScore(ev), last = d.trials[d.trials.length - 1]; f["TRIALS PLAYED"] = d.trials.length; f["KILLER SIDE"] = last ? SIDES[last.killer] : ""; }
