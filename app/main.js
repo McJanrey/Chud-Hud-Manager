@@ -194,6 +194,14 @@ function buildMenu() {
   ]));
 }
 
+// A startup error used to vanish: it threw inside this promise, nothing caught it, and the app sat in Task Manager with no window.
+// Now it shows the error, saves it next to the data (startup-error.log) and quits.
+function startupFailed(err) {
+  const text = String((err && err.stack) || err);
+  try { fs.mkdirSync(app.getPath("userData"), { recursive: true }); fs.writeFileSync(path.join(app.getPath("userData"), "startup-error.log"), new Date().toISOString() + "\n" + text + "\n"); } catch { /* read-only folder */ }
+  try { dialog.showErrorBox(V.name + " can't start", text.slice(0, 1500) + "\n\nThis was also saved to startup-error.log in " + app.getPath("userData") + "."); } catch { /* no display */ }
+  app.exit(1);
+}
 app.whenReady().then(() => {
   const { server, PORT, setOcrProvider, getDb } = require("./server.js");
   dbOf = getDb;
@@ -214,7 +222,7 @@ app.whenReady().then(() => {
       err.code === "EADDRINUSE" ? `Port ${PORT} is already in use. Close any other copy of ${V.name} (or START.bat) and try again.` : err.message);
     app.quit();
   });
-});
+}).catch(startupFailed);
 app.on("second-instance", () => { const w = launcher || win; if (w) { if (w.isMinimized()) w.restore(); w.focus(); } });
 app.on("will-quit", () => globalShortcut.unregisterAll());
 app.on("window-all-closed", () => app.quit());

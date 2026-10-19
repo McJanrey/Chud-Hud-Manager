@@ -1,7 +1,7 @@
 {
   "name": "saints-hud",
   "productName": "Chud Hud",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "private": true,
   "description": "St. Clair Saints broadcast control room and OBS overlays with live Rocket League and League of Legends data, plus screen OCR for other games.",
   "author": "St. Clair Saints Broadcast",
@@ -44,6 +44,7 @@
       "ocr.js",
       "cams.js",
       "twitch.js",
+      "draft.js",
       "variant.js",
       "license.js",
       "license-public.pem",
