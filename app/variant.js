@@ -1,6 +1,6 @@
 "use strict";
 // Product variants. The same code builds more than one app: the standard Chud Hud, and Chud Hud LOTD (Lan of the Dead),
-// a Halloween edition that installs next to it with its own name, data folder, ports, icon and update channel.
+// a Halloween edition (and Chud Hud WWL, Winter Wonder-LAN, a winter one) that installs next to it with its own name, data folder, ports, icon and update channel.
 //
 // Pick one with --variant=lotd, the CHUDHUD_VARIANT environment variable, or the "variant" field that the LOTD build writes
 // into package.json. Anything else is the standard app.
@@ -24,6 +24,31 @@ const VARIANTS = {
       [/#9db3a8/gi, "#b7a6c9"], [/#cbd6cf/gi, "#ddd0ea"], [/#b9c9bf/gi, "#cbbdd9"], [/#7be3a3/gi, "#65d589"], [/#b48cff/gi, "#8250f0"], [/#c8a2ff/gi, "#9b78f4"], [/#d8c6ff/gi, "#b9a2f8"],
     ],
   },
+  wwl: {
+    id: "wwl",
+    name: "Chud Hud WWL",
+    tagline: "WINTER WONDER-LAN",
+    appId: "ca.stclair.chudhudwwl",
+    dataDir: "Chud Hud WWL",
+    port: 7767, camPort: 7768,          // next to the standard app and LOTD, so all three can run at once
+    icon: "build/wwl/icon.png",
+    bg: "#001e3c",
+    /* Winter Wonder-LAN brand: navy #001e3c, blues #57a5fc and #98c6ff, grey #e9e9e9, red #ff6060, green #74db83.
+       Every scene's golds and dark greens become the winter blues and navy when the overlay stylesheet is served. */
+    colors: [
+      // the dark panels: green-black becomes navy
+      [/rgba\(5,\s*24,\s*17/g, "rgba(0,30,60"], [/rgba\(2,\s*14,\s*10/g, "rgba(0,18,38"], [/rgba\(8,\s*36,\s*25/g, "rgba(8,46,88"], [/rgba\(10,\s*62,\s*40/g, "rgba(20,70,125"],
+      [/#07120e/gi, "#001e3c"], [/#1a2a22/gi, "#12335a"],
+      // gold becomes the winter blues (bright, light, deep)
+      [/rgba\(253,\s*200,\s*47/g, "rgba(87,165,252"], [/rgba\(255,\s*200,\s*60/g, "rgba(152,198,255"],
+      [/#fdc82f/gi, "#57a5fc"], [/#ffc531/gi, "#6cb1fd"], [/#f0b030/gi, "#57a5fc"], [/#ffe08a/gi, "#c3dcff"], [/#f6d58a/gi, "#c3dcff"],
+      [/#d8c793/gi, "#98c6ff"], [/#c9b27c/gi, "#98c6ff"], [/#c8aa6e/gi, "#98c6ff"], [/#c9a64b/gi, "#3d86e0"], [/#c9a227/gi, "#3d86e0"], [/#c9922e/gi, "#3d86e0"], [/#e8a23a/gi, "#57a5fc"],
+      // text greys and the purple accents
+      [/#9db3a8/gi, "#a9c3e0"], [/#cbd6cf/gi, "#e9e9e9"], [/#b9c9bf/gi, "#d4e2f4"], [/#b48cff/gi, "#57a5fc"], [/#c8a2ff/gi, "#98c6ff"], [/#d8c6ff/gi, "#c3dcff"],
+      // green and red: the brand's own
+      [/#7be3a3/gi, "#74db83"], [/#ff5d5d/gi, "#ff6060"], [/#ff6a6a/gi, "#ff6060"], [/#ff8a8a/gi, "#ff8a8a"],
+    ],
+  },
 };
 
 function pick() {
@@ -45,7 +70,9 @@ function forId(id) {
     html(text, file) {
       let s = String(text);
       if (v) {
-        s = s.replace(/Chud Hud(?! LOTD)/g, name).replace("<small>BROADCAST</small>", `<small>${v.tagline}</small>`);
+        s = s.replace(/Chud Hud(?! (?:LOTD|WWL))/g, name).replace("<small>BROADCAST</small>", `<small>${v.tagline}</small>`);
+        // the launcher's title bar and caption: CHUD <b>HUD</b> becomes CHUD <b>HUD</b> LOTD / WWL
+        s = s.replace("CHUD <b>HUD</b>", "CHUD <b>HUD</b> " + name.slice(9).toUpperCase()).replace("CHUD HUD<small>", name.toUpperCase() + "<small>");
         s = s.replace(/<html(\s|>)/, `<html data-variant="${v.id}"$1`);
       }
       const themed = /(^|[\\/])(app|launcher|cam)\.html$/.test(String(file || ""));

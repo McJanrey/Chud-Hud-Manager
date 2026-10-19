@@ -10,6 +10,7 @@ const crypto = require("crypto");
 const V = require("./variant.js"); // the standard app, or a themed edition such as Chud Hud LOTD
 const LIC = require("./license.js"); // license codes: release builds only run with a valid, switched-on code (see license.js)
 const EDITION = V.id || "std";
+const TEAM_A = V.id === "wwl" ? "#57a5fc" : "#2f7dff", TEAM_B = V.id === "wwl" ? "#ff6060" : "#ff9b1a"; // the two default team colours (Winter Wonder-LAN: brand blue and red)
 const PORT = +process.env.PORT || V.port || 7777;
 const HOST = process.env.HOST || "127.0.0.1"; // set HOST=0.0.0.0 to reach it from other PCs on your LAN
 const RL_HOST = process.env.RL_HOST || "127.0.0.1";
@@ -35,7 +36,7 @@ const talent = (name, role, socials = []) => ({ id: uid(), name, role, portrait:
 function newEvent(name, game = "Rocket League", organiser = "") {
   return {
     id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(), source: "auto", cover: "", // cover: an uploaded image for the event card // source: which live feed the event reads (auto = its game's own)
-    hud: { scene: "ingame", colorMode: "team", custom: ["#2f7dff", "#ff9b1a"], bg: "pitch", autoBoard: true,
+    hud: { scene: "ingame", colorMode: "team", custom: [TEAM_A, TEAM_B], bg: "pitch", autoBoard: true,
       show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false, focus: true, sponsor: true, minimap: true, // focus, sponsor, minimap: League's bottom band
         mcTop: true, mcKills: true, mcFeed: true, mcElim: true, mcSpot: true, mcGrid: true, mcSponsors: true, mcCam: false }, // Hunger Games elements
       mcSet: { killRows: 5, feedRows: 4, bars: true, elimSecs: 6, showBorder: true }, mcState: "main" }, // their settings, and the HUD state: main, final or winner
@@ -66,7 +67,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     // Fortnite: points for the placement tier a team lands in plus points per elimination, over a number of matches
     fn: { elimPts: 1, spotlight: "", placePts: [{ to: 1, pts: 10 }, { to: 2, pts: 7 }, { to: 3, pts: 5 }, { to: 5, pts: 3 }, { to: 10, pts: 1 }], matches: [], games: 6, live: {} }, // live: the game being played now (see hud.js fnLive)
     // Riftbound (trading card game): operator-driven scoring
-    rb: { names: ["", ""], legends: ["", ""], colors: ["#2f7dff", "#ff9b1a"], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
+    rb: { names: ["", ""], legends: ["", ""], colors: [TEAM_A, TEAM_B], points: [0, 0], target: 8, games: [0, 0], bestOf: 3, turn: 1, active: 0,
       limitMinutes: 50, clock: { running: false, base: 0, startedAt: 0 }, cards: [], spotlight: { cardId: "", show: false }, roundTitle: "", play: [[], []], log: [],
       // the broadcast layout (Riot card ids): legend and champion, battlefield, who went first, the hand lists, decklists, the showdown, the cameras
       legend: ["", ""], champ: ["", ""], bf: ["", ""], first: 0, hand: [[], []], deck: [[], []], sd: { on: false, bf: "", might: [0, 0] }, feat: { id: "", side: 1 }, cams: ["", ""] }, // card entries carry Riot's card id
@@ -117,12 +118,12 @@ function freshEvent(game, name = "New Event") {
   // Blue and Orange are Rocket League's sides (and League has blue and red); every other game starts with names that fit it
   const NAMES = { "Rocket League": ["Blue Side", "BLU", "Orange Side", "ORG"], "League of Legends": ["Blue Side", "BLU", "Orange Side", "ORG"], "Riftbound": ["Player 1", "P1", "Player 2", "P2"] };
   const [an, at, bn, bt] = NAMES[game] || ["Team A", "TMA", "Team B", "TMB"];
-  const A = blankTeam(an, at, "#2f7dff"), B = blankTeam(bn, bt, "#ff9b1a");
+  const A = blankTeam(an, at, TEAM_A), B = blankTeam(bn, bt, TEAM_B);
   ev.teams = game === "Minecraft" ? [blankTeam("Players", "PLR", "#1d8a4a", "#f2b51c")] : [A, B]; // Minecraft has players, not two sides
   Object.assign(ev.live, { left: ev.teams[0].id, right: ev.teams[1] ? ev.teams[1].id : "" });
   if (game === "League of Legends") { B.name = "Red Side"; B.tag = "RED"; B.color = "#e84057"; ev.hud.colorMode = "custom"; ev.hud.custom = ["#3a8dff", "#e84057"]; }
   if (game === "Fortnite") { // a field of duos rather than two sides
-    const cols = ["#2f7dff", "#ff9b1a", "#1d8a4a", "#e84057", "#b48cff", "#2fd4c4", "#f2b51c", "#ff6ba8"];
+    const cols = [TEAM_A, TEAM_B, "#1d8a4a", "#e84057", "#b48cff", "#2fd4c4", "#f2b51c", "#ff6ba8"];
     ev.teams = Array.from({ length: 8 }, (_, i) => blankTeam("Duo " + (i + 1), "D" + (i + 1), cols[i]));
     Object.assign(ev.live, { left: ev.teams[0].id, right: ev.teams[1].id });
   }
@@ -207,7 +208,7 @@ if (!DB.settings.extraEvents) {
     DB.events.push(upgrade(hg), upgrade(bb));
   }
   if (!has("Riftbound")) {
-    const rb = withTeams(newEvent("RB - RIFTBOUND", "Riftbound", "SCC"), blankTeam("Player 1", "P1", "#2f7dff"), blankTeam("Player 2", "P2", "#ff9b1a"));
+    const rb = withTeams(newEvent("RB - RIFTBOUND", "Riftbound", "SCC"), blankTeam("Player 1", "P1", TEAM_A), blankTeam("Player 2", "P2", TEAM_B));
     Object.assign(rb.live, { left: rb.teams[0].id, right: rb.teams[1].id, seriesTitle: "SCC RIFTBOUND", bestOf: 3, gameSeries: "BEST OF 3" });
     DB.events.push(upgrade(rb));
   }

@@ -1,0 +1,47 @@
+/* Chud Hud WWL (Winter Wonder-LAN): the winter edition. Served as /theme.css only by that variant. Always dark.
+   Brand: navy #001e3c, blues #57a5fc and #98c6ff, grey #e9e9e9, red #ff6060, green #74db83. */
+:root,:root[data-theme="dark"],:root[data-theme="light"],[data-variant="wwl"]{
+  color-scheme:dark;
+  --bg:#00162e;
+  --surface-1:#001e3c;
+  --surface-2:#042a50;
+  --surface-3:#0b3868;
+  --line:#16436f;
+  --line-strong:#2a6199;
+  --text:#e9e9e9;
+  --text-2:#b4cbe6;
+  --text-3:#8aa9cc;
+  --accent:#57a5fc;
+  --accent-ink:#98c6ff;
+  --on-accent:#001e3c;
+  --accent-soft:rgba(87,165,252,.14);
+  --accent-line:rgba(87,165,252,.6);
+  --brand:#98c6ff;
+  --brand-soft:rgba(152,198,255,.26);
+  --ok:#74db83;   --ok-bg:rgba(116,219,131,.13);
+  --warn:#ffc857; --warn-bg:rgba(255,200,87,.14);
+  --err:#ff6060;  --err-bg:rgba(255,96,96,.14);
+  --info:#98c6ff; --info-bg:rgba(152,198,255,.16);
+  --scrim:rgba(0,10,26,.72);
+  --stage-bg:#00122a;
+  --shadow-2:0 8px 28px rgba(0,8,22,.55);
+  --shadow-3:0 24px 64px rgba(0,8,22,.7);
+  --ring:0 0 0 2px var(--bg),0 0 0 4px var(--accent);
+}
+body{background:radial-gradient(1200px 600px at 85% -10%,rgba(87,165,252,.20),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(152,198,255,.10),transparent 60%),var(--bg)}
+
+/* snow drifting down over the control room (the overlay never gets it) */
+html[data-variant="wwl"]::after{content:"";position:fixed;left:0;right:0;top:-100%;height:200%;pointer-events:none;z-index:2;opacity:.55;
+  background-image:
+    radial-gradient(2.2px 2.2px at 20px 30px,#fff 50%,transparent 52%),radial-gradient(1.6px 1.6px at 90px 120px,#e9f3ff 50%,transparent 52%),
+    radial-gradient(2.6px 2.6px at 160px 60px,#fff 50%,transparent 52%),radial-gradient(1.4px 1.4px at 230px 190px,#cfe3ff 50%,transparent 52%),
+    radial-gradient(2px 2px at 300px 100px,#fff 50%,transparent 52%),radial-gradient(1.8px 1.8px at 60px 230px,#e9f3ff 50%,transparent 52%);
+  background-size:340px 260px;animation:wwl-snow 38s linear infinite}
+@keyframes wwl-snow{from{transform:translateY(0)}to{transform:translateY(50%)}}
+html[data-variant="wwl"]::before{content:"";position:fixed;left:0;right:0;top:-100%;height:200%;pointer-events:none;z-index:1;opacity:.3;
+  background-image:radial-gradient(3px 3px at 70px 50px,#fff 50%,transparent 52%),radial-gradient(2.4px 2.4px at 210px 150px,#cfe3ff 50%,transparent 52%),radial-gradient(3.2px 3.2px at 120px 240px,#fff 50%,transparent 52%);
+  background-size:290px 300px;animation:wwl-snow 62s linear infinite}
+
+/* the brand glows a soft ice blue */
+.brand b,.tb .nm b,.card h2,.side h1 b{text-shadow:0 0 14px rgba(87,165,252,.5)}
+@media (prefers-reduced-motion:reduce){html[data-variant="wwl"]::before,html[data-variant="wwl"]::after{animation:none}}

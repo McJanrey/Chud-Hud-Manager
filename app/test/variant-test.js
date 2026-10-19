@@ -24,6 +24,21 @@ const lotd = V.forId("lotd"), std = V.forId("");
   const cfg = require("../electron-builder.lotd.js");
   check("the LOTD build is its own app with its own update channel", cfg.appId === "ca.stclair.chudhudlotd" && cfg.productName === "Chud Hud LOTD" && cfg.publish[0].channel === "lotd" && cfg.extraMetadata.variant === "lotd");
   check("the LOTD build ships variant.js", cfg.files.includes("variant.js"));
+  /* Chud Hud WWL (Winter Wonder-LAN, the winter edition): same rules, its own brand */
+  const wwl = V.forId("wwl");
+  const w = wwl.html(page, "x/public/app.html");
+  check("WWL renames the app and sets its tagline", w.includes("Chud Hud WWL") && w.includes("WINTER WONDER-LAN") && w.includes('data-variant="wwl"') && w.includes('href="/theme.css"'));
+  check("WWL never themes the overlay page", !wwl.html(page, "x/public/overlay.html").includes("theme.css"));
+  check("WWL has its own ports, icon and data folder, beside the standard app and LOTD", wwl.port === 7767 && wwl.camPort === 7768 && wwl.icon === "build/wwl/icon.png" && wwl.dataDir === "Chud Hud WWL" && wwl.appId === "ca.stclair.chudhudwwl" && wwl.port !== lotd.port);
+  const wcss = wwl.hudCss(css);
+  const left = ["#fdc82f", "#ffc531", "#f0b030", "#c9b27c", "#c8aa6e", "#d8c793", "#7be3a3", "#b48cff", "#07120e"].filter(c => new RegExp(c, "i").test(wcss));
+  check("every scene's golds, greens and purples are recoloured to the winter palette", left.length === 0 && /#57a5fc/i.test(wcss) && /#98c6ff/i.test(wcss) && /rgba\(0,\s*30,\s*60/.test(wcss), left.join());
+  check("the winter overlay stylesheet keeps every rule (same length class, no accidental deletions)", Math.abs(wcss.length - css.length) < css.length * 0.02);
+  for (const f of ["public/themes/wwl.css", "public/brand/wwl/chud-hud.png", "public/brand/wwl/wordmark.png", "build/wwl/icon.png", "build/wwl/icon.ico", "electron-builder.wwl.js"])
+    check("ships " + f, fs.existsSync(path.join(__dirname, "..", f)));
+  const wcfg = require("../electron-builder.wwl.js");
+  check("the WWL build is its own app with its own update channel", wcfg.appId === "ca.stclair.chudhudwwl" && wcfg.productName === "Chud Hud WWL" && wcfg.publish[0].channel === "wwl" && wcfg.extraMetadata.variant === "wwl" && wcfg.files.includes("variant.js") && wcfg.nsis.artifactName.startsWith("ChudHudWWL"));
+  check("the release builds the WWL installer too", /electron-builder\.wwl\.js/.test(fs.readFileSync(path.join(__dirname, "..", "..", ".github", "workflows", "release.yml"), "utf8")));
 
   // the server, started as each edition
   const run = async (variant, port) => {
@@ -36,7 +51,7 @@ const lotd = V.forId("lotd"), std = V.forId("");
     finally { srv.kill(); }
   };
   try {
-    const L = await run("lotd", 7797), S = await run("", 7799);
+    const L = await run("lotd", 7797), S = await run("", 7799), W = await run("wwl", 7761);
     check("LOTD server reports itself", L.v.id === "lotd" && L.v.name === "Chud Hud LOTD");
     check("LOTD control room is themed and renamed", L.app.text.includes("theme.css") && L.app.text.includes("Chud Hud LOTD"));
     check("LOTD overlay carries no theme", !L.overlay.text.includes("theme.css") && L.overlay.status === 200);
@@ -45,6 +60,7 @@ const lotd = V.forId("lotd"), std = V.forId("");
     check("the standard server has no theme and its normal overlay colours", S.theme.text === "" && /#fdc82f/i.test(S.hud.text) && S.v.id === "");
     check("LOTD serves its own logo", !L.logo.equals(S.logo));
     check("LOTD opens with Valorant, Fortnite and Dead by Daylight first", L.games.slice(0, 3).join() === "Valorant,Fortnite,Dead by Daylight", L.games.join());
+    check("WWL server reports itself, serves its theme, recoloured overlay and own logo", W.v.id === "wwl" && W.v.name === "Chud Hud WWL" && W.theme.text.includes("--accent:#57a5fc") && /#57a5fc/i.test(W.hud.text) && !/#fdc82f/i.test(W.hud.text) && !W.logo.equals(S.logo) && !W.logo.equals(L.logo) && W.app.text.includes("Chud Hud WWL") && !W.overlay.text.includes("theme.css"));
     check("the standard app does not get the LOTD games", !S.games.includes("Dead by Daylight") && !S.games.includes("Fortnite"), S.games.join());
   } catch (e) { check("server run", false, String(e && e.stack || e)); }
   console.log(failures ? "\n" + failures + " CHECK(S) FAILED" : "\nVARIANT TEST PASS");

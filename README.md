@@ -315,6 +315,22 @@ How it works: the code is signed with a private key that stays on your PC (`Secr
 
 Honest limit: anything running on someone else's PC can be edited by a determined person. This keeps people from using the app without you; it does not stop someone who takes it apart, and the source is only protected if the repository is private. The real lock is the website plan, where the data lives on your server.
 
+
+## Chud Hud WWL (Winter Wonder-LAN)
+
+A winter edition built the same way as LOTD, in the Winter Wonder-LAN brand: navy #001e3c, blues #57a5fc and #98c6ff, grey #e9e9e9, red #ff6060 and green #74db83, with the snow-globe emblem. It installs next to the other two and never touches their events:
+
+| | Chud Hud WWL |
+|---|---|
+| Installer | `ChudHudWWL-Setup-<version>.exe` |
+| Data folder | `%APPDATA%Chud Hud WWL` |
+| Overlay port | 7767 (cameras 7768), so all three can run at once |
+| Updates from | the release's `latest-wwl.yml` |
+
+Every scene is recoloured when the overlay stylesheet is served: the standard app's golds become the winter blues, the dark green panels become navy, and a new event's two default team colours are the brand blue and red. The control room gets the navy and ice-blue theme with soft falling snow (the overlay never gets it, so nothing drifts across your stream). The wordmark is also kept in `app/public/brand/wwl/wordmark.png` for title scenes. Every release builds all three installers.
+
+From source: `npm run start:wwl`, `npm run dist:wwl`.
+
 ## Settings
 
 Environment variables, set before starting the app (or `npm run server`):

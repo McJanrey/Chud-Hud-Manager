@@ -16,7 +16,11 @@
     "start:lotd": "electron . --variant=lotd",
     "server:lotd": "node server.js --variant=lotd",
     "dist:lotd": "electron-builder --config electron-builder.lotd.js --win nsis --publish never",
-    "release:lotd": "electron-builder --config electron-builder.lotd.js --win nsis --publish always"
+    "release:lotd": "electron-builder --config electron-builder.lotd.js --win nsis --publish always",
+    "start:wwl": "electron . --variant=wwl",
+    "server:wwl": "node server.js --variant=wwl",
+    "dist:wwl": "electron-builder --config electron-builder.wwl.js --win nsis --publish never",
+    "release:wwl": "electron-builder --config electron-builder.wwl.js --win nsis --publish always"
   },
   "engines": {
     "node": ">=18"

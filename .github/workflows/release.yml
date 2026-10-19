@@ -60,3 +60,8 @@ jobs:
         run: npx electron-builder --config electron-builder.lotd.js --win nsis --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Chud Hud WWL (Winter Wonder-LAN, the winter edition) likewise, with its own update file
+      - name: Build and publish Chud Hud WWL
+        run: npx electron-builder --config electron-builder.wwl.js --win nsis --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
