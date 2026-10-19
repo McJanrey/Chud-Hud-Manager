@@ -59,6 +59,12 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     check("a cached icon is served without internet", hit.status === 200 && (await hit.arrayBuffer()).byteLength === PNG.length, String(hit.status));
     for (const bad of ["/ddragon/evil.png", "/ddragon/cdn/1.0/img/champion/..%2F..%2Fdb.json", "/ddragon/cdn/1.0/data/en_US/item.json", "/ddragon/https%3A%2F%2Fevil.example%2Fx.png"])
       check("icon cache refuses " + bad, (await fetch(base + bad)).status === 400);
+    // the app logo is fixed: no request can set it, replace the whole settings object, or point it at another picture
+    const setReq = (pth, value) => fetch(base + "/api/set", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: pth, value }) });
+    for (const [pth, v] of [["settings.brand", { logo: "/uploads/x.png" }], ["settings.brand.logo", "/uploads/x.png"], ["settings", { brand: { logo: "/uploads/x.png" } }]])
+      check("the app logo cannot be changed through " + pth, (await setReq(pth, v)).status === 403);
+    const stl = await (await fetch(base + "/api/state")).json();
+    check("no custom app logo is stored", !(stl.db.settings && stl.db.settings.brand));
   } catch (e) { check("test ran", false, e.message); }
   srv.kill(); try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* temp folder */ }
   console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nSECURITY TEST PASS");

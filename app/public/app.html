@@ -234,7 +234,7 @@ function rail(e){
     +grp("Live game",["live",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),"ocr"])
     +grp("Broadcast",["hud","camera","graphics","schedule","bracket","standings","outputs"])
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
-  const crest=(DB&&DB.settings&&DB.settings.brand&&DB.settings.brand.logo)||"/brand/chud-hud.png";
+  const crest="/brand/chud-hud.png"; // fixed: the app logo cannot be changed
   return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
     <button class="evsw" type="button" data-act="palette" title="Switch event (Ctrl+K)"><div class="cover" style="${e?`background-image:${coverCss(e)}`:"background:var(--surface-3)"}"></div><span><b>${e?esc(e.name):"No event open"}</b><small>${e?esc(e.game):"Choose one to begin"}</small></span>${ico("updown")}</button>
     <div class="navscroll">${nav}</div>
@@ -342,8 +342,6 @@ overview(e){
       <p class="note" id="screens">${screensText()}</p>
     </div>
     <div class="sec"><h2>Workspace</h2><div class="cols">${F.text("name","Workspace name")}${F.text("organiser","Event organiser")}${F.sel("game","Select game",GAMES,"data-rerender")}${F.sel("kit","Broadcast kit",["Saints Default","Saints Varsity","Saints Gaming"])}</div><div class="row c nowrap" style="margin-top:4px"><div class="dz mini" style="width:auto;min-width:0;border:0;padding:0">${F.dz("cover","Cover image","mini")}</div><p class="note">Cover image for this event's card. Leave it empty to use the game's official art.</p></div></div>
-    <div class="sec"><div><h2>App logo</h2><p class="sub">The logo shows in the app's corner. Team logos are set per team in Players &amp; Teams.</p></div>
-      <div class="row c nowrap">${(()=>{const c=DB.settings.brand&&DB.settings.brand.logo;return`<div class="dz mini" style="width:72px;min-height:72px"><img src="${esc(c||"/brand/chud-hud.png")}" alt=""><input type="file" accept="image/*" id="brandLogo" data-upload="!settings.brand.logo" aria-label="Replace emblem"></div>${c?`<button class="btn sm" type="button" data-act="clearBrand">Use the St. Clair Saints emblem</button>`:`<span class="note">Using the St. Clair Saints 10 Years emblem. Click it to use a different image.</span>`}`})()}</div></div>
     <div class="sec"><div class="row c" style="justify-content:space-between"><p class="sub">Deleting removes this event, its teams, talent and graphics.</p><button class="btn danger" type="button" data-act="delEvent">${ico("trash")}Delete event</button></div></div>
   </div>
   <div class="sec"><h2>Game data</h2>${gameData(e)}</div></div>`;
@@ -875,8 +873,7 @@ async function upload(input,file){
   try{const r=await fetch("/api/upload",{method:"POST",headers:{"content-type":vid&&!file.type?"video/quicktime":file.type},body:file});const j=await r.json();
     if(!r.ok)return toast(j.error||"Upload failed.");
     const up=input.dataset.upload;
-    if(up==="!settings.brand.logo")await put("settings.brand",{logo:j.url},false);
-    else if(up.startsWith("!settings.icons."))await put("settings.icons",Object.assign({},DB.settings.icons||{},{[up.slice(16)]:j.url}),false);
+    if(up.startsWith("!settings.icons."))await put("settings.icons",Object.assign({},DB.settings.icons||{},{[up.slice(16)]:j.url}),false);
     else await put(up,j.url);
     render()}
   catch(e){toast("Upload failed. Is the server running?")}
@@ -950,7 +947,6 @@ document.addEventListener("click",async ev0=>{
     case "bump":{const p=b.dataset.path;put(p,Math.max(0,(+get(e,p)||0)+(+b.dataset.d)));mirrors();return;}
     case "resetSeries":put("live.series",[0,0]);break;
     case "source":await api("/api/source",{event:e.id,source:arg});e.source=arg;break;
-    case "clearBrand":put("settings.brand",{logo:""},false);break;
     case "lolPanel":e.hud.lolPanel=arg;await api("/api/lol/panel",{mode:arg,event:e.id});break;
     case "ocrSources":ocrLoadSources();return;
     case "ocrPick":{const s=OCR.shown[+arg],c=ocrCfg();c.sourceId=s.id;c.sourceName=s.name;ocrSourcesRender();ocrSave(true);return}

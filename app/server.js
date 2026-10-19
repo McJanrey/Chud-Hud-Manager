@@ -174,6 +174,7 @@ if (!DB || !Array.isArray(DB.events)) DB = seed();
 DB.settings = Object.assign({ source: "auto" }, DB.settings);
 if (!DB.settings.v) { DB.settings.v = 2; if (DB.settings.source === "demo") DB.settings.source = "auto"; } // the demo is no longer the default
 DB.events.forEach(upgrade);
+if (DB.settings && DB.settings.brand) delete DB.settings.brand; // the app logo is fixed (see lockedPath); saved with the next change
 // The data source used to be one setting for the whole workspace (and only the on-air event used it). Now every event has its own:
 // a test match, screen reading or external feed set before stays with the event that was on air; League or Rocket League sources
 // are what Auto already does for the matching game.
@@ -1061,6 +1062,9 @@ function readBody(req, limit, cb) {
 }
 const json = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
 
+// The app's own logo is fixed: it is part of the app, never a setting. A workspace saved by an older build that let it be
+// replaced has that setting removed when it loads, and nothing can write it again.
+const lockedPath = p => { const k = String(p || ""); return k === "settings" || k === "" || k === "settings.brand" || k.startsWith("settings.brand."); };
 function setPath(obj, p, v) {
   const ks = String(p).split(".");
   if (ks.some(k => k === "__proto__" || k === "constructor" || k === "prototype")) throw new Error("bad path");
@@ -1373,6 +1377,7 @@ const server = http.createServer((req, res) => {
           case "/api/set": { // { event?: id, path, value, by }
             const target = body.event ? DB.events.find(e => e.id === body.event) : DB;
             if (!target) return json(res, 404, { error: "event not found" });
+            if (!body.event && lockedPath(body.path)) return json(res, 403, { error: "The app logo can't be changed." });
             setPath(target, body.path, body.value);
             if (body.event && body.path === "val.squad") { target.val.squad = Math.max(2, Math.min(5, Math.round(+target.val.squad) || 2)); seatPlayers(target, target.val.squad); } // a bigger squad seats the empty roster rows
             if (body.event && body.path === "game") { upgrade(target); if (SQUAD[target.game] && target.teams.every(t => !t.players.length)) seatPlayers(target, SQUAD[target.game]); } // switching game gives that game's own settings
