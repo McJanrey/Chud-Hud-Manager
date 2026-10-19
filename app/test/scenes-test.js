@@ -81,6 +81,8 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     // the clock only while it keeps arriving
     const gClock = at => ({ players: [], teams: [{ score: 0 }, { score: 0 }], feed: [], time: 95, clockLive: true, clockAt: at, connected: true, source: "ocr" });
     check("VALORANT: no timer without a clock, or with a stale one", !/class="tm/.test(vv) && !/class="tm/.test(vh(vmk(), gClock(Date.now() - 9000))) && !/class="tm/.test(vh(vmk(), Object.assign(gClock(0), { clockAt: undefined }))));
+    check("VALORANT: odd scores print as whole numbers, never as markup or NaN", (() => { const h = vh(vmk(e => { e.live.score = ["<i>x</i>", "4.6"]; e.live.autoScore = false; })); return /sc l num">0</.test(h) && /sc r num">5</.test(h) && !/<i>x/.test(h); })());
+    check("VALORANT 4v4 and 5v5: the players-left tab widens so both sides fit", vh(vmk(e => { e.val.aliveUsed = true; }, 5)).includes('class="v3-pl w"') && !vh(vmk(e => { e.val.aliveUsed = true; }, 3)).includes('class="v3-pl w"'));
     check("VALORANT: the timer shows while the clock is fresh", /class="tm num">1:35</.test(vh(vmk(), gClock(Date.now() - 1000))));
     // players left: hidden until a toggle has been used, then the alive count per side
     check("VALORANT: players-left is hidden until an alive toggle has been used", !vv.includes("v3-pl") && !vh(vmk(e => { e.val.aliveUsed = false; e.val.dead = {}; })).includes("v3-pl"));

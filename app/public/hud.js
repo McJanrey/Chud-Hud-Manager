@@ -666,7 +666,7 @@
   const artFail = url => { artBad.set(String(url), Date.now()); };
   const artImg = (url, cls) => (artBad.get(url) > Date.now() - 60000 ? "" : `<img class="${cls}" src="${esc(url)}" alt="" onerror="SaintsHUD.artFail(this.getAttribute('src'))">`);
   const noTag = s => String(s || "").replace(/#[^#]*$/, "").trim(); // a Riot ID without its #TAG
-  const initials = s => { const w = String(s || "?").trim().split(/\s+/); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase(); };
+  const initials = s => { const w = String(s || "?").trim().split(/\s+/).map(x => Array.from(x)); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2).join("")).toUpperCase(); }; // whole characters, so an emoji is never split
   // round line, players left and the clock for the scene and the vMix fields (one place, so they always agree)
   function valInfo(m) {
     const v = m.ev.val || {}, t = Math.max(1, Math.round(+v.target) || 10), n = m.squad || 2, dead = v.dead || {};
@@ -700,13 +700,13 @@
       const nm = (t, s) => noTag(t ? t.name || (t.players[0] && t.players[0].ign) || t.tag : "") || (s ? "TEAM B" : "TEAM A");
       const half = (t, s) => { const x = nm(t, s); return `<div class="hf ${s ? "r" : "l"}" data-k="v3-hf-${s}" style="--c:${esc(m.colors[s])}">${lg(t)}<b class="nm${x.length > 13 ? " long" : ""}">${esc(x)}</b></div>`; };
       const line = `ROUND ${info.round} · FIRST TO ${info.target}`;
-      h += `<div class="v3-bar" data-k="v3-bar">${half(L, 0)}${half(R, 1)}<div class="ct" data-k="v3-ct"><b class="sc l num">${m.score[0]}</b><div class="mid" data-k="v3-mid">${info.fresh ? `<b class="tm num">${fmt(m.clock)}</b>` : ""}<small>${esc(line)}</small></div><b class="sc r num">${m.score[1]}</b></div></div>`;
+      h += `<div class="v3-bar" data-k="v3-bar">${half(L, 0)}${half(R, 1)}<div class="ct" data-k="v3-ct"><b class="sc l num">${Math.max(0, Math.round(+m.score[0]) || 0)}</b><div class="mid" data-k="v3-mid">${info.fresh ? `<b class="tm num">${fmt(m.clock)}</b>` : ""}<small>${esc(line)}</small></div><b class="sc r num">${Math.max(0, Math.round(+m.score[1]) || 0)}</b></div></div>`;
       const emb = (ev.tournament.logos || []).find(Boolean);
       if (emb) h += `<div class="v3-emb" data-k="v3-emb"><img src="${esc(emb)}" alt="" onerror="this.style.display='none'"></div>`;
       // players left: pips (and a digit from four a side up) for each side, once an alive toggle has been used
       if (info.used) {
         const side = s => `<span class="sd ${s ? "r" : "l"}" data-k="pl-${s}" style="--c:${esc(m.colors[s])}">${info.squad >= 4 ? `<b class="num">${info.left[s]}</b>` : ""}<span class="pp">${Array.from({ length: info.squad }, (_, i) => `<i class="${i < info.left[s] ? "on" : ""}"></i>`).join("")}</span></span>`;
-        h += `<div class="v3-pl" data-k="v3-pl"><small>PLAYERS LEFT</small><div class="rw">${side(0)}${side(1)}</div></div>`;
+        h += `<div class="v3-pl${info.squad >= 4 ? " w" : ""}" data-k="v3-pl"><small>PLAYERS LEFT</small><div class="rw">${side(0)}${side(1)}</div></div>`;
       }
     }
     // sponsor boxes: the main sponsor on the left, the others (one at a time, 8 seconds each) on the right
@@ -725,7 +725,7 @@
         const dead = !!(p.pid && info.dead[p.pid]);
         const agent = VAL_UUID.test(String(p.agent || "")) ? `/val-agent/${p.agent}/displayicon.png` : "";
         const art = (agent ? artImg(agent, "ag") : "") || (p.avatar ? artImg(p.avatar, "av") : "");
-        const ult = p.ult != null ? `<span class="ul" data-k="ul">${Array.from({ length: Math.max(1, Math.min(9, +p.ultMax || 8)) }, (_, k) => `<i class="${k < +p.ult ? "on" : ""}"></i>`).join("")}</span>` : "";
+        const ult = p.ult != null ? `<span class="ul" data-k="ul-${s}-${i}">${Array.from({ length: Math.max(1, Math.min(9, +p.ultMax || 8)) }, (_, k) => `<i class="${k < +p.ult ? "on" : ""}"></i>`).join("")}</span>` : "";
         h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}" data-k="vp-${s}-${i}" style="top:${top + i * 65}px;--c:${esc(m.colors[s])}"><div class="pt">${art || `<span class="in">${esc(initials(name))}</span>`}</div>
           <div class="bd"><b class="nm">${esc(name)}</b>${ult}${p.hp != null ? `<em class="hv num">${Math.round(+p.hp) || 0}</em>` : ""}${p.credits != null ? `<small class="cr num">${esc(p.credits)}</small>` : ""}
           <span class="ac${p.hp != null ? "" : " solid"}">${p.hp != null ? `<i style="transform:scaleX(${frac(p.hp, p.hpMax)})"></i>` : ""}</span></div></div>`;

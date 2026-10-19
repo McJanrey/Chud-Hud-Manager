@@ -44,6 +44,12 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     const st = await (await fetch(`${base}/api/state?event=${dbd.id}`)).json();
     check("a GameOcr reading reaches the feed", st.game && st.game.gameOcr && st.game.gameOcr.dbdGens === 4 && st.game.gameOcr.dbdS2 === "SACRIFICED", JSON.stringify(st.game && st.game.gameOcr));
 
+    // a screen read that misses the clock once (scores only) does not drop a clock that arrived a moment ago
+    await post("/api/ingest", { Event: "UpdateState", Data: { Players: [], Game: { TimeSeconds: 95, Teams: [{ TeamNum: 0, Score: 1 }, { TeamNum: 1, Score: 0 }] } } });
+    await post("/api/ingest", { Event: "UpdateState", Data: { Players: [], Game: { Teams: [{ TeamNum: 0, Score: 1 }, { TeamNum: 1, Score: 0 }] } } });
+    const ck = (await (await fetch(`${base}/api/state?event=${dbd.id}`)).json()).game;
+    check("one missed clock read keeps the clock live", ck && ck.clockLive === true && ck.time === 95, JSON.stringify(ck && { l: ck.clockLive, t: ck.time }));
+
     /* VALORANT (phase C2): the squad setting, the alive toggles, the agent field, the agent route and the vMix fields */
     check("VALORANT starts with a squad of 2, nobody out, and an empty agent on every player", val.val.squad === 2 && val.val.aliveUsed === false && JSON.stringify(val.val.dead) === "{}" && val.teams.every(t => t.players.every(p => p.agent === "")), JSON.stringify(val.val));
     check("other games' players carry no agent field", dbd.teams.every(t => t.players.every(p => p.agent === undefined)));

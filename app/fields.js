@@ -87,7 +87,7 @@ function genericFields(m, ev, game, ctx, f) { // games read by screen OCR or ent
   f["TIMER"] = clock(m.clock); SIDES.forEach((S, s) => { f[`SCORE ${S}`] = m.score[s]; });
   if (m.kind === "val") {
     const vi = HUD.valInfo(m), names = ctx.agents || {};
-    f["ROUNDS TO WIN"] = (ev.val && ev.val.target) || 10; f["ROUND"] = vi.round;
+    f["ROUNDS TO WIN"] = vi.target; f["ROUND"] = vi.round; f["TIMER"] = vi.fresh ? clock(m.clock) : ""; // same rules as the scene: the clock only while a screen read is fresh
     SIDES.forEach((S, s) => { f[`PLAYERS LEFT ${S}`] = vi.left[s]; });
     for (let s = 0; s < 2; s++) for (let i = 0; i < 5; i++) { // P1..P5 left team, P6..P10 right team; seats the squad does not use stay empty
       const p = m.players[s][i], real = p && p.shortcut !== 0, n = s * 5 + i + 1;

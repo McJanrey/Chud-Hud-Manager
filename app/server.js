@@ -303,7 +303,8 @@ function handleMessage(msg) {
       game.replay = !!g.bReplay;
       game.arena = g.Arena || game.arena;
       game.scoreLive = Array.isArray(g.Teams) && g.Teams.some(t => t.Score != null);
-      game.clockLive = g.TimeSeconds != null; if (game.clockLive) game.clockAt = Date.now(); // when the clock last arrived: a scene can tell a live clock from a stale one
+      if (g.TimeSeconds != null) game.clockAt = Date.now(); // when the clock last arrived: a scene can tell a live clock from a stale one
+      game.clockLive = g.TimeSeconds != null || (game.clockLive && Date.now() - game.clockAt < 5000); // one missed screen read (scores only) does not drop the clock
       game.hasWinner = !!g.bHasWinner;
       game.target = g.bHasTarget && g.Target && g.Target.Name ? who(g.Target) : null;
       break;
