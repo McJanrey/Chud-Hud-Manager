@@ -56,10 +56,40 @@ function put(path,value,eventScoped=true){
   if(eventScoped)setL(e,path,value);else setL(DB,path,value);
   return api("/api/set",{event:eventScoped?e.id:null,path,value,by:CLIENT});
 }
+/* Unsaved changes. Typing in a field only changes this screen (the previews show it); nothing reaches the overlay until Save
+   Changes. Buttons (scores, timers, scene switches) still act at once, because they are live controls. */
+const PENDING=new Map(); // "event id|path" -> { ev, path, value, area }
+function stageEdit(path,value){
+  const e=ev();if(!e)return;
+  setL(e,path,value);
+  PENDING.set(e.id+"|"+path,{ev:e.id,path,value,area:(META[ui.view]&&META[ui.view][0])||ui.view});
+  saveBar();
+}
+function reapplyPending(){PENDING.forEach(d=>{const x=DB&&DB.events.find(e=>e.id===d.ev);if(x)try{setL(x,d.path,d.value)}catch{PENDING.delete(d.ev+"|"+d.path)}})}
+function saveBar(){
+  let b=$("#savebar");
+  if(!PENDING.size){if(b)b.hidden=true;document.body.classList.remove("has-savebar");return}
+  if(!b){b=document.createElement("div");b.id="savebar";b.setAttribute("role","region");b.setAttribute("aria-label","Unsaved changes");document.body.appendChild(b)}
+  const areas=[...new Set([...PENDING.values()].map(d=>{const x=DB.events.find(e=>e.id===d.ev);return (x&&x.id!==(ev()||{}).id?x.name+" · ":"")+d.area}))];
+  b.hidden=false;document.body.classList.add("has-savebar");
+  const nav=$(".nav");if(nav)b.style.setProperty("--savebar-left",nav.getBoundingClientRect().right+"px");
+  b.innerHTML=`<span>${areas.length} unsaved area${areas.length===1?"":"s"}: ${esc(areas.join(", "))}</span><span class="row c" style="gap:8px"><button class="btn" type="button" data-act="saveCancel">Cancel</button><button class="btn primary" type="button" data-act="saveAll">Save Changes</button></span>`;
+}
+async function saveAll(){
+  if(!PENDING.size)return;
+  const list=[...PENDING.values()];let failed=0;
+  for(const d of list){const j=await api("/api/set",{event:d.ev,path:d.path,value:d.value,by:CLIENT});if(j&&j.ok===false||j&&j.error)failed++;else PENDING.delete(d.ev+"|"+d.path)}
+  saveBar();toast(failed?`${failed} change${failed===1?"":"s"} could not be saved.`:"Changes saved");
+}
+async function cancelAll(){
+  PENDING.clear();saveBar();
+  try{const r=await fetch("/api/state").then(r=>r.json());if(r&&r.db)DB=r.db}catch{}
+  render();toast("Changes discarded");
+}
 function connect(){
   const es=new EventSource("/events?kind=dashboard");
   es.addEventListener("db",m=>{const p=JSON.parse(m.data);SCREENS=p.screens||SCREENS;
-    const first=!DB;DB=p.db;
+    const first=!DB;DB=p.db;reapplyPending(); // keep what is being typed when another screen or a game feed changes something
     if(first){const q=new URLSearchParams(location.search).get("event");if(q&&DB.events.some(x=>x.id===q)){ui.cur=q;ui.view="overview"}render();return}
     if(p.by===CLIENT){railStatus();return}
     if(p.by==="screens"){railStatus();const s=$("#screens");if(s)s.textContent=screensText();return}
@@ -229,7 +259,7 @@ function render(){
   if(e&&!VIEWS[ui.view])ui.view="overview"; // a view that doesn't exist for this event falls back to Overview
   const key=ui.cur+"|"+ui.view,enter=ui.seen!==key;ui.seen=key;
   $("#app").innerHTML=rail(e)+`<div class="main">${topbar(e)}<div class="srvbanner" id="srvbanner" role="alert"${online?" hidden":""}>${ico("info")}<div class="grow"><b>Overlay server not responding.</b> Overlays and live data are paused. Close and reopen Chud Hud if this stays.</div></div><div class="page${enter?" enter":""}"><div class="pagebox">${pagehead(e)}${e?VIEWS[ui.view](e):home()}</div></div></div>`;
-  railStatus();mountStages();liveBits();if(ui.view==="camera")camLoad();
+  railStatus();mountStages();liveBits();saveBar();if(ui.view==="camera")camLoad();
   if(ui.view==="ocr")ocrMount();
   if(ui.view==="live")rpPoll();
 }
@@ -379,7 +409,28 @@ talent(e){
 live(e){
   const teamed=!["Minecraft","Riftbound","Fortnite"].includes(e.game); // Minecraft and Riftbound are scored on their own pages: no teams, scoreline or series here
   const l=e.live,pick=e.source||"auto",src=(G()&&G().source)||(pick==="auto"?({"Rocket League":"rl","League of Legends":"lol","Minecraft":"mc","Riftbound":"manual","Dead by Daylight":"manual","Fortnite":"manual"}[e.game]||"ocr"):pick);
-  return`<div class="halves"><div class="sec" style="gap:24px">
+  const T=id=>e.teams.find(t=>t.id===id),tn=id=>{const t=T(id);return t?t.name:"—"};
+  return`<div class="halves lgrid"><div class="sec" style="gap:24px">
+    ${teamed?`<div class="sec lg"><div class="sechead"><h2 class="row c" style="gap:8px">Teams <button class="btn icon sm" type="button" data-act="liveRefresh" aria-label="Refresh">${ico("reset")}</button></h2>${F.sw("live.autoTeams","Auto")}</div>
+      <div class="lg-teams"><div class="lg-side"><span class="lg-lbl">${e.game==="League of Legends"?"Left Team (blue)":"Left Team"}</span><div class="lg-team">${ml(T(l.left))}${F.sel("live.left","",teamOpts(e))}</div></div>
+        <button class="btn icon lg-swap" type="button" data-act="swap" aria-label="Swap sides">${ico("swap")}</button>
+        <div class="lg-side"><span class="lg-lbl r">${e.game==="League of Legends"?"Right Team (red)":"Right Team"}</span><div class="lg-team">${ml(T(l.right))}${F.sel("live.right","",teamOpts(e))}</div></div></div>
+      <div class="lg-teams lg-track" id="trackRow"></div>
+      <button class="btn lg-wide" type="button" data-act="copyCamLinks">${ico("copy")}${e.game==="Valorant"?"Copy Webcams &amp; Mapbans":"Copy Webcam Links"}</button></div>
+    <hr class="lg-sep">
+    <div class="sec lg"><div class="sechead"><h2>Scoreline</h2>${F.sw("live.autoScore","Auto")}</div>
+      <p class="note lg-hint">Score changes here turn Auto off and override the live score. ${ico("info")}</p>
+      <div class="lg-score"><span class="lg-tn">${esc(tn(l.left))}</span>${F.step("live.score.0")}<b>VS</b>${F.step("live.score.1")}<span class="lg-tn">${esc(tn(l.right))}</span></div></div>
+    <hr class="lg-sep">`:""}
+    ${e.game==="League of Legends"?draftSec(e):""}
+    <div class="sec lg"><h2>Information</h2><div class="cols">${F.text("live.seriesTitle","Series Title","NACE VARSITY")}${F.text("live.eventTitle","Event Title","SCC vs WVWC")}${F.text("live.roundTitle","Round Title","e.g. Lower finals")}${F.text("live.gameSeries","Game Series","BEST OF 5")}</div></div>
+  </div>
+  <div class="sec" style="gap:24px">
+    ${teamed?`<div class="sec lg"><div class="sechead"><h2>Series Score</h2>${F.sw("live.autoSeries","Auto")}</div>
+      <div class="lg-series"><span class="lg-lbl">Best of</span><div style="width:96px">${F.sel("live.bestOf","",[[1,"BO1"],[3,"BO3"],[5,"BO5"],[7,"BO7"]],"data-num")}</div><span class="lg-div"></span>
+        <span class="lg-tn">${esc(tn(l.left))}</span>${F.step("live.series.0")}<span class="lg-div"></span>${F.step("live.series.1")}<span class="lg-tn">${esc(tn(l.right))}</span>
+        <button class="btn sm ghost" type="button" data-act="resetSeries" title="Reset series">${ico("reset")}</button></div></div>`:""}
+    <div class="sec lg"><div class="sechead"><h2>Final Preview</h2><div style="width:220px">${F.sel("hud.scene","",Object.entries(SCENES))}</div></div>${stage()}</div>
     <div class="sec"><div class="sechead"><h2>Data source</h2><span class="pill" id="srcPill">…</span></div>
       ${SRC_OPTS(e.game).length>1?`<div class="seg">${SRC_OPTS(e.game).map(([k,n])=>`<button type="button" data-act="source" data-arg="${k}" aria-pressed="${pick===k}">${n}</button>`).join("")}</div>`:""}
       ${pick==="auto"?`<p class="note">Auto reads the real game for this event: ${esc(LIVE_FEED[e.game]||"screen OCR (this game has no live data feed)")}.</p>`:""}
@@ -393,20 +444,6 @@ live(e){
       :src==="demo"?`<div class="banner">Test match: simulated data for checking your layout. Nothing here comes from a real game. Switch back to Auto to go live.</div><div class="row c"><button class="btn sm" type="button" data-act="demoReset">Restart test match</button><button class="btn sm" type="button" data-act="demoPause">Pause / resume</button></div>`
       :`<p class="note">Waiting for JSON at <code>${esc(location.origin)}/api/ingest</code>. See Overview for the format.</p>`}
       <div class="plist" id="plist"></div></div>
-    ${teamed?`<div class="sec"><div class="sechead"><h2>Teams</h2><span class="row c">${F.sw("live.autoTeams","Auto")}<button class="btn icon" type="button" data-act="swap" aria-label="Swap sides">${ico("swap")}</button></span></div>
-      <div class="row nowrap">${F.sel("live.left",e.game==="League of Legends"?"Left team (blue side)":"Left team",teamOpts(e))}${F.sel("live.right",e.game==="League of Legends"?"Right team (red side)":"Right team",teamOpts(e))}</div>
-      <div class="row nowrap" id="trackRow"></div></div>
-    <div class="sec"><div class="sechead"><h2>Scoreline</h2>${F.sw("live.autoScore","Auto")}</div>
-      <p class="note">With Auto on, the score comes from the game. Turn it off to set the score by hand.</p>
-      <div class="row c" style="justify-content:space-between">${F.step("live.score.0")}<b>VS</b>${F.step("live.score.1")}</div></div>`:""}
-    ${e.game==="League of Legends"?draftSec(e):""}
-    <div class="sec"><h2>Information</h2><div class="cols">${F.text("live.seriesTitle","Series title","NACE VARSITY")}${F.text("live.eventTitle","Event title","SCC vs WVWC")}${F.text("live.roundTitle","Round title","e.g. Lower finals")}${F.text("live.gameSeries","Game series","BEST OF 5")}</div></div>
-  </div>
-  <div class="sec" style="gap:24px">
-    ${teamed?`<div class="sec"><div class="sechead"><h2>Series score</h2>${F.sw("live.autoSeries","Auto")}</div>
-      <div class="row c" style="justify-content:space-between"><div style="width:110px">${F.sel("live.bestOf","",[[1,"BO1"],[3,"BO3"],[5,"BO5"],[7,"BO7"]],"data-num")}</div><span class="row c">${F.step("live.series.0")}<span class="sub">to</span>${F.step("live.series.1")}</span><button class="btn sm" type="button" data-act="resetSeries">Reset series</button></div>
-      <p class="note">With Auto on, each match the game reports as finished adds a game win.</p></div>`:""}
-    <div class="sec"><div class="sechead"><h2>Final preview</h2><div style="width:240px">${F.sel("hud.scene","",Object.entries(SCENES))}</div></div>${stage()}</div>
   </div></div>`;
 },
 ocr(e){
@@ -812,7 +849,7 @@ function liveBits(){
   const gob=$("#gameOcrBox");if(gob){const g=gob.querySelector("select:focus");const h=gameOcrHtml(e);if(!g&&gob.__h!==h){gob.innerHTML=h;gob.__h=h}}
   const pl=$("#plist");
   if(pl){pl.innerHTML=m.live?m.all.map(p=>`<div class="pl${m.focus===p?" f":""}" style="--c:${m.colors[p.side]}"><b>${esc(p.display)}${m.kind==="lol"?` <span class="note">${esc(p.champion||"")}</span>`:""}</b><span class="bst" style="width:auto">${m.kind==="lol"?`${p.kills}/${p.deaths}/${p.assists}`:p.boost??""}</span>${DB.settings.source==="rl"?`<button class="btn sm" type="button" data-act="spectate" data-arg="${p.shortcut}">Watch</button>`:""}</div>`).join(""):`<p class="sub">No players in a match yet.</p>`}
-  const tr=$("#trackRow");if(tr)tr.innerHTML=[0,1].map(s=>`<div class="tracked${m.tracked[s]?"":" manual"}">${m.tracked[s]?"Tracked via team data: "+esc(m.sides[s].name):"Using the team picked above"}</div>`).join("");
+  const tr=$("#trackRow");if(tr)tr.innerHTML=[0,1].map(s=>`<div class="tracked${m.tracked[s]?"":" manual"}" title="${m.tracked[s]?"Found in the game by its players' in-game names":"Not found in the game yet: the team picked above is used"}">${m.tracked[s]?"Tracked via team data":"Picked by hand"}</div>`).join("");
   $$("[data-clk]").forEach(el=>{el.textContent=SaintsHUD.fmt(Math.floor(clkSecs(get(e,el.dataset.clk))))});
   const bt=$("[data-bbtimer]");if(bt&&e.mc){const b=e.mc.bb;bt.textContent=SaintsHUD.fmt(b.endsAt?Math.max(0,Math.round((b.endsAt-Date.now())/1000)):b.remaining)}
   const mp=$("#mcPill");if(mp){const s=G()&&G().mc;mp.className="pill "+(s&&s.connected?"ok":"");mp.textContent=s?(s.connected?`Server connected · ${s.players.filter(p=>p.online).length} online`:(s.error||"Server not connected")):"No feed"}
@@ -881,6 +918,15 @@ document.addEventListener("click",async ev0=>{
       const kind=e.talent.some(t=>t.name.toLowerCase()===nm.toLowerCase())?"caster":roster(e).some(r=>String(r).toLowerCase()===nm.toLowerCase())?"player":"guest";
       list.push({id:uid().slice(0,6),name:nm,kind});put("mc.bb.judges",list);break;}
     case "bbJudgeDel":put("mc.bb.judges",(e.mc.bb.judges||[]).filter(j=>j.id!==arg));break;
+    case "liveRefresh":render();return;
+    case "copyCamLinks":{const r=await fetch("/api/cam/links").then(r=>r.json()).catch(()=>null),ce=r&&r.events.find(x=>x.id===e.id);
+      const lines=[];if(ce)ce.players.forEach(p=>lines.push(`${p.team} ${p.name}: ${p.url}`));
+      if(e.game==="Valorant")lines.push("Map bans: "+overlayUrl("mapveto"));
+      if(!lines.length)return toast("No players on this event yet.");
+      if(r&&!r.on)toast("Camera links copied. Switch on Let players connect on Camera feed before players open them.");
+      try{await navigator.clipboard.writeText(lines.join("\n"));if(!r||r.on)toast("Copied "+lines.length+" link"+(lines.length===1?"":"s"))}catch{toast("Copy failed.")}return;}
+    case "saveAll":saveAll();return;
+    case "saveCancel":cancelAll();return;
     case "copy":{const v=$("#ovUrl").value;try{await navigator.clipboard.writeText(v);toast("Overlay URL copied")}catch(err){$("#ovUrl").select();toast("Press Ctrl+C to copy")}return;}
     case "full":{const st=b.closest(".stagewrap").querySelector(".stage");try{await st.requestFullscreen()}catch(err){toast("Full screen isn't available.")}return;}
     case "hudColor":put("hud.colorMode",arg);break;
@@ -1042,7 +1088,7 @@ document.addEventListener("input",ev0=>{
   const p=el.dataset.bind;if(!p||!e)return;
   let v=el.type==="checkbox"?el.checked:el.dataset.num!==undefined?(parseInt(el.value)||0):el.value;
   if(el.dataset.upper!==undefined)v=String(v).toUpperCase();
-  put(p,v);updateStages();mirrors();
+  stageEdit(p,v);updateStages();mirrors();
 });
 document.addEventListener("change",ev0=>{
   const el=ev0.target;
@@ -1155,6 +1201,7 @@ document.addEventListener("keydown",k=>{
   const mod=k.ctrlKey||k.metaKey,key=String(k.key).toLowerCase();
   if(mod&&key==="k"){k.preventDefault();OVL&&OVL.type==="palette"?closeOverlay():openPalette();return}
   if(mod&&key==="n"&&DB){k.preventDefault();openNew();return}
+  if(mod&&key==="s"){k.preventDefault();saveAll();return}
   if(!OVL)return;
   if(k.key==="Escape"){closeOverlay();return}
   if(OVL.type==="palette"){
