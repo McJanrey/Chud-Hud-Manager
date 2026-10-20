@@ -198,7 +198,7 @@ function valWeaponList(){
   return VALWP;
 }
 const SPONSOR_MAX=8;
-const BUILTIN_ADS=[{id:"standby",name:"StandBy",url:"/brand/ads/standby.png"},{id:"lotd",name:"LOTD",url:"/brand/ads/lotd.png"}];
+const BUILTIN_ADS=[{id:"standby",name:"StandBy",url:"/brand/ads/standby.png"},{id:"standby-name",name:"StandBy logo and name",url:"/brand/ads/standby-name.png"},{id:"standby-logo",name:"StandBy logo",url:"/brand/ads/standby-logo.png"},{id:"lotd",name:"LOTD ghost",url:"/brand/ads/lotd.png"},{id:"lotd-name",name:"Lan of the Dead",url:"/brand/ads/lotd-name.png"}];
 const flagImg=cc=>/^[A-Z]{2}$/i.test(cc||"")?`<img class="flag" src="https://flagcdn.com/w40/${String(cc).toLowerCase()}.png" alt="" onerror="this.remove()">`:"";
 const agentOpts=cur=>{const l=valAgentList();return[["","No agent"],...(cur&&!l.some(a=>a.uuid===cur)?[[cur,"Chosen agent"]]:[]),...l.map(a=>[a.uuid,a.name])]};
 
