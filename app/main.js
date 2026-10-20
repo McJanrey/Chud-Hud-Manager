@@ -104,9 +104,7 @@ const BUSY = ["downloading", "ready", "installing"];
 function setupUpdates() {
   if (!app.isPackaged) { setUpdate({ state: "source" }); return; }
   ({ autoUpdater: updater } = require("electron-updater"));
-  // The repository is private, so updates need a token that can read it: CHUDHUD_UPDATE_TOKEN, or update-token.txt in this app's data folder.
-  const tok = (process.env.CHUDHUD_UPDATE_TOKEN || (() => { try { return fs.readFileSync(path.join(app.getPath("userData"), "update-token.txt"), "utf8"); } catch { return ""; } })()).trim();
-  if (tok) updater.setFeedURL({ provider: "github", owner: "McJanrey", repo: "saints-hud", private: true, token: tok });
+  // Updates come from the public releases of McJanrey/Chud-Hud-Manager (package.json "publish"), so no token is needed.
   if (V.id) updater.channel = V.id; // an edition updates only from its own releases (latest-<id>.yml), never from the standard app's
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = false; // never install behind the user's back, a restart takes the OBS overlay offline
@@ -128,8 +126,8 @@ function setupUpdates() {
   });
   updater.on("update-not-available", () => { setUpdate({ state: "none" }); manualCheck = false; });
   updater.on("error", err => {
-    const why = String((err && err.message) || err).split("\n")[0].slice(0, 200), needsToken = /404|401|403|not found|private/i.test(why);
-    setUpdate({ state: "error", error: needsToken ? "Updates need an access token now that the code is private (see the README, Updates)." : why });
+    const why = String((err && err.message) || err).split("\n")[0].slice(0, 200), offline = /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|net::ERR/i.test(why);
+    setUpdate({ state: "error", error: offline ? "No internet connection to GitHub." : why });
     if (manualCheck && !launcher) dialog.showMessageBox(win, { type: "warning", message: "Couldn't check for updates.", detail: String(err && err.message || err) });
     manualCheck = false;
   });

@@ -25,7 +25,7 @@ Every event is live at the same time and reads the feed of its own game, so a Ro
 
 ## Install
 
-Download **`ChudHud-Setup-x.y.z.exe`** from the [latest release](https://github.com/McJanrey/saints-hud/releases/latest) and run it. Windows may show "Windows protected your PC" because the app isn't code-signed: choose **More info → Run anyway**. No administrator rights, Node.js or Python needed.
+Download **`ChudHud-Setup-x.y.z.exe`** from the [latest release](https://github.com/McJanrey/Chud-Hud-Manager/releases/latest) and run it. Windows may show "Windows protected your PC" because the app isn't code-signed: choose **More info → Run anyway**. No administrator rights, Node.js or Python needed.
 
 The app always starts on a small launcher, the only window at first: update status, **Quick Join** (pin events with **+ Add**, then one click opens the control room straight inside that event), **Open Control Room**, and the overlay link of every event with a **Copy link** button. Opening the control room replaces the launcher, so only one window is open at a time; **Help → Launcher** goes back. Signing in saves a **local profile** (name and email) on this PC; there is no account server.
 
@@ -294,9 +294,9 @@ From source: `npm run start:lotd`, `npm run dist:lotd`. To change the logo, run 
 
 The **Outputs** page lists one web address per button for the event you have open: switch scene, webcams on or off, only the player in the action, pin a player, score +1 or −1, show or hide any element, and the Hunger Games HUD state. In Bitfocus Companion add a "Generic HTTP" connection and give a button a GET action with the address; any program that can open a link works. Each address carries a private key (kept in `control-key.txt` in the data folder, never in the saved workspace), so another web page can't press your buttons. The addresses are only shown on the PC running the app.
 
-## Updates, now that the repository is private
+## Updates
 
-The in-app update check reads this repository's releases, which need a token once the code is private. On each PC that should update itself, create a fine-grained token on GitHub (Settings, Developer settings, Personal access tokens, fine-grained: this repository only, Contents: Read-only) and save it as `update-token.txt` in the app's data folder (`%APPDATA%\Saints HUD` for Chud Hud, `%APPDATA%\Chud Hud LOTD` for LOTD), or set `CHUDHUD_UPDATE_TOKEN`. A PC without a token still runs; it just can't check for updates, and you install new versions by downloading the installer from the releases page while signed in to GitHub. Never put the token in the repository.
+Installed copies check this repository's public releases (github.com/McJanrey/Chud-Hud-Manager) from the launcher. Nothing downloads until you press the button, and your data folder is backed up before an update installs. No token or GitHub account is needed. Each edition (Chud Hud, LOTD, WWL) only takes its own installer.
 
 ## License codes
 
