@@ -899,3 +899,6 @@
 .rot-zoom .ri{transform:scale(1.18)}.rot-zoom .ri.was{transform:scale(.88)}
 .rot-cut .ri{transition:none}
 .v3-sp .in .rot{height:48px}.l3-sp .in .rot,.fn3-sp .rot{height:100%}
+/* map selection reveal: a card animates in when its map is set; a replay brings every card in, one after another */
+.v3-veto .vc{animation:vcIn var(--mvt,750ms) cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d,0ms)}
+@keyframes vcIn{from{opacity:0;transform:translateY(26px) scale(.96)}to{opacity:1;transform:none}}

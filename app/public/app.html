@@ -155,7 +155,7 @@ Object.assign(I,{
   moon:'<path d="M20 14.5A8 8 0 119.5 4a6.5 6.5 0 0010.5 10.5z"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',check:'<path d="M5 12l4 4 10-10"/>',
 });
 const ico=k=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
-const META={fn:["Fortnite scoring","trophy"],dbd:["Trials","rank"],val:["Skirmish","bracket"],overview:["Overview","overview"],hud:["HUD Editor","hud"],teams:["Players & Teams","teams"],tournament:["Tournament","trophy"],talent:["Talent Profiles","talent"],
+const META={fn:["Fortnite scoring","trophy"],dbd:["Trials","rank"],val:["Skirmish","bracket"],veto:["Map Veto","bracket"],overview:["Overview","overview"],hud:["HUD Editor","hud"],teams:["Players & Teams","teams"],tournament:["Tournament","trophy"],talent:["Talent Profiles","talent"],
   live:["Live Game","live"],ocr:["Screen OCR","ocr"],mc:["Minecraft","mcicon"],rb:["Riftbound","rbicon"],outputs:["Outputs","link"],camera:["Camera feed","cam"],graphics:["Lower Thirds & Timer","gfx"],ads:["Ad Rotation","gfx"],schedule:["Schedule","sched"],bracket:["Bracket","bracket"],standings:["Rankings","rank"]};
 
 /* ---------- form helpers ---------- */
@@ -179,7 +179,7 @@ function valAgentList(){
 /* the maps for the map selection, fetched and kept by the server the same way */
 let VALMP=null;
 function valMapList(){
-  if(VALMP===null){VALMP=[];fetch("/api/val/maps").then(r=>r.ok?r.json():[]).then(a=>{if(Array.isArray(a)&&a.length){VALMP=a;if(ui.view==="val"&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)))render()}else setTimeout(()=>{VALMP=null},30000)}).catch(()=>setTimeout(()=>{VALMP=null},30000))}
+  if(VALMP===null){VALMP=[];fetch("/api/val/maps").then(r=>r.ok?r.json():[]).then(a=>{if(Array.isArray(a)&&a.length){VALMP=a;if((ui.view==="val"||ui.view==="veto")&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)))render()}else setTimeout(()=>{VALMP=null},30000)}).catch(()=>setTimeout(()=>{VALMP=null},30000))}
   return VALMP;
 }
 /* Riftbound cards (Riftcodex), fetched and kept by the server the same way */
@@ -226,7 +226,7 @@ const GRAD={"Rocket League":"linear-gradient(135deg,#1f5bff,#0b1430 55%,#ff8a1a)
 // The cover is the event's own upload, else the game's official key art (downloaded by the app, see /covers), over the game's gradient.
 const gameCover=g=>`url('/covers/${slug(g)}'),${GRAD[g]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`;
 const coverCss=e=>(e.cover?`url('${e.cover}'),${GRAD[e.game]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`:gameCover(e.game));
-const PAGE_DESC={ads:"Pictures, GIFs or videos that take turns on screen, full screen during breaks or in a box over the live scene.",overview:"Your overlay link, workspace details and where this game gets its data.",hud:"Pick a scene, set colours and choose what shows. Buttons act at once; ticks, colours and typed fields go live when you press Save Changes.",
+const PAGE_DESC={veto:"Choose the map pool and team order, then run the veto. The Map Selection scene follows every click.",ads:"Pictures, GIFs or videos that take turns on screen, full screen during breaks or in a box over the live scene.",overview:"Your overlay link, workspace details and where this game gets its data.",hud:"Pick a scene, set colours and choose what shows. Buttons act at once; ticks, colours and typed fields go live when you press Save Changes.",
   teams:"Teams and rosters for this event. Names here are what the overlay shows.",tournament:"Tournament name, logos and sponsors. These show on the overlay.",talent:"Casters, hosts and observers for the broadcast.",
   live:"Where the match data comes from, who is playing and what the score is.",ocr:"Read scores and the clock from the screen for games without a data feed.",mc:"Connect your server, manage the roster and run Hunger Games or Build Battle.",
   rb:"Score the match by hand and put cards on screen.",camera:"Caster seats and the camera link for each one.",graphics:"The lower third and the countdown timer.",schedule:"Matches for the Schedule scene.",
@@ -236,7 +236,7 @@ function rail(e){
   const link=v=>`<a class="nl${ui.view===v?" on":""}" href="#" data-act="nav" data-arg="${v}"${ui.view===v?' aria-current="page"':""} title="${META[v][0]}">${ico(META[v][1])}<span class="t">${META[v][0]}</span></a>`;
   const grp=(t,vs)=>`<div class="navgroup">${t}</div>${vs.map(link).join("")}`;
   const nav=e?grp("Event setup",["overview","teams","tournament","talent"])
-    +grp("Live game",["live",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),"ocr"])
+    +grp("Live game",["live",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),...(e.game==="Valorant"?["veto"]:[]),"ocr"])
     +grp("Broadcast",["hud","camera","graphics","ads","schedule","bracket","standings","outputs"])
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
   const crest="/brand/chud-hud.png"; // fixed: the app logo cannot be changed
@@ -661,6 +661,7 @@ rb(e){
     ${stage("ingame")}</div></div>`;
 }});
 /* ---------- VALORANT 2v2 Skirmish, Dead by Daylight and Fortnite: scored by hand ---------- */
+const VETO_ACTIVE=["Abyss","Bind","Corrode","Lotus","Sunset","Summit"]; // the starting pool until you change it: the competitive rotation in MJ's reference
 const GAMEPAGE={"Minecraft":"mc","Riftbound":"rb","Fortnite":"fn","Dead by Daylight":"dbd","Valorant":"val"};
 const gameOcr=()=>(FEEDS.ocr&&FEEDS.ocr.gameOcr&&Date.now()-FEEDS.ocr.gameOcr.t<120000)?FEEDS.ocr.gameOcr:null;
 function dbdRead(v){const o=[1,2,3,4].map(i=>String(v["dbdS"+i]||"")),esc4=o.filter(t=>/escap|hatch/i.test(t)).length,kills=o.filter(t=>/sacrific|kill|dead|died|hook/i.test(t)).length;return{escapes:esc4,kills,gens:Math.max(0,Math.min(5,+v.dbdGens||0))}}
@@ -702,6 +703,44 @@ function draftSec(e){
 const sideTeam=(e,s)=>e.teams.find(x=>x.id===(s?e.live.right:e.live.left));
 const sideName=(e,s)=>{const t=sideTeam(e,s);return t?t.name:(s?"Right team":"Left team")};
 Object.assign(VIEWS,{
+veto(e){
+  /* Map Veto: set up (format, who bans first, the map pool), then run it by clicking maps; the Map Selection scene follows. */
+  const v=e.val,V=SaintsHUD.vetoFix(v.veto,v.squad),ALL=valMapList().filter(x=>x.pool==="comp"),tg=s=>sideName(e,s),T=s=>sideTeam(e,s);
+  const lg=s=>{const t=T(s),u=t&&(t.logos||[]).find(Boolean);return u?`<img class="vtl" src="${esc(u)}" alt="">`:""};
+  const pool=V.maps.length?V.maps:ALL.filter(m=>VETO_ACTIVE.includes(m.name)).map(m=>m.uuid),inPool=u=>pool.includes(u);
+  const card=(m,cls,act,arg,extra)=>`<button type="button" class="vmap ${cls}" data-act="${act}" data-arg="${esc(arg)}" title="${esc(m.name)}"><img src="/val-map/${m.uuid}/splash.png" alt="" loading="lazy" onerror="this.remove()"><b>${esc(m.name.toUpperCase())}</b>${extra||""}</button>`;
+  if(!ALL.length)return`<div class="sec"><p class="sub">The map list comes from valorant-api.com the first time; it appears here once the app is online.</p></div>`;
+  if(!V.started){
+    const fmts=["bo1","bo3","bo5","bo7","bo9"];
+    return`<div class="sec vsetup"><div class="vbar">
+      <div class="fld" style="flex:none"><span>Format</span><div class="seg">${fmts.map(f=>`<button type="button" data-act="vetoFmt" data-arg="${f}" aria-pressed="${V.fmt===f}"${+f.slice(2)>pool.length?" disabled":""}>${f.toUpperCase()}</button>`).join("")}</div></div>
+      <div class="fld" style="flex:none"><span>Veto order</span><div class="row c nowrap" style="gap:10px"><div class="vteam"><small>TEAM A · BANS FIRST</small><b>${esc(tg(V.first))}</b></div><button class="btn icon" type="button" data-act="vetoSwap" aria-label="Swap who bans first" title="Swap who bans first">⇄</button><div class="vteam"><small>TEAM B</small><b>${esc(tg(1-V.first))}</b></div></div></div>
+      <span class="grow"></span><div class="fld" style="flex:none"><span>Map pool</span><span class="pill">${pool.length} selected</span></div></div>
+      <div class="vgrp">Map pool</div><div class="vgrid">${ALL.filter(m=>inPool(m.uuid)).map(m=>card(m,"on","vetoPool",m.uuid,`<i class="ck">✓</i>`)).join("")||`<p class="sub">No maps selected.</p>`}</div>
+      <details class="vother"${ui.vetoOther?" open":""}><summary class="vgrp" data-act="vetoOther">Other maps</summary><div class="vgrid">${ALL.filter(m=>!inPool(m.uuid)).map(m=>card(m,"off","vetoPool",m.uuid,"")).join("")||`<p class="sub">Every map is in the pool.</p>`}</div></details>
+      <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" data-act="vetoStart"${SaintsHUD.vetoOrder(V.fmt,pool.length,V.first)?"":" disabled"}>Start veto</button></div></div>`;
+  }
+  const nx=SaintsHUD.vetoNext(V),cur=nx?V.steps[nx.i]:null,used=V.steps.map(x=>x.map).filter(Boolean),left=ALL.filter(m=>inPool(m.uuid)&&!used.includes(m.uuid));
+  const actor=!cur?-1:nx.kind==="side"?cur.by:cur.team;
+  const sideOf=(x,s)=>!x.side?"":(x.by===s)===(x.side==="atk")?"ATTACK":"DEFENSE";
+  const rows=V.steps.filter(x=>x.map).map((x,i)=>{const lab=x.act==="ban"?"BAN":x.act==="pick"?"PICK":"DECIDER",who=x.team<0?"DECIDER":(x.act==="ban"?"BANNED BY ":"PICKED BY ")+tg(x.team).toUpperCase();
+    return`<div class="vrow ${x.act}"><img src="/val-map/${x.map}/listviewicon.png" alt="" onerror="this.remove()"><div class="vt"><b>${esc(x.name.toUpperCase())}</b><span class="tag">${lab}</span><small>${esc(who)}</small></div>
+      <div class="vs">${x.act==="ban"?(x.team>=0?lg(x.team):""):x.side?[0,1].map(s=>`<span class="sd ${sideOf(x,s)==="ATTACK"?"atk":"def"}">${lg(s)}<small>${sideOf(x,s)}</small></span>`).join(""):`<span class="note">Side not picked yet</span>`}</div></div>`}).join("");
+  const kinds=[["ban","Ban"],["pick","Pick"],["side","Side pick"],["decider","Decider"]];
+  return`<div class="vrun"><div class="sec" style="gap:16px">
+    ${cur?`<div class="row c" style="gap:24px;flex-wrap:wrap;align-items:flex-end">
+      <div class="fld" style="flex:none"><span>Acting team</span><div class="seg">${[0,1].map(s=>`<button type="button" data-act="vetoActor" data-arg="${s}" aria-pressed="${actor===s}"${nx.kind==="decider"?" disabled":""}>${esc(tg(s))}</button>`).join("")}</div></div>
+      <div class="fld" style="flex:none"><span>Configured action</span><div class="seg">${kinds.map(([k,l])=>`<button type="button" data-act="vetoKind" data-arg="${k}" aria-pressed="${nx.kind===k}"${k==="side"||nx.kind==="side"?" disabled":""}>${l}</button>`).join("")}</div></div>
+      <button class="btn" type="button" data-act="vetoUndo"${used.length?"":" disabled"}>${ico("reset")}Undo</button></div>
+      ${nx.kind==="side"?`<div class="vside"><p><b>${esc(tg(cur.by))}</b> picks their side on <b>${esc(cur.name)}</b></p><div class="row c" style="gap:12px"><button class="btn primary" type="button" data-act="vetoSide" data-arg="atk">Attack</button><button class="btn primary" type="button" data-act="vetoSide" data-arg="def">Defense</button></div></div>`
+        :`<div class="vgrid">${left.map(m=>card(m,nx.kind,"vetoMap",m.uuid,"")).join("")}</div>`}`
+      :`<div class="row c" style="justify-content:space-between"><p class="sub">The veto is done.</p><button class="btn" type="button" data-act="vetoUndo">${ico("reset")}Undo</button></div>`}
+    ${rows?`<div class="vrows">${rows}</div>`:""}</div>
+    <div class="sec vside-panel"><div class="box"><b>Active session</b><p class="sub">${V.fmt.toUpperCase()} · ${V.steps.length} steps</p><div class="row c" style="gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="vetoRestart">${ico("reset")}Restart</button><button class="btn" type="button" data-act="vetoExport">${ico("copy")}Export</button><button class="btn" type="button" data-act="vetoSetup">Edit setup</button></div></div>
+      <div class="box"><b>On stream</b><div class="row c" style="gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" data-act="scene" data-arg="mapveto">Show map selection</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to in-game</button></div></div>
+      <div class="box"><b>Animations</b><div class="row c" style="gap:8px;align-items:flex-end">${F.num("val.veto.mvt","Reveal timing (ms)",'min="100" max="3000" step="50"')}<button class="btn" type="button" data-act="vetoReplay">▶ Replay</button></div><p class="note">How long each map takes to come in. Replay brings every map in again, one after another.</p></div>
+      <p class="note">Captains can't run the veto from their own PC yet: that needs a public server. Click the maps here as they call them.</p></div></div>`;
+},
 val(e){
   const v=e.val,t=+v.target||10,sc=e.live.score,done=sc[0]>=t||sc[1]>=t;
   return`<div class="halves"><div class="sec" style="gap:24px">
@@ -718,15 +757,7 @@ val(e){
         <div class="row c" style="gap:6px;flex-wrap:wrap;margin-top:8px"><span class="note">Spectating</span><span class="seg">${ps.map(x=>`<button type="button" data-act="valSpec" data-arg="${esc(x.p.id)}" aria-pressed="${v.spec===x.p.id}">${nm(x.p)}</button>`).join("")}<button type="button" data-act="valSpec" data-arg="" aria-pressed="${!v.spec}">Nobody</button></span></div></div>`})()}
       <div class="sec"><div class="sechead"><div><h2>Player panels</h2><p class="sub">VALORANT sends no live numbers, so the panels show what you type here: HP (100 unless you change it, 0 when out), ultimate points, the gun and credits.</p></div></div>
       <div class="cols">${[0,1].map(s=>{const t=sideTeam(e,s),sq=Math.max(2,Math.min(5,+v.squad||2)),P=v.p||{},W=valWeaponList();return`<div class="box"><b>${esc(sideName(e,s))}</b>${(t?t.players.slice(0,sq):[]).filter(p=>p.alias||p.ign).map(p=>{const q=P[p.id]||{},n=(k,x)=>`<input type="number" data-valp="${esc(p.id)}" data-k="${k}" value="${esc(q[k]==null?"":q[k])}" ${x} style="width:62px">`;return`<div class="row c" style="flex-wrap:wrap;gap:6px;margin-top:8px"><span style="min-width:84px">${esc(p.alias||String(p.ign).replace(/#[^#]*$/,""))}</span><label class="sub">HP ${n("hp",'min="0" max="150" placeholder="100"')}</label><label class="sub">Ult ${n("ult",'min="0" max="9" placeholder="0"')}/${n("ultMax",'min="1" max="9" placeholder="8"')}</label><label class="sub">Credits ${n("cr",'min="0" max="99999"')}</label><select data-valp="${esc(p.id)}" data-k="gun" aria-label="Gun"><option value="">No gun</option>${W.map(w=>`<option value="${esc(w.uuid)}"${q.gun===w.uuid?" selected":""}>${esc(w.name)}</option>`).join("")}</select></div>`}).join("")||`<span class="sub">No named players yet.</span>`}</div>`}).join("")}</div></div>
-      ${(()=>{const V=SaintsHUD.vetoFix(v.veto,v.squad),M=valMapList().filter(x=>x.pool===V.pool),tg=s=>sideName(e,s),used=V.steps.map(x=>x.map);
-        const sel=(i,k,opts,val)=>`<select data-veto="${i}" data-k="${k}" aria-label="${k}">${opts.map(([o,t])=>`<option value="${esc(String(o))}"${String(val)===String(o)?" selected":""}>${esc(t)}</option>`).join("")}</select>`;
-        return`<div class="sec"><div class="sechead"><div><h2>Map selection</h2><p class="sub">Fill each map in as the veto happens and the Map Selection scene follows. A step with no map shows the team's logo, dimmed.</p></div><div class="row c"><button class="btn primary" type="button" data-act="scene" data-arg="mapveto">Show map selection</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to in-game</button></div></div>
-        <div class="cols" style="--n:4"><label class="fld"><span>Format</span><select data-vetofmt="fmt">${Object.entries(SaintsHUD.VETO_FMT).map(([k,t])=>`<option value="${k}"${V.fmt===k?" selected":""}>${t}</option>`).join("")}</select></label><label class="fld"><span>Map pool</span><select data-vetofmt="pool"><option value="comp"${V.pool==="comp"?" selected":""}>Competitive (7 maps)</option><option value="skirmish"${V.pool==="skirmish"?" selected":""}>2v2 Skirmish</option></select></label><div class="fld"><span>&nbsp;</span><button class="btn danger" type="button" data-act="vetoReset">Clear the maps</button></div></div>
-        ${M.length?"":`<p class="note">The map list comes from valorant-api.com the first time; it appears here once the app is online.</p>`}
-        <div class="sec" style="gap:6px">${V.steps.map((x,i)=>`<div class="row c" style="gap:6px;flex-wrap:wrap"><b style="min-width:22px">${i+1}</b>
-          ${sel(i,"team",[[0,tg(0)],[1,tg(1)],[-1,"Decider"]],x.team)}${sel(i,"act",[["ban","Veto"],["pick","Select"],["decider","Decider"]],x.act)}
-          ${sel(i,"map",[["","No map yet"],...M.filter(mp=>mp.uuid===x.map||!used.includes(mp.uuid)).map(mp=>[mp.uuid,mp.name])],x.map)}
-          ${x.act==="ban"?"":sel(i,"side",[["","No side yet"],["atk","Attack"],["def","Defense"]],x.side)+sel(i,"by",[[0,tg(0)+" picks the side"],[1,tg(1)+" picks the side"]],x.by)}</div>`).join("")}</div></div>`})()}
+      <div class="sec"><div class="sechead"><div><h2>Map selection</h2><p class="sub">The veto runs on its own page: pick the format and map pool, then click the maps as the teams ban and pick.</p></div><button class="btn primary" type="button" data-act="nav" data-arg="veto">Open Map Veto</button></div></div>
       ${(()=>{const A=SaintsHUD.agsInfo(e),V=SaintsHUD.vetoFix(v.veto,v.squad),AG=valAgentList(),sq=Math.max(2,Math.min(5,+v.squad||2));
         const maps=V.steps.map((x,i)=>[i,x]).filter(([i,x])=>x.map&&x.act!=="ban");
         return`<div class="sec"><div class="sechead"><div><h2>Agent select</h2><p class="sub">Pick each player's agent as they hover and lock it in; the Agent Select scene follows. With no agent the card glows in the team colour (still picking).</p></div><div class="row c"><button class="btn primary" type="button" data-act="scene" data-arg="agents">Show agent select</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to in-game</button></div></div>
@@ -1049,6 +1080,28 @@ document.addEventListener("click",async ev0=>{
     case "demoReset":api("/api/demo/reset",{event:e.id});return;
     case "demoPause":api("/api/demo/pause",{event:e.id});return;
     case "camEdit":ui.camEdit=arg;break;
+    case "vetoFmt":case "vetoSwap":case "vetoPool":case "vetoStart":case "vetoMap":case "vetoSide":case "vetoActor":case "vetoKind":case "vetoUndo":case "vetoRestart":case "vetoSetup":case "vetoReplay":case "vetoExport":case "vetoOther":{
+      const V=SaintsHUD.vetoFix(e.val.veto,e.val.squad),ALL=valMapList().filter(x=>x.pool==="comp"),pool=V.maps.length?V.maps.slice():ALL.filter(m=>VETO_ACTIVE.includes(m.name)).map(m=>m.uuid);
+      const nx=SaintsHUD.vetoNext(V),cur=nx?V.steps[nx.i]:null,save=()=>{put("val.veto",V);render()};
+      if(a==="vetoOther"){ev0.preventDefault();ui.vetoOther=!ui.vetoOther;render();return}
+      if(a==="vetoFmt"){V.fmt=arg;V.maps=pool;return save()}
+      if(a==="vetoSwap"){V.first=1-V.first;V.maps=pool;return save()}
+      if(a==="vetoPool"){V.maps=pool.includes(arg)?pool.filter(u=>u!==arg):pool.concat([arg]);if(+V.fmt.slice(2)>V.maps.length)V.fmt=["bo9","bo7","bo5","bo3","bo1"].find(f=>+f.slice(2)<=V.maps.length)||"bo1";return save()}
+      if(a==="vetoStart"){const o=SaintsHUD.vetoOrder(V.fmt,pool.length,V.first);if(!o)return;V.maps=pool;V.steps=o;V.started=true;V.pool="comp";put("val.veto",V);toast("Veto started: "+sideName(e,V.first)+" bans first");render();return}
+      if(a==="vetoSetup"){V.started=false;V.steps=V.steps.map(x=>Object.assign({},x,{map:"",name:"",side:""}));return save()}
+      if(a==="vetoRestart"){V.steps=V.steps.map(x=>Object.assign({},x,{map:"",name:"",side:""}));return save()}
+      if(a==="vetoReplay"){V.replay=Date.now();put("val.veto",V);toast("Replaying the map selection");return}
+      if(a==="vetoExport"){const lines=V.steps.filter(x=>x.map).map(x=>`${x.act==="ban"?"BAN":x.act==="pick"?"PICK":"DECIDER"}  ${x.name}${x.team>=0?"  by "+sideName(e,x.team):""}${x.side?`  (${sideName(e,x.by)} ${x.side==="atk"?"attack":"defense"})`:""}`);
+        navigator.clipboard.writeText(`${e.name} map veto (${V.fmt.toUpperCase()})\n`+lines.join("\n")).then(()=>toast("Veto copied"),()=>toast("Could not copy"));return}
+      if(a==="vetoUndo"){for(let i=V.steps.length-1;i>=0;i--){const x=V.steps[i];if(x.side){x.side="";break}if(x.map){x.map="";x.name="";break}}return save()}
+      if(!cur)return;
+      if(a==="vetoMap"){const mp=ALL.find(m=>m.uuid===arg);if(!mp||nx.kind==="side")return;cur.map=mp.uuid;cur.name=mp.name;
+        const n2=SaintsHUD.vetoNext(V),c2=n2&&V.steps[n2.i];if(n2&&n2.kind==="decider"){const used=V.steps.map(x=>x.map),last=ALL.filter(m=>pool.includes(m.uuid)&&!used.includes(m.uuid));if(last.length===1){c2.map=last[0].uuid;c2.name=last[0].name}} // one map left: it is the decider
+        return save()}
+      if(a==="vetoSide"){if(nx.kind!=="side")return;cur.side=arg;return save()}
+      if(a==="vetoActor"){const s2=+arg;if(nx.kind==="side")cur.by=s2;else if(cur.team>=0){cur.team=s2;cur.by=1-s2}return save()}
+      if(a==="vetoKind"){if(nx.kind==="side"||arg==="side")return;cur.act=arg;if(arg==="decider")cur.team=-1;else if(cur.team<0){cur.team=0;cur.by=1}return save()}
+      return}
     case "camHide":put(arg,!get(e,arg));setTimeout(camPaint,50);return;
     case "camCopyTeam":{const t=e.teams.find(x=>x.id===arg),ce=CAM&&CAM.events.find(x=>x.id===e.id);if(!t||!ce)return;
       const txt=ce.players.filter(r=>r.teamId===t.id).map(r=>`${r.name}: ${r.url}`).join("\n");navigator.clipboard.writeText(txt).then(()=>toast(`${t.name}: ${txt.split("\n").length} camera links copied`),()=>toast("Could not copy"));return}

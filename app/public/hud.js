@@ -969,7 +969,26 @@
   /* Map selection (VALORANT veto). A step is { team: 0 left | 1 right | -1 decider, act: "ban" | "pick" | "decider", map: uuid, name,
      side: "" | "atk" | "def", by: the side (0/1) that chose it }. Presets follow the usual orders: the competitive pool has seven maps,
      2v2 Skirmish five. vetoFix makes any stored value safe, so the server, the dashboard and the scene read the same thing. */
-  const VETO_FMT = { bo1: "Best of 1", bo3: "Best of 3", bo5: "Best of 5" };
+  const VETO_FMT = { bo1: "Best of 1", bo3: "Best of 3", bo5: "Best of 5", bo7: "Best of 7", bo9: "Best of 9" };
+  /* The order for any pool size, used by the Map Veto page: two bans, then the picks, then the remaining bans, then the decider.
+     first: the side (0 or 1) that bans first. A pick's side is chosen by the other team; the decider's by the team that did not
+     ban last. Null when the pool is too small for the format. */
+  function vetoOrder(fmt, n, first) {
+    const k = +String(fmt).slice(2) || 3, bans = n - k, f = +first === 1 ? 1 : 0; if (!(n >= k) || k < 1) return null;
+    const out = []; let t = f;
+    const B = () => { out.push({ team: t, act: "ban", by: 1 - t }); t = 1 - t; }, P = () => { out.push({ team: t, act: "pick", by: 1 - t }); t = 1 - t; };
+    for (let i = 0; i < Math.min(2, bans); i++) B();
+    for (let i = 0; i < k - 1; i++) P();
+    for (let i = 2; i < bans; i++) B();
+    const lastBan = out.filter(x => x.act === "ban").pop();
+    out.push({ team: -1, act: "decider", by: lastBan ? 1 - lastBan.team : f });
+    return out.map(x => Object.assign({ map: "", name: "", side: "" }, x));
+  }
+  // what the veto waits for: { i: step index, kind: "ban" | "pick" | "decider" | "side" }, or null when it is finished
+  function vetoNext(V) {
+    for (let i = 0; i < V.steps.length; i++) { const x = V.steps[i]; if (!x.map) return { i, kind: x.act }; if (x.act !== "ban" && !x.side) return { i, kind: "side" }; }
+    return null;
+  }
   function vetoPreset(fmt, pool) {
     const B = t => ({ team: t, act: "ban" }), P = t => ({ team: t, act: "pick" }), D = { team: -1, act: "decider" };
     const seq = pool === "skirmish"
@@ -980,13 +999,15 @@
   function vetoFix(v, squad) {
     const o = v && typeof v === "object" && !Array.isArray(v) ? v : {};
     const pool = o.pool === "skirmish" || o.pool === "comp" ? o.pool : (+squad || 2) === 2 ? "skirmish" : "comp", fmt = VETO_FMT[o.fmt] ? o.fmt : "bo3";
-    const steps = Array.isArray(o.steps) && o.steps.length ? o.steps.slice(0, 9) : vetoPreset(fmt, pool);
-    return { fmt, pool, steps: steps.map(x => { x = x && typeof x === "object" ? x : {};
+    const steps = Array.isArray(o.steps) && o.steps.length ? o.steps.slice(0, 15) : vetoPreset(fmt, pool) || [];
+    // maps: the pool picked on the Map Veto page; started: the veto is running; first: who bans first; mvt: reveal speed; replay: when the reveal was replayed
+    const maps = (Array.isArray(o.maps) ? o.maps : []).filter(u => VAL_UUID.test(String(u))).slice(0, 15);
+    return { fmt, pool, maps, started: !!o.started, first: +o.first === 1 ? 1 : 0, mvt: Math.max(100, Math.min(3000, Math.round(+o.mvt) || 750)), replay: +o.replay || 0, steps: steps.map(x => { x = x && typeof x === "object" ? x : {};
       const team = x.team === 0 || x.team === 1 ? x.team : -1, act = ["ban", "pick", "decider"].includes(x.act) ? x.act : team < 0 ? "decider" : "ban";
       return { team, act, map: VAL_UUID.test(String(x.map || "")) ? x.map : "", name: String(x.name || "").slice(0, 30), side: x.side === "atk" || x.side === "def" ? x.side : "", by: x.by === 0 || x.by === 1 ? x.by : team === 0 ? 1 : 0 }; }) };
   }
   S.mapveto = (m) => {
-    const ev = m.ev, [L, R] = m.sides, v = vetoFix((ev.val || {}).veto, (ev.val || {}).squad), n = v.steps.length || 1;
+    const ev = m.ev, [L, R] = m.sides, v = vetoFix((ev.val || {}).veto, (ev.val || {}).squad), n = v.steps.length || 1, rp = v.replay && Date.now() - v.replay < 15000; // rp: a replay staggers the cards in
     const tag = s => { const t = s ? R : L; return String((t && (t.tag || t.name)) || (s ? "TEAM B" : "TEAM A")).toUpperCase(); };
     const logo = (s, cls) => { const t = s ? R : L, u = t && (t.logos || []).find(Boolean); return u ? `<img class="${cls}" src="${esc(u)}" alt="" onerror="this.style.display='none'">` : ""; };
     const emb = (ev.tournament.logos || []).find(Boolean);
@@ -1001,9 +1022,9 @@
         body = x.act === "ban" ? `${art}<b class="mn ghost">${nm}</b><svg class="no" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42"/><line x1="21" y1="79" x2="79" y2="21"/></svg>`
           : `${art}${x.side ? `<span class="sd">${esc(tag(x.by))} PICKS<br>${x.side === "atk" ? "ATTACK" : "DEFENSE"}</span>` : ""}<b class="mn">${nm}</b>`;
       }
-      return `<div class="vc ${x.map ? x.act : "wait"}${x.team < 0 ? " dec" : ""}" data-k="vc-${i}-${x.map || "w"}" style="--c:${esc(x.team < 0 ? "#c9b27c" : m.colors[x.team])}"><div class="cd">${body}</div><span class="lb">${esc(who)}<br>${what}</span></div>`;
+      return `<div class="vc ${x.map ? x.act : "wait"}${x.team < 0 ? " dec" : ""}" data-k="vc-${i}-${x.map || "w"}" style="--c:${esc(x.team < 0 ? "#c9b27c" : m.colors[x.team])}${rp ? `;--d:${Math.round(i * v.mvt * 0.4)}ms` : ""}"><div class="cd">${body}</div><span class="lb">${esc(who)}<br>${what}</span></div>`;
     }).join("");
-    return { html: `<div class="v3-veto" data-k="v3-veto" style="--n:${n}"><div class="vt-hd"><b class="tt">MAP SELECTION</b><span class="vs">${logo(0, "tl")}<b>${esc(tag(0))}</b><i>VS</i><b>${esc(tag(1))}</b>${logo(1, "tl")}</span></div><div class="vt-row">${cards}</div></div>`, cams: [] };
+    return { html: `<div class="v3-veto" data-k="v3-veto-${v.replay}" style="--n:${n};--mvt:${v.mvt}ms"><div class="vt-hd"><b class="tt">MAP SELECTION</b><span class="vs">${logo(0, "tl")}<b>${esc(tag(0))}</b><i>VS</i><b>${esc(tag(1))}</b>${logo(1, "tl")}</span></div><div class="vt-row">${cards}</div></div>`, cams: [] };
   };
 
   /* Agent select, on MJ's reference: team name, logo, series dots and side on each end, the tournament in the middle, then a card per
@@ -1430,7 +1451,7 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, vetoPreset, vetoFix, VETO_FMT, agsInfo };
+  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

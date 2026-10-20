@@ -148,6 +148,9 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
 
     /* Map selection and Agent Select (VALORANT) */
     const MAPA = "7eaecc1b-4337-bbf6-6ab9-04b8f06b3319", MAPB = "756da597-416b-c0f2-f47b-afbdf28670bc";
+    check("Map Veto order: BO3 on six maps is ban, ban, pick, pick, ban, decider (MJ's reference); the swap makes the other side ban first; too few maps is refused",
+      HUD.vetoOrder("bo3", 6, 0).map(x => x.act[0] + x.team).join(",") === "b0,b1,p0,p1,b0,d-1" && HUD.vetoOrder("bo3", 6, 1)[0].team === 1 && HUD.vetoOrder("bo5", 4, 0) === null && HUD.vetoOrder("bo1", 7, 0).length === 7);
+    { const V = HUD.vetoFix({ steps: HUD.vetoOrder("bo1", 3, 0) }, 5); check("Map Veto: the next step is a ban, then after a pick's map comes its side", HUD.vetoNext(V).kind === "ban" && (() => { const W = HUD.vetoFix({ steps: [{ team: 0, act: "pick", map: "aaaaaaaa-bbbb-cccc-dddd-000000000001", name: "Bind" }, { team: -1, act: "decider" }] }, 5); return HUD.vetoNext(W).kind === "side" && HUD.vetoNext(W).i === 0; })()); }
     check("veto presets: BO3 competitive is ban, ban, pick, pick, ban, ban, decider; Skirmish BO1 has five steps", HUD.vetoPreset("bo3", "comp").map(x => x.act[0] + x.team).join(",") === "b0,b1,p0,p1,b0,b1,d-1" && HUD.vetoPreset("bo1", "skirmish").length === 5);
     check("veto: a 2v2 event starts on the Skirmish pool, a 5v5 on the competitive one", HUD.vetoFix(null, 2).pool === "skirmish" && HUD.vetoFix(null, 5).pool === "comp");
     check("veto: junk is made safe (bad map ids, teams, acts and sides dropped)", (() => { const v = HUD.vetoFix({ fmt: "x", pool: "y", steps: [{ team: 7, act: "nuke", map: "../x", side: "up", by: 9 }, "junk"] }, 5); return v.fmt === "bo3" && v.pool === "comp" && v.steps.length === 2 && v.steps[0].team === -1 && v.steps[0].act === "decider" && v.steps[0].map === "" && v.steps[0].side === "" && v.steps[1].act === "decider"; })());
