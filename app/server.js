@@ -1373,7 +1373,7 @@ const server = http.createServer((req, res) => {
     if (p.startsWith("/objective-icons/")) { const f = safeJoin(ICON_DIR, p.slice(17)); return f ? sendFile(res, f) : json(res, 400, { error: "bad path" }); }
     if (p.startsWith("/uploads/")) { const f = safeJoin(UPLOADS, p.slice(9)); return !f ? json(res, 400, { error: "bad path" }) : VIDEO_EXT.has(path.extname(f).toLowerCase()) ? sendVideo(req, res, f) : sendFile(res, f); }
     const f = safeJoin(PUB, p.slice(1));
-    return f ? sendFile(res, f) : json(res, 404, { error: "not found" });
+    return !f ? json(res, 404, { error: "not found" }) : VIDEO_EXT.has(path.extname(f).toLowerCase()) ? sendVideo(req, res, f) : sendFile(res, f); // videos (the background loop) with byte ranges
   }
 
   if (req.method === "POST") {

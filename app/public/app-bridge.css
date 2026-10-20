@@ -260,3 +260,11 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 .upd-notes{max-height:200px;overflow:auto;white-space:pre-wrap;padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line);font-size:13px;color:var(--text-2)}
 .upd-bar{height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden}.upd-bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
 .updpill{width:100%;justify-content:center;margin-bottom:8px}
+/* background loop behind the whole control room: the app's base layer is mostly opaque, cards stay solid, so text stays readable */
+.bgloop{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:var(--bg)}
+.bgloop video{width:100%;height:100%;object-fit:cover;opacity:.5;filter:saturate(.8)}
+#app{position:relative;z-index:1}
+.app{background:color-mix(in srgb,var(--bg) 80%,transparent)}
+.app .nav{background:color-mix(in srgb,var(--surface-1) 88%,transparent);backdrop-filter:blur(6px)}
+@media (prefers-reduced-motion:reduce){.bgloop video{display:none}}
+#ovl{position:relative;z-index:50;color:var(--text);font:var(--fs-base)/1.45 var(--font-sans)}#updlg{position:relative;z-index:300}
