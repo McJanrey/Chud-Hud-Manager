@@ -1146,7 +1146,7 @@ async function setCamLan(on) {
 function camLinks() {
   const ip = lanIps()[0] || "localhost", base = `https://${ip}:${CAM_PORT}`, mk = room => ({ room, url: `${base}/cam?r=${encodeURIComponent(room)}&t=${cams.tokenFor(room)}`, local: `/cam?r=${encodeURIComponent(room)}` });
   return { on: !!camServer, port: CAM_PORT, base, status: cams.status(), events: DB.events.map(ev => ({ id: ev.id, name: ev.name,
-    players: ev.teams.flatMap((t, ti) => t.players.map(p => Object.assign({ team: t.tag || t.name, name: p.alias || p.ign || "Player", side: ti }, mk(ev.id + "." + p.id)))),
+    players: ev.teams.flatMap((t, ti) => t.players.map(p => Object.assign({ team: t.tag || t.name, teamId: t.id, pid: p.id, name: p.alias || p.ign || "Player", side: ti }, mk(ev.id + "." + p.id)))),
     seats: ev.camera.seats.map((s, i) => Object.assign({ n: i + 1 }, mk(ev.id + ".seat" + i))) })) };
 }
 

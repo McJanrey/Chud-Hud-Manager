@@ -200,3 +200,17 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 .crop-stage canvas{cursor:grab;touch-action:none;box-shadow:0 0 0 1px var(--accent,#FDC82F),0 6px 24px rgba(0,0,0,.45);max-width:100%}
 .crop-stage canvas:active{cursor:grabbing}
 .crop-shapes{flex-wrap:wrap}
+/* Camera feed: webcam manager cards, one group per team */
+.wcteam{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.wchead{display:flex;align-items:center;gap:8px}.wchead img{width:22px;height:22px;object-fit:contain}.wchead b{font-weight:600}
+.wcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.wc{border:1px solid var(--line);border-radius:10px;background:var(--surface-2);overflow:hidden;display:flex;flex-direction:column}
+.wc .pic{position:relative;aspect-ratio:16/9;background:#06080a;display:grid;place-items:center;overflow:hidden}
+.wc .pic img{height:100%;width:100%;object-fit:contain;object-position:bottom}.wc .pic iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.wc .nm{position:absolute;left:8px;top:8px;padding:3px 7px;border-radius:6px;background:rgba(0,0,0,.75);font-size:12px;font-weight:600;color:#fff}
+.wc .eye{position:absolute;right:8px;top:8px;display:grid;place-items:center;width:26px;height:22px;border-radius:6px;background:rgba(0,0,0,.6);color:var(--text-3)}.wc .eye.on{color:#3ddc84;background:rgba(20,80,45,.7)}.wc .eye svg{width:14px;height:14px}
+.wc .ft{display:flex;gap:8px;padding:10px}.wc .ft .btn{flex:1;justify-content:center}.wc .ft .wsrc{cursor:pointer}
+.wc.hid .pic img,.wc.hid .pic iframe{opacity:.35;filter:grayscale(1)}
+.wc.empty{align-items:center;justify-content:center;gap:10px;min-height:160px;color:var(--text-2);background:var(--surface-2)}.wc.empty svg{width:22px;height:22px;color:var(--accent)}
+.wcgrid .wc .pic img{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;object-position:center bottom}
+.wc .ft .btn{display:inline-flex;flex-wrap:nowrap;white-space:nowrap;align-items:center;gap:6px}.wchead .grow{flex:1}

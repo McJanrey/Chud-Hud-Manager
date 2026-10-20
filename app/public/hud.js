@@ -81,7 +81,7 @@
       return list.map(p => {
         const r = p._r || roster(t, p.name);
         return Object.assign({}, blank, p, { _r: undefined, display: (r && (r.alias || r.ign)) || p.name, side: s, team: t,
-          avatar: r ? r.avatar : "", country: r ? r.country : "", cam: r ? r.cam : "", pid: r ? r.id : "", agent: r && r.agent ? r.agent : "" });
+          avatar: r ? r.avatar : "", country: r ? r.country : "", cam: r ? r.cam : "", camHide: !!(r && r.camHide), pid: r ? r.id : "", agent: r && r.agent ? r.agent : "" });
       });
     });
     const all = players[0].concat(players[1]);
@@ -119,7 +119,7 @@
   const sideTeam = (ev, id) => ev.teams.find(t => t.id === id);
 
   /* ---------------- scenes: each returns { html, cams } ---------------- */
-  const camUrlOf = (ev, p) => (p && (p.cam || (p.pid ? ownCam(ev, p.pid) : ""))) || "";
+  const camUrlOf = (ev, p) => (p && !p.camHide && (p.cam || (p.pid ? ownCam(ev, p.pid) : ""))) || ""; // camHide: hidden on the Camera feed page
   /* Player webcams. "all": one slot per player down both edges (3 a side in Rocket League, 5 in League). "action": only the player
      in the action shows, big, in the bottom corner of their team's side, and every camera stays loaded so a switch is instant.
      A slot only shows when that player has a camera link or a live camera page. */
@@ -591,7 +591,7 @@
       <div class="hearts">${hearts(spot.health)}</div><div class="rw2"><span class="fd"><i style="width:${Math.max(0, Math.min(100, ((spot.food || 0) / 20) * 100))}%"></i></span><span class="kl num">${spot.kills} KILLS</span></div></div>`;
     if (on("mcCam") && spot) { // the spotlight player's camera, from their roster entry
       const r = ev.teams.flatMap(t => t.players).find(p => low(p.ign) === low(spot.name));
-      if (r && r.cam) cams.push({ key: "mccam-" + r.cam, url: r.cam, x: 324, y: 480, w: 256, h: 144 });
+      if (r && r.cam && !r.camHide) cams.push({ key: "mccam-" + r.cam, url: r.cam, x: 324, y: 480, w: 256, h: 144 });
     }
     const sp = (ev.tournament.sponsors || []).filter(x => x.name || x.logo);
     if (on("mcSponsors") && sp.length) {
@@ -686,7 +686,7 @@
     if (sd.on) h += `<div class="rb3-sd" data-k="rb3-sd">${rbImg(sbf, "art")}<b class="tag">SHOWDOWN</b><span class="t1">${esc(String(sbf ? sbf.name : "").toUpperCase())}</span>${[0, 1].map(s => `<b class="mt ${s ? "r" : "l"} num" style="--c:${esc(col(s))}">${Math.max(0, Math.round(+((sd.might || [])[s]) || 0))}</b>`).join("")}</div>`;
     // cameras: the player's own camera link, else their team's first player's
     const cams = [];
-    [0, 1].forEach(s => { const t = m.sides[s], p = t && t.players && t.players[0], u = String((rb.cams || [])[s] || "") || (p && (p.cam || ownCam(ev, p.id))) || "";
+    [0, 1].forEach(s => { const t = m.sides[s], p = t && t.players && t.players[0], u = String((rb.cams || [])[s] || "") || (p && !p.camHide && (p.cam || ownCam(ev, p.id))) || "";
       if (/^https?:\/\//i.test(u)) cams.push({ key: "pc-rb-" + s + u, url: u, x: s ? 1070 : 26.7, y: 166, w: 184, h: 196 }); });
     return { html: h, cams };
   };
@@ -1123,7 +1123,7 @@
     const F = fnLive(ev), rows = fnTable(ev), pick = (ev.fn || {}).spotlight, ft = ev.teams.find(t => t.id === F.focus.team) || ev.teams.find(t => t.id === pick) || (rows[0] && rows[0].team);
     const fps = ft ? F.named(ft) : [], fp = fps[ft && ft.id === F.focus.team ? Math.max(0, Math.min(fps.length - 1, +F.focus.p || 0)) : 0];
     if (!fp || F.show.cam === false) return { html: "", cams: [] };
-    const u = fp.cam || ownCam(ev, fp.id);
+    const u = fp.camHide ? "" : fp.cam || ownCam(ev, fp.id);
     return u ? { html: `<div class="fn3-cam" data-k="fn3-cam"></div>`, cams: [{ key: "pc-fn-" + fp.id + u, url: u, x: 22, y: 440, w: 280.7, h: 154.7 }] } : { html: "", cams: [] };
   }
   function fnFull(m, limit) {
