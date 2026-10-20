@@ -5,7 +5,9 @@
    or null (cancelled). shape: "portrait" (3:4), "square", "wide" (16:9) or "free" (the picture's own shape). */
 (function () {
   const SHAPES = { portrait: ["Portrait 3:4", 3 / 4], square: ["Square", 1], wide: ["Wide 16:9", 16 / 9], free: ["Original shape", 0] };
-  const BOX = 440, MAX_OUT = 1600;
+  const MAX_OUT = 1600;
+  // the frame's long side on screen: up to 440 px, smaller when the window is short or narrow, so the whole editor always fits
+  const boxSize = () => { const g = st && st.el.querySelector(".crop-stage"); return g ? Math.max(140, Math.min(440, g.clientWidth - 24, g.clientHeight - 24)) : 440; };
   let st = null;
 
   function load(file) {
@@ -23,7 +25,8 @@
   // frame size on screen for the chosen shape
   function frame() {
     const a = SHAPES[st.shape][1] || (st.src.w / st.src.h);
-    return a >= 1 ? { w: BOX, h: Math.round(BOX / a) } : { w: Math.round(BOX * a), h: BOX };
+    const B = st.box || 440;
+    return a >= 1 ? { w: B, h: Math.round(B / a) } : { w: Math.round(B * a), h: B };
   }
   // zoom and position so the source area fills the frame (cover) or fits inside it (contain)
   function fit(cover) {
@@ -31,6 +34,7 @@
     st.s = st.s0 = s; st.cx = st.src.x + st.src.w / 2; st.cy = st.src.y + st.src.h / 2;
   }
   function draw() {
+    const nb = boxSize(); if (st.box && nb !== st.box) { const k = nb / st.box; st.s *= k; st.s0 *= k; } st.box = nb; // window resized: same crop, new screen size
     const f = frame(), c = st.el.querySelector("canvas"), x = c.getContext("2d");
     c.width = f.w; c.height = f.h; x.imageSmoothingQuality = "high"; x.clearRect(0, 0, f.w, f.h);
     x.drawImage(st.im, f.w / 2 - st.cx * st.s, f.h / 2 - st.cy * st.s, st.im.naturalWidth * st.s, st.im.naturalHeight * st.s);
@@ -51,7 +55,7 @@
     const jpg = st.file.type === "image/jpeg", type = jpg ? "image/jpeg" : "image/png";
     c.toBlob(b => finish(b ? new File([b], (st.file.name || "image").replace(/\.\w+$/, "") + (jpg ? ".jpg" : ".png"), { type }) : null), type, 0.92);
   }
-  function finish(v) { if (!st) return; const s = st; st = null; s.el.remove(); URL.revokeObjectURL(s.u); document.removeEventListener("keydown", onKey, true); s.done(v); }
+  function finish(v) { if (!st) return; const s = st; st = null; if (s.offResize) s.offResize(); s.el.remove(); URL.revokeObjectURL(s.u); document.removeEventListener("keydown", onKey, true); s.done(v); }
   function onKey(e) { if (!st) return; if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(null); } else if (e.key === "Enter" && !/INPUT|SELECT/.test(e.target.tagName)) { e.preventDefault(); save(); } }
   function zoomTo(s) { st.s = Math.max(st.s0 * 0.1, Math.min(st.s0 * 8, s)); draw(); }
 
@@ -71,7 +75,8 @@
           <div class="row c" style="gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-c="trim">Trim empty edges</button><button class="btn" type="button" data-c="fill">Fill frame</button><button class="btn" type="button" data-c="fitin">Fit whole picture</button><span class="grow"></span><span class="note" data-c="out"></span></div></section>
         <footer><button class="btn ghost" type="button" data-c="orig">Use original</button><span class="grow"></span><button class="btn" type="button" data-c="cancel">Cancel</button><button class="btn primary" type="button" data-c="save">Save</button></footer></div>`;
       document.body.appendChild(el);
-      fit(st.shape !== "free"); draw();
+      st.box = boxSize(); fit(st.shape !== "free"); draw();
+      const onResize = () => st && draw(); window.addEventListener("resize", onResize); st.offResize = () => window.removeEventListener("resize", onResize);
       const cv = el.querySelector("canvas");
       let drag = null;
       cv.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, cx: st.cx, cy: st.cy }; cv.setPointerCapture(e.pointerId); });
