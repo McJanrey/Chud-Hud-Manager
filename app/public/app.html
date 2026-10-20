@@ -170,7 +170,8 @@ const F={
   step:p=>`<span class="step"><button type="button" data-act="bump" data-path="${p}" data-d="-1" aria-label="Decrease">−</button><output data-mirror="${p}">${get(E,p)}</output><button type="button" data-act="bump" data-path="${p}" data-d="1" aria-label="Increase">+</button></span>`,
   dz:(p,title,cls="")=>{const v=get(E,p);return`<div class="dz ${cls}">${v?`<img src="${esc(v)}" alt="">${/\.(gif|svg)$/i.test(v)?"":`<button class="btn icon ed" type="button" data-act="imgEdit" data-path="${p}" aria-label="Resize or crop" title="Resize or crop">${ico("edit")}</button>`}<button class="btn icon x" type="button" data-act="clearImg" data-path="${p}" aria-label="Remove image">${ico("x")}</button>`:cls.includes("mini")?ico("up"):`<span>${ico("up")}</span><b>${title}</b><span>Click to browse or drop an image</span>`}<input type="file" accept="image/*" id="${fid(p)}" data-upload="${p}" aria-label="${esc(title||"Image")}"></div>`},
 };
-const ml=(t,cls="ml")=>!t?`<span class="${cls}">?</span>`:t.logos&&t.logos[0]?`<img class="${cls}" src="${esc(t.logos[0])}" alt="">`:`<span class="${cls}" style="background:${esc(t.color)}">${esc((t.tag||"?").slice(0,4))}</span>`;
+// a team's logo on a rounded-square tile (the big header tile sits on the team colour)
+const ml=(t,cls="ml")=>!t?`<span class="${cls}">?</span>`:t.logos&&t.logos[0]?`<span class="${cls} img"${/\bbig\b/.test(cls)?` style="background:${esc(t.color)}"`:""}><img src="${esc(t.logos[0])}" alt=""></span>`:`<span class="${cls}" style="background:${esc(t.color)}">${esc((t.tag||"?").slice(0,4))}</span>`;
 const teamOpts=e=>[["","Select team"],...e.teams.map(t=>[t.id,t.name])];
 /* VALORANT agents for the roster dropdown: the server fetches the list from valorant-api.com once and keeps it on disk; offline it stays empty and a player's agent is simply "none" */
 let VALAG=null;
