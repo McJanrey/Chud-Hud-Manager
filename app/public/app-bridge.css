@@ -247,7 +247,7 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 /* bracket editor: later rounds sit centred between the matches that feed them */
 .bround{align-self:stretch}.bround .bmatches{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:12px}
 /* bare fields outside the form helpers (kill picker, player panels, links) get the same look as every other field */
-:where(.app .main) :is(input:not([type=checkbox]):not([type=color]):not([type=file]):not([type=range]):not([type=radio]),select):where(:not(.fld *):not(.lhead *):not(.seg *)){height:36px;padding:0 10px;border-radius:var(--r-md);border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);font:inherit;font-size:13px}
+:where(.app .main) :is(input:not([type=checkbox]):not([type=color]):not([type=file]):not([type=range]):not([type=radio]),select):where(:not(.fld *):not(.lhead *):not(.seg *):not(.search *)){height:36px;padding:0 10px;border-radius:var(--r-md);border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);font:inherit;font-size:13px}
 :where(.app .main) select:where(:not(.fld *)){padding-right:28px}
 .olink{flex:1;min-width:0;height:36px}
 /* cards inside a card: no extra side indent */
@@ -268,3 +268,4 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 .app .nav{background:color-mix(in srgb,var(--surface-1) 88%,transparent);backdrop-filter:blur(6px)}
 @media (prefers-reduced-motion:reduce){.bgloop video{display:none}}
 #ovl{position:relative;z-index:50;color:var(--text);font:var(--fs-base)/1.45 var(--font-sans)}#updlg{position:relative;z-index:300}
+.top>.grow{flex:1}

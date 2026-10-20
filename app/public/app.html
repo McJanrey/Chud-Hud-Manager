@@ -243,17 +243,15 @@ function rail(e){
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
   const crest="/brand/chud-hud.png"; // fixed: the app logo cannot be changed
   return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
-    <button class="evsw" type="button" data-act="palette" title="Switch event (Ctrl+K)"><div class="cover" style="${e?`background-image:${coverCss(e)}`:"background:var(--surface-3)"}"></div><span><b>${e?esc(e.name):"No event open"}</b><small>${e?esc(e.game):"Choose one to begin"}</small></span>${ico("updown")}</button>
     <div class="navscroll">${nav}</div>
     <div class="navfoot">${updPill()}<div id="conn" style="display:flex;flex-direction:column;gap:8px"></div><div class="row">
       <button class="btn icon ghost" type="button" data-act="collapse" aria-label="Collapse sidebar" title="Collapse sidebar">${ico("collapse")}</button>
       <button class="btn icon ghost" type="button" data-act="theme" aria-label="Toggle theme" title="Toggle theme">${ico(PREF.theme==="dark"?"sun":"moon")}</button></div></div></aside>`;
 }
 function topbar(e){
-  const cmd=`<button class="cmdk" type="button" data-act="palette">${ico("search")}<span>Search or jump to...</span><kbd class="kbd">Ctrl K</kbd></button>`;
   const crumbs=e?`<a href="#" data-act="home">My Events</a><i>/</i><a href="#" data-act="nav" data-arg="overview">${esc(e.name)}</a><i>/</i><b>${META[ui.view][0]}</b>`:`<b>My Events</b>`;
   const act=e?`<button class="btn primary" type="button" data-act="copyLink" title="Copy this event's own overlay link for OBS">${ico("copy")}Copy overlay link</button>`:`<button class="btn primary" type="button" data-act="newEvent">${ico("plus")}New event</button>`;
-  return`<header class="top"><nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav>${cmd}${act}</header>`;
+  return`<header class="top"><nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav><span class="grow"></span>${act}</header>`;
 }
 function pagehead(e){
   if(!e)return`<div class="pagehead"><h1>My Events</h1><p>Every broadcast you run, one workspace each. Open one to take control.</p></div>`;
