@@ -297,3 +297,16 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 .split{grid-template-columns:320px minmax(0,1fr);align-items:stretch}
 .split>.pane{align-self:stretch}.split>.pane .list{height:100%}
 .split>.pane .items{max-height:none;flex:1}
+/* trash buttons: outlined in red on the dark surface (BLOB's look), filled only on hover */
+.btn.icon.danger{background:var(--surface-1);border:1px solid color-mix(in srgb,var(--err) 55%,transparent);color:var(--err)}
+.btn.icon.danger:hover{background:var(--err-bg);border-color:var(--err);color:var(--err)}
+.evdel.armed{display:none}
+/* delete confirmation pop-up */
+.cfm-scrim{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:16px;color:var(--text);font:var(--fs-base)/1.45 var(--font-sans);animation:fade .15s ease}
+.cfm{width:510px;max-width:100%;background:var(--surface-1);border:1px solid var(--line-strong);border-radius:6px;padding:24px 24px 22px;box-shadow:var(--shadow-3)}
+.cfm h2{margin:0;font-family:"Anton","Inter",sans-serif;font-weight:400;font-size:24px;letter-spacing:.01em}
+.cfm p{margin:10px 0 0;color:var(--text-2);font-weight:500}
+.cfm-b{display:flex;justify-content:flex-end;gap:12px;margin-top:22px}
+.cfm-b .btn{height:40px;padding:0 14px;font-weight:600;background:var(--surface-2);border:1px solid var(--line-strong)}
+.cfm-b .cfm-ok{border-color:color-mix(in srgb,var(--err) 70%,transparent);background:color-mix(in srgb,var(--err) 14%,var(--surface-2));color:#fff}
+.cfm-b .cfm-ok:hover{background:var(--err);border-color:var(--err)}

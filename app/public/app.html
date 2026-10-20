@@ -1001,6 +1001,18 @@ document.addEventListener("click",ev0=>{const b=ev0.target.closest("[data-act]")
 /* ---------- interactions ---------- */
 let toastT;
 function toast(msg){const box=$("#toasts"),t=document.createElement("div");t.className="toast";t.setAttribute("role","status");t.innerHTML=`${ico("check")}<span></span>`;t.lastChild.textContent=msg;box.appendChild(t);while(box.children.length>4)box.firstChild.remove();setTimeout(()=>{t.style.transition="opacity .2s";t.style.opacity="0";setTimeout(()=>t.remove(),220)},3200)}
+/* "Are you sure?" pop-up for deleting things (BLOB's Delete Team card): resolves true only on the red button. Esc, Cancel or a
+   click outside cancels; Cancel has the focus, so Enter never deletes by accident. */
+function confirmBox(title,msg,ok){
+  return new Promise(done=>{
+    const el=document.createElement("div");el.className="cfm-scrim";
+    el.innerHTML=`<div class="cfm" role="alertdialog" aria-modal="true" aria-labelledby="cfmT" aria-describedby="cfmM"><h2 id="cfmT"></h2><p id="cfmM"></p><div class="cfm-b"><button class="btn" type="button" data-c="no">Cancel</button><button class="btn cfm-ok" type="button" data-c="yes"></button></div></div>`;
+    el.querySelector("h2").textContent=title;el.querySelector("p").textContent=msg;el.querySelector(".cfm-ok").textContent=ok;
+    const end=v=>{document.removeEventListener("keydown",key,true);el.remove();done(v)},key=k=>{if(k.key==="Escape"){k.preventDefault();k.stopPropagation();end(false)}};
+    el.addEventListener("click",c=>{if(c.target===el)return end(false);const b=c.target.closest("[data-c]");if(b)end(b.dataset.c==="yes")});
+    document.addEventListener("keydown",key,true);document.body.appendChild(el);el.querySelector('[data-c="no"]').focus();
+  });
+}
 function confirmTwice(b){if(b.dataset.armed)return true;b.dataset.armed="1";const h=b.innerHTML;b.textContent="Click again to confirm";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.innerHTML=h}},3000);return false}
 // the frame the photo editor starts with: people are portrait, covers and screenshots wide, logos and ads keep their own shape
 const cropShape=up=>/\.(avatar|portrait)$/.test(up)?"portrait":/(^|\.)(cover|bgImage|barBg)$/.test(up)?"wide":"free";
@@ -1039,9 +1051,9 @@ document.addEventListener("click",async ev0=>{
     case "copyLink":copyLink();return;
     case "copyText":{try{await navigator.clipboard.writeText(b.dataset.arg);toast("Copied")}catch(err){toast("Select the text and press Ctrl+C")}return}
     case "delEventCard":{ev0.preventDefault();const x=DB.events.find(q=>q.id===arg);if(!x)return;
-      if(!b.dataset.armed){b.dataset.armed="1";b.classList.add("armed");b.textContent="Delete?";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.classList.remove("armed");b.innerHTML=ico("trash")}},3000);return} // a second click within 3 seconds deletes
+      if(!await confirmBox("Delete Event",`Are you sure you want to delete ${x.name}? Its teams, talent and graphics are deleted with it.`,"Delete Event"))return;
       await put("events",DB.events.filter(q=>q.id!==arg),false);if(ui.cur===arg)ui.cur=null;toast(`${x.name} deleted`);break}
-    case "delEvent":if(!confirmTwice(b))return;await put("events",DB.events.filter(x=>x!==e),false);ui.cur=null;toast("Event deleted");break;
+    case "delEvent":if(!await confirmBox("Delete Event",`Are you sure you want to delete ${e.name}? Its teams, talent and graphics are deleted with it.`,"Delete Event"))return;await put("events",DB.events.filter(x=>x!==e),false);ui.cur=null;toast("Event deleted");break;
     case "camLan":{const r=await fetch("/api/cam/lan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on:!(CAM&&CAM.on)})}).then(r=>r.json()).catch(()=>({error:"No answer from the server."}));
       if(r.error)toast(r.error);else{CAM=r;camPaint()}return;}
     case "camCopy":{try{await navigator.clipboard.writeText(arg);toast("Player link copied")}catch(err){toast("Copy failed. Open the link instead.")}return;}
@@ -1083,7 +1095,7 @@ document.addEventListener("click",async ev0=>{
     case "scene":put("hud.scene",arg);toast(`${SCENES[arg]} is showing`);return;
     case "addTeam":{if(e.teams.length>=64)return toast("This event already has 64 teams.");const t=blankTeam();e.teams.push(t);ui.team=t.id;ui.teamq="";put("teams",e.teams);break;}
     case "selTeam":ui.team=arg;break;
-    case "delTeam":{if(!confirmTwice(b))return;const t=tm(e,ui.team);put("teams",e.teams.filter(x=>x!==t));if(e.live.left===t.id)put("live.left","");if(e.live.right===t.id)put("live.right","");ui.team=null;toast(`${t.name} deleted`);break;}
+    case "delTeam":{if(!await confirmBox("Delete Team","Are you sure you want to delete this team?","Delete Team"))return;const t=tm(e,ui.team);put("teams",e.teams.filter(x=>x!==t));if(e.live.left===t.id)put("live.left","");if(e.live.right===t.id)put("live.right","");ui.team=null;toast(`${t.name} deleted`);break;}
     case "addPlayer":{const t=tm(e,ui.team);t.players.push(blankPlayer());put(`teams.${e.teams.indexOf(t)}.players`,t.players);break;}
     case "delPlayer":{const t=tm(e,ui.team);t.players.splice(+arg,1);put(`teams.${e.teams.indexOf(t)}.players`,t.players);break;}
     case "addSponsor":if(e.tournament.sponsors.length>=SPONSOR_MAX)break;e.tournament.sponsors.push({name:"",logo:"",type:"secondary"});put("tournament.sponsors",e.tournament.sponsors);break;
@@ -1091,7 +1103,7 @@ document.addEventListener("click",async ev0=>{
     case "clearImg":ev0.preventDefault();ev0.stopPropagation();put(b.dataset.path,"");break;
     case "addTalent":{const t={id:uid(),name:"New talent",role:"Caster",portrait:"",socials:[]};e.talent.push(t);ui.talent=t.id;put("talent",e.talent);break;}
     case "selTalent":ui.talent=arg;break;
-    case "delTalent":{if(!confirmTwice(b))return;put("talent",e.talent.filter(x=>x.id!==ui.talent));ui.talent=null;break;}
+    case "delTalent":{if(!await confirmBox("Delete Profile","Are you sure you want to delete this talent profile?","Delete Profile"))return;put("talent",e.talent.filter(x=>x.id!==ui.talent));ui.talent=null;break;}
     case "addSocial":{const t=e.talent.find(x=>x.id===ui.talent);t.socials.push({p:"X",h:""});put(`talent.${e.talent.indexOf(t)}.socials`,t.socials);break;}
     case "delSocial":{const t=e.talent.find(x=>x.id===ui.talent);t.socials.splice(+arg,1);put(`talent.${e.talent.indexOf(t)}.socials`,t.socials);break;}
     case "swap":{const l=e.live;const nl=Object.assign({},l,{left:l.right,right:l.left,swap:!l.swap,score:[l.score[1],l.score[0]],series:[l.series[1],l.series[0]]});put("live",nl);break;}
@@ -1165,7 +1177,7 @@ document.addEventListener("click",async ev0=>{
     case "addMatch":e.schedule.push({id:uid(),time:"",left:"",right:"",label:"",sa:"",sb:""});put("schedule",e.schedule);break;
     case "delMatch":e.schedule.splice(+arg,1);put("schedule",e.schedule);break;
     case "addRound":e.bracket.rounds.push({name:"New round",matches:[{a:"",b:"",sa:"",sb:""}]});put("bracket",e.bracket);break;
-    case "delRound":if(!confirmTwice(b))return;e.bracket.rounds.splice(+arg,1);put("bracket",e.bracket);break;
+    case "delRound":if(!await confirmBox("Delete Round","Are you sure you want to delete this round and its matches?","Delete Round"))return;e.bracket.rounds.splice(+arg,1);put("bracket",e.bracket);break;
     case "addBMatch":e.bracket.rounds[+arg].matches.push({a:"",b:"",sa:"",sb:""});put("bracket",e.bracket);break;
     case "delBMatch":e.bracket.rounds[+arg].matches.pop();put("bracket",e.bracket);break;
     case "addStanding":e.standings.push({team:"",w:0,l:0,gd:0});put("standings",e.standings);break;
