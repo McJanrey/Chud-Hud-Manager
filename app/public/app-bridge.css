@@ -310,3 +310,6 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 .cfm-b .btn{height:40px;padding:0 14px;font-weight:600;background:var(--surface-2);border:1px solid var(--line-strong)}
 .cfm-b .cfm-ok{border-color:color-mix(in srgb,var(--err) 70%,transparent);background:color-mix(in srgb,var(--err) 14%,var(--surface-2));color:#fff}
 .cfm-b .cfm-ok:hover{background:var(--err);border-color:var(--err)}
+/* a team that hasn't been filled in yet */
+.ph{color:var(--text-3)}
+.ml.noimg svg{width:55%;height:55%;color:#fff;stroke:#fff}

@@ -171,8 +171,9 @@ const F={
   dz:(p,title,cls="")=>{const v=get(E,p);return`<div class="dz ${cls}">${v?`<img src="${esc(v)}" alt="">${/\.(gif|svg)$/i.test(v)?"":`<button class="btn icon ed" type="button" data-act="imgEdit" data-path="${p}" aria-label="Resize or crop" title="Resize or crop">${ico("edit")}</button>`}<button class="btn icon x" type="button" data-act="clearImg" data-path="${p}" aria-label="Remove image">${ico("x")}</button>`:cls.includes("mini")?ico("up"):`<span>${ico("up")}</span><b>${title}</b><span>Click to browse or drop an image</span>`}<input type="file" accept="image/*" id="${fid(p)}" data-upload="${p}" aria-label="${esc(title||"Image")}"></div>`},
 };
 // a team's logo on a rounded-square tile (the big header tile sits on the team colour)
-const ml=(t,cls="ml")=>!t?`<span class="${cls}">?</span>`:t.logos&&t.logos[0]?`<span class="${cls} img"${/\bbig\b/.test(cls)?` style="background:${esc(t.color)}"`:""}><img src="${esc(t.logos[0])}" alt=""></span>`:`<span class="${cls}" style="background:${esc(t.color)}">${esc((t.tag||"?").slice(0,4))}</span>`;
-const teamOpts=e=>[["","Select team"],...e.teams.map(t=>[t.id,t.name])];
+const ml=(t,cls="ml")=>!t?`<span class="${cls}">?</span>`:t.logos&&t.logos[0]?`<span class="${cls} img"${/\bbig\b/.test(cls)?` style="background:${esc(t.color)}"`:""}><img src="${esc(t.logos[0])}" alt=""></span>`:`<span class="${cls}${t.tag?"":" noimg"}" style="background:${esc(t.color)}">${t.tag?esc(t.tag.slice(0,4)):ico("teams")}</span>`;
+const tName=t=>t?(t.name||t.tag||"Unnamed team"):""; // a team still being filled in
+const teamOpts=e=>[["","Select team"],...e.teams.map(t=>[t.id,tName(t)])];
 /* VALORANT agents for the roster dropdown: the server fetches the list from valorant-api.com once and keeps it on disk; offline it stays empty and a player's agent is simply "none" */
 let VALAG=null;
 function valAgentList(){
@@ -387,11 +388,11 @@ teams(e){
     <button class="btn" type="button" data-act="addTeam" style="justify-content:space-between"><span class="row c nowrap" style="gap:8px">${ico("plus")}Add team</span><span class="note">${e.teams.length} / 64</span></button></div>
     <div class="items" id="teamlist">${teamList(e)}</div></div></div>
   <div class="box detail">${t?`
-    <div class="row c" style="justify-content:space-between"><div class="row c">${ml(t,"ml big")}<div><h2 style="font-size:20px">${esc(t.name)} <span style="color:var(--dim)">/ ${esc(t.tag)}</span></h2><p class="sub">${esc(t.division||"No division set")}</p></div></div>
+    <div class="row c" style="justify-content:space-between"><div class="row c">${ml(t,"ml big")}<div><h2 style="font-size:20px">${t.name?esc(t.name):`<span class="ph">Team Name</span>`} <span class="ph">/ ${t.tag?esc(t.tag):"Team Tag"}</span></h2><p class="sub">${esc(t.division||"No division set")}</p></div></div>
       <button class="btn icon danger" type="button" data-act="delTeam" aria-label="Delete team">${ico("trash")}</button></div>
     <div class="halves" style="gap:24px"><div><h2>Team details</h2><p class="sub">Used across the broadcast and designs.</p>
       <div class="fld" style="margin-top:18px"><span>Team colours</span><div class="row c" style="gap:8px"><input type="color" id="${fid(P+".color")}" data-bind="${P}.color" value="${esc(t.color)}" aria-label="Primary colour"><input type="color" id="${fid(P+".color2")}" data-bind="${P}.color2" value="${esc(t.color2)}" aria-label="Secondary colour"></div></div></div>
-      <div class="sec" style="gap:10px">${F.text(P+".name","","Team name")}${F.text(P+".tag","","Short tag",'maxlength="5" data-upper')}${F.text(P+".division","","Division, e.g. Varsity Premier")}${F.text(P+".seed","","Seed or subtitle, e.g. LCK #3 (League score bar)")}</div></div>
+      <div class="sec" style="gap:10px">${F.text(P+".name","","Team Name")}${F.text(P+".tag","","Team Tag (e.g. 100T)",'maxlength="5" data-upper')}${F.text(P+".division","","Division, e.g. Varsity Premier")}${F.text(P+".seed","","Seed or subtitle, e.g. LCK #3 (League score bar)")}</div></div>
     <div class="sec"><div><h2>Team logo</h2><p class="sub">Upload your team's primary, secondary and tertiary logos. The HUD uses the primary.</p></div>
       <div class="cols" style="--n:3">${["Primary","Secondary","Tertiary"].map((l,j)=>F.dz(`${P}.logos.${j}`,l)).join("")}</div></div>
     <div class="sec"><div class="sechead"><div><h2>Team members</h2><p class="sub">The in-game name must match the IGN exactly for auto team tracking.</p></div><div class="row c" style="gap:8px"><button class="btn" type="button" data-act="nav" data-arg="camera">${ico("link")}Webcams</button><button class="btn" type="button" data-act="addPlayer">${ico("plus")}Add player</button></div></div>
@@ -422,7 +423,7 @@ talent(e){
 live(e){
   const teamed=!["Minecraft","Riftbound","Fortnite"].includes(e.game); // Minecraft and Riftbound are scored on their own pages: no teams, scoreline or series here
   const l=e.live,pick=e.source||"auto",src=(G()&&G().source)||(pick==="auto"?({"Rocket League":"rl","League of Legends":"lol","Minecraft":"mc","Riftbound":"manual","Dead by Daylight":"manual","Fortnite":"manual"}[e.game]||"ocr"):pick);
-  const T=id=>e.teams.find(t=>t.id===id),tn=id=>{const t=T(id);return t?t.name:"—"};
+  const T=id=>e.teams.find(t=>t.id===id),tn=id=>{const t=T(id);return t?tName(t):"—"};
   return`<div class="halves lgrid"><div class="sec" style="gap:24px">
     ${teamed?`<div class="sec lg"><div class="sechead"><h2 class="row c" style="gap:8px">Teams <button class="btn icon sm" type="button" data-act="liveRefresh" aria-label="Refresh">${ico("reset")}</button></h2>${F.sw("live.autoTeams","Auto")}</div>
       <div class="lg-teams"><div class="lg-side"><span class="lg-lbl">${e.game==="League of Legends"?"Left Team (blue)":"Left Team"}</span><div class="lg-team">${ml(T(l.left))}${F.sel("live.left","",teamOpts(e))}</div></div>
@@ -678,7 +679,7 @@ function gameOcrHtml(e){
   if(!v||v.fnPlace==null&&v.fnElims==null)return`<p class="note">Point Screen OCR at the game window on the match results screen (pick the "Fortnite: match results screen" layout and line the boxes up) and its reading shows here. Nothing is added to the table until you press the button.</p><div class="row c">${go}</div>`;
   const ms=e.fn.matches;
   return`<p class="note">Read from the screen: placement <b>${v.fnPlace==null?"–":v.fnPlace}</b>, eliminations <b>${v.fnElims==null?"–":v.fnElims}</b>. Pick the team and the match, check it against the screen, then apply it.</p>
-    <div class="row c"><label class="fld" style="max-width:220px"><span>Team</span><select id="fnOcrTeam">${e.teams.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("")}</select></label>
+    <div class="row c"><label class="fld" style="max-width:220px"><span>Team</span><select id="fnOcrTeam">${e.teams.map((t,i)=>`<option value="${i}">${esc(tName(t))}</option>`).join("")}</select></label>
     <label class="fld" style="max-width:180px"><span>Match</span><select id="fnOcrMatch">${ms.map((m,j)=>`<option value="${j}"${j===ms.length-1?" selected":""}>Match ${j+1}</option>`).join("")}<option value="new"${ms.length?"":" selected"}>New match</option></select></label>
     <button class="btn primary" type="button" data-act="fnFromOcr">Apply</button>${go}</div>`;
 }
@@ -703,7 +704,7 @@ function draftSec(e){
     ${stage("draft")}</div>`;
 }
 const sideTeam=(e,s)=>e.teams.find(x=>x.id===(s?e.live.right:e.live.left));
-const sideName=(e,s)=>{const t=sideTeam(e,s);return t?t.name:(s?"Right team":"Left team")};
+const sideName=(e,s)=>{const t=sideTeam(e,s);return t?tName(t):(s?"Right team":"Left team")};
 Object.assign(VIEWS,{
 veto(e){
   /* Map Veto: set up (format, who bans first, the map pool), then run it by clicking maps; the Map Selection scene follows. */
@@ -831,7 +832,7 @@ function lolSettings(e){
     <details><summary class="note" style="cursor:pointer">Objective timings (Riot moves these between seasons)</summary><div class="cols" style="--n:3;margin-top:10px">${Object.keys(TIMING_LABELS).map(k=>F.num(`lol.timers.${k}`,TIMING_LABELS[k])).join("")}</div></details>
   </div></details>`;
 }
-function teamList(e){const q=ui.teamq.toLowerCase();return e.teams.map((t,i)=>({t,i})).filter(({t})=>(t.name+t.tag).toLowerCase().includes(q)).map(({t,i})=>`<button type="button" class="item" data-act="selTeam" data-arg="${t.id}"${t.id===ui.team?' aria-current="true"':""}>${ml(t)}<span class="nm"><b data-mirror="teams.${i}.name">${esc(t.name)}</b><small data-mirror="teams.${i}.tag">${esc(t.tag)}</small></span><span class="count">${t.players.length}</span></button>`).join("")||`<p class="sub" style="padding:16px">No teams match.</p>`}
+function teamList(e){const q=ui.teamq.toLowerCase();return e.teams.map((t,i)=>({t,i})).filter(({t})=>(t.name+t.tag).toLowerCase().includes(q)).map(({t,i})=>`<button type="button" class="item" data-act="selTeam" data-arg="${t.id}"${t.id===ui.team?' aria-current="true"':""}>${ml(t)}<span class="nm">${t.name||t.tag?`<b data-mirror="teams.${i}.name">${esc(t.name)}</b><small data-mirror="teams.${i}.tag">${esc(t.tag)}</small>`:`<b class="ph">No Tag</b>`}</span><span class="count">${t.players.length}</span></button>`).join("")||`<p class="sub" style="padding:16px">No teams match.</p>`}
 function talentList(e){const q=ui.talentq.toLowerCase();return e.talent.map((t,i)=>({t,i})).filter(({t})=>t.name.toLowerCase().includes(q)).map(({t,i})=>`<button type="button" class="item" data-act="selTalent" data-arg="${t.id}"${t.id===ui.talent?' aria-current="true"':""}>${t.portrait?`<img class="ml" src="${esc(t.portrait)}" alt="">`:`<span class="ml">${esc(t.name.slice(0,2).toUpperCase())}</span>`}<span class="nm"><b data-mirror="talent.${i}.name">${esc(t.name)}</b><small data-mirror="talent.${i}.role">${esc(t.role)}</small></span></button>`).join("")||`<p class="sub" style="padding:16px">No talent matches.</p>`}
 
 /* ---------- stages + live bits ---------- */
@@ -1030,7 +1031,7 @@ async function upload(input,file,edited){
     render()}
   catch(e){toast("Upload failed. Is the server running?")}
 }
-const blankTeam=()=>({id:uid(),name:"New Team",tag:"NEW",division:"",seed:"",color:"#7c83f5",color2:"#ffffff",logos:["","",""],players:[]});
+const blankTeam=()=>({id:uid(),name:"",tag:"",division:"",seed:"",color:"#ff4655",color2:"#3b82f6",logos:["","",""],players:[]}); // starts empty: the fields show what to type
 const blankPlayer=()=>({id:uid(),ign:"",alias:"",country:"",avatar:"",cam:"",stats:{}});
 
 document.addEventListener("click",async ev0=>{
