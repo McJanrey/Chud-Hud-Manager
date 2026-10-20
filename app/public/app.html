@@ -66,12 +66,13 @@ function stageEdit(path,value){
   saveBar();
 }
 function reapplyPending(){PENDING.forEach(d=>{const x=DB&&DB.events.find(e=>e.id===d.ev);if(x)try{setL(x,d.path,d.value)}catch{PENDING.delete(d.ev+"|"+d.path)}})}
+function syncPill(){const p=$("#syncPill");if(p){p.className="pill "+(PENDING.size?"warn":"ok");p.textContent=PENDING.size?"Unsaved changes":"Synced to overlay"}}
 function saveBar(){
   let b=$("#savebar");
-  if(!PENDING.size){if(b)b.hidden=true;document.body.classList.remove("has-savebar");return}
+  if(!PENDING.size){if(b)b.hidden=true;document.body.classList.remove("has-savebar");syncPill();return}
   if(!b){b=document.createElement("div");b.id="savebar";b.setAttribute("role","region");b.setAttribute("aria-label","Unsaved changes");document.body.appendChild(b)}
   const areas=[...new Set([...PENDING.values()].map(d=>{const x=DB.events.find(e=>e.id===d.ev);return (x&&x.id!==(ev()||{}).id?x.name+" · ":"")+d.area}))];
-  b.hidden=false;document.body.classList.add("has-savebar");
+  b.hidden=false;document.body.classList.add("has-savebar");syncPill();
   const nav=$(".nav");if(nav)b.style.setProperty("--savebar-left",nav.getBoundingClientRect().right+"px");
   b.innerHTML=`<span>${areas.length} unsaved area${areas.length===1?"":"s"}: ${esc(areas.join(", "))}</span><span class="row c" style="gap:8px"><button class="btn" type="button" data-act="saveCancel">Cancel</button><button class="btn primary" type="button" data-act="saveAll">Save Changes</button></span>`;
 }
@@ -221,7 +222,7 @@ const GRAD={"Rocket League":"linear-gradient(135deg,#1f5bff,#0b1430 55%,#ff8a1a)
 // The cover is the event's own upload, else the game's official key art (downloaded by the app, see /covers), over the game's gradient.
 const gameCover=g=>`url('/covers/${slug(g)}'),${GRAD[g]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`;
 const coverCss=e=>(e.cover?`url('${e.cover}'),${GRAD[e.game]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`:gameCover(e.game));
-const PAGE_DESC={ads:"Pictures, GIFs or videos that take turns on screen, full screen during breaks or in a box over the live scene.",overview:"Your overlay link, workspace details and where this game gets its data.",hud:"Pick a scene, set colours and choose what shows. Changes go live on stream as you make them.",
+const PAGE_DESC={ads:"Pictures, GIFs or videos that take turns on screen, full screen during breaks or in a box over the live scene.",overview:"Your overlay link, workspace details and where this game gets its data.",hud:"Pick a scene, set colours and choose what shows. Buttons act at once; ticks, colours and typed fields go live when you press Save Changes.",
   teams:"Teams and rosters for this event. Names here are what the overlay shows.",tournament:"Tournament name, logos and sponsors. These show on the overlay.",talent:"Casters, hosts and observers for the broadcast.",
   live:"Where the match data comes from, who is playing and what the score is.",ocr:"Read scores and the clock from the screen for games without a data feed.",mc:"Connect your server, manage the roster and run Hunger Games or Build Battle.",
   rb:"Score the match by hand and put cards on screen.",camera:"Caster seats and the camera link for each one.",graphics:"The lower third and the countdown timer.",schedule:"Matches for the Schedule scene.",
@@ -250,7 +251,7 @@ function topbar(e){
 }
 function pagehead(e){
   if(!e)return`<div class="pagehead"><h1>My Events</h1><p>Every broadcast you run, one workspace each. Open one to take control.</p></div>`;
-  const pill=ui.view==="hud"?`<span class="pill ok">Synced to overlay</span>`:"";
+  const pill=ui.view==="hud"?`<span class="pill ${PENDING.size?"warn":"ok"}" id="syncPill">${PENDING.size?"Unsaved changes":"Synced to overlay"}</span>`:"";
   return`<div class="pagehead row"><div><h1>${META[ui.view][0]}</h1><p>${PAGE_DESC[ui.view]||""}</p></div>${pill}</div>`;
 }
 function render(){
@@ -349,22 +350,26 @@ overview(e){
 hud(e){
   HGCARD="";
   const h=e.hud,inGame=h.scene==="ingame"; // boost lists, lane panel, League timers and icons only matter for the in-game scene
-  return`<div class="hudgrid"><div class="hudctl">${!["Rocket League","League of Legends","Minecraft","Riftbound","Fortnite","Dead by Daylight","Valorant"].includes(e.game)?`<div class="banner">${esc(e.game)} has no live player data. Scenes show team names, scores and the clock read from the screen with Screen OCR.</div>`:""}
+  const hg=e.game==="Minecraft"&&h.scene==="ingame"&&e.mc.mode!=="buildbattle"?hgEditor(e):""; // sets HGCARD, shown under the preview
+  const T0=e.teams.find(t=>t.id===e.live.left),T1=e.teams.find(t=>t.id===e.live.right);
+  return`<div class="hudone">${!["Rocket League","League of Legends","Minecraft","Riftbound","Fortnite","Dead by Daylight","Valorant"].includes(e.game)?`<div class="banner">${esc(e.game)} has no live player data. Scenes show team names, scores and the clock read from the screen with Screen OCR.</div>`:""}
   ${inGame&&e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
-  <div class="sec"><div class="row" style="gap:24px">
-    <div class="fld" style="flex:0 1 260px">${F.sel("hud.scene","Scene shown",Object.entries(SCENES),"data-rerender")}</div>
-    <div class="fld" style="flex:none"><span>Colors</span><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}">Team</button></div></div>
-    <div class="fld" style="flex:none"><span>Customise</span><div class="row c" style="gap:8px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></div></div>
+  <div class="hudtop">
+    <div class="fld"><span>Selected Scene</span><div class="row c nowrap" style="gap:8px"><div style="width:240px">${F.sel("hud.scene","",Object.entries(SCENES),"data-rerender")}</div><button class="btn icon" type="button" data-act="copySceneLink" title="Copy this scene's overlay link" aria-label="Copy this scene's overlay link">${ico("copy")}</button></div></div>
+    <div class="fld"><span>Colors</span><div class="row c nowrap" style="gap:8px"><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}"><i class="tdots"><b style="background:${esc((T0&&T0.color)||"#2f7dff")}"></b><b style="background:${esc((T1&&T1.color)||"#ff9b1a")}"></b></i>Team</button></div>${h.colorMode==="custom"?`<span class="row c nowrap" style="gap:6px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></span>`:""}</div></div>
     ${inGame&&e.game==="League of Legends"?`<div class="fld" style="flex:none"><span>Bottom board (F9)</span><div class="seg">${[["lane","Lane board"],["fight","Teamfight strip"]].map(([k,l])=>`<button type="button" data-act="lolPanel" data-arg="${k}" aria-pressed="${(e.hud.lolPanel==="fight"?"fight":"lane")===k}">${l}</button>`).join("")}</div></div>`:""}
+    <span class="grow"></span>
     ${inGame?`<div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>`:""}
     ${inGame&&h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
-  </div></div>
-  ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="sec"><div class="chks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (one big camera per team)":"Player webcams (3 a team)")}${e.game==="League of Legends"?F.chk("hud.show.focus","Focus panel")+F.chk("hud.show.sponsor","Sponsor box")+F.chk("hud.show.minimap","Minimap frame"):""}${F.chk("hud.autoBoard","Team stats on podium")}</div>${camControls(e)}</div>
-  ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="sec"><div class="chks">${F.chk("hud.show.playerCam","Player webcams")}</div>${camControls(e)}</div>`:""}
-  ${e.game==="League of Legends"?lolSettings(e):""}`:""}
-  ${e.game==="Minecraft"&&h.scene==="ingame"&&e.mc.mode!=="buildbattle"?hgEditor(e):""}
+  </div>
+  ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (one big camera per team)":"Player webcams (3 a team)")}${e.game==="League of Legends"?F.chk("hud.show.focus","Focus panel")+F.chk("hud.show.sponsor","Sponsor box")+F.chk("hud.show.minimap","Minimap frame"):""}${F.chk("hud.autoBoard","Team stats on podium")}</div>`:""}
+  ${inGame&&["Rocket League","League of Legends"].includes(e.game)&&e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}
+  ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.playerCam","Player webcams")}</div>${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
+  <div class="hudprev">${stage()}${HGCARD}</div>
+  ${inGame&&e.game==="League of Legends"?lolSettings(e):""}
+  ${hg}
   ${h.scene==="casters"?castersPanel(e):""}
-  </div><div class="previewcol">${stage()}${HGCARD}</div></div>`;
+  </div>`;
 },
 teams(e){
   if(!ui.team||!tm(e,ui.team))ui.team=e.teams[0]?.id||null;
@@ -943,6 +948,7 @@ document.addEventListener("click",async ev0=>{
     case "adRestart":put("ads.start",Date.now());toast("Ads start again from the first one");break;
     case "adMove":{const[i,d]=arg.split("|").map(Number),L=(e.ads.items||[]).slice(),j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];put("ads.items",L);break;}
     case "adDel":{const L=(e.ads.items||[]).filter((_,k)=>k!==+arg);put("ads.items",L);toast("Ad removed");break;}
+    case "copySceneLink":{const u=overlayUrl(e.hud.scene||"auto");try{await navigator.clipboard.writeText(u);toast("Overlay link for "+(SCENES[e.hud.scene]||"this scene")+" copied")}catch{toast("Copy failed.")}return;}
     case "saveAll":saveAll();return;
     case "saveCancel":cancelAll();return;
     case "copy":{const v=$("#ovUrl").value;try{await navigator.clipboard.writeText(v);toast("Overlay URL copied")}catch(err){$("#ovUrl").select();toast("Press Ctrl+C to copy")}return;}

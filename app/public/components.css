@@ -214,3 +214,13 @@ body.has-savebar .page{padding-bottom:96px}
 .adrow{display:grid;grid-template-columns:112px 84px minmax(0,1fr) auto auto;align-items:end;gap:12px;padding:8px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2)}
 .adrow.off{opacity:.55}.adrow .fld{margin:0;min-width:0}.adrow .chk{margin-bottom:8px}
 .adthumb{width:112px;height:63px;border-radius:6px;overflow:hidden;background:#000}.adthumb img,.adthumb video{width:100%;height:100%;object-fit:contain;display:block}
+
+/* HUD Editor: controls along the top, the preview full width below */
+.hudone{display:flex;flex-direction:column;gap:16px}
+.hudtop{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 24px}
+.hudtop .fld{margin:0;flex:none}.hudtop .grow{flex:1}
+.hudchks{display:flex;flex-wrap:wrap;gap:6px 0;align-items:center}
+.hudchks .chk{border:0;background:none;padding:2px 14px 2px 0;margin-right:14px;border-right:1px solid var(--line);border-radius:0;font-size:13px;color:var(--text-2)}
+.hudchks .chk:last-child{border-right:0}
+.hudchks .chk,.hudchks .chk:has(input:checked){background:none!important;border-top:0!important;border-bottom:0!important;border-left:0!important;box-shadow:none!important}
+.tdots{display:inline-flex;margin-right:6px}.tdots b{width:10px;height:10px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.35)}.tdots b+b{margin-left:-4px}
