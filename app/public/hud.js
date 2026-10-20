@@ -2,6 +2,7 @@
 (function () {
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmt = s => { s = Math.max(0, Math.floor(+s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }; // whole seconds: the Minecraft and Riftbound clocks are fractional
+  const PH = `<img class="ph-ph" src="/brand/placeholder.png" alt="">`; // stand-in person when a player has no photo
   const low = s => String(s || "").toLowerCase().trim();
   /* Names read from a screen are rarely perfect ("Jazii" as "Jaz1i", a team tag in front). Exact matches always win; this only
      decides when there isn't one. Digits must agree, and short names must match exactly, so "Player1" never becomes "Player2". */
@@ -355,13 +356,13 @@
     const p = m.focus || m.mvp; if (!p) return { html: "", cams: [] };
     const c = m.colors[p.side], cols = COLS[m.kind] || COLS.rl;
     return { html: `<div class="h-full"><div class="h-eyebrow">${m.focus ? "PLAYER SPOTLIGHT" : "MATCH MVP"}</div><div class="h-ind" style="--c:${c}">
-    <div class="pic">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<div class="h-sil"></div>`}</div>
+    <div class="pic">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH}</div>
     <div class="info"><div style="display:flex;align-items:center;gap:14px;font-size:30px;color:${c}">${lg(p.team).replace('class="lgbox"', 'class="lgbox" style="width:44px;height:44px"')}${esc(p.team ? p.team.name : "")}</div><b>${esc(p.display)}</b>
     <div class="grid">${cols.map(([k, n]) => `<div><b class="num">${p[k] || 0}</b><small>${n}</small></div>`).join("")}</div></div></div></div>`, cams: [] };
   };
   S.lineup = (m) => {
     const side = (t, s) => `<div class="side" style="--c:${m.colors[s]}"><div class="hd">${lg(t)}<span>${esc(t ? t.name : "TBD")}</span></div>
-      ${(t ? t.players : []).map(p => `<div class="p"><div class="av">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<div class="h-sil"></div>`}</div><b>${esc(p.alias || p.ign)}</b>${p.country ? `<span class="h-cc">${esc(p.country)}</span>` : ""}</div>`).join("") || `<div class="p" style="padding-left:16px"><small>ROSTER NOT SET</small></div>`}</div>`;
+      ${(t ? t.players : []).map(p => `<div class="p"><div class="av">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH}</div><b>${esc(p.alias || p.ign)}</b>${p.country ? `<span class="h-cc">${esc(p.country)}</span>` : ""}</div>`).join("") || `<div class="p" style="padding-left:16px"><small>ROSTER NOT SET</small></div>`}</div>`;
     return { html: `<div class="h-full"><div class="h-eyebrow">TEAM LINEUPS</div><div class="h-lineup">${side(m.sides[0], 0)}${side(m.sides[1], 1)}</div></div>`, cams: [] };
   };
   S.schedule = (m) => {
@@ -442,7 +443,7 @@
   const bpPlayers = (m, s) => m.players[s].filter(p => { if (!p || p.shortcut === 0 || !p.display) return false;
     if (m.live) return true; const r = p.pid ? rosterP(m.ev, p.pid) : null; return !!(r && (r.ign || r.alias)); });
   const pic = (p, cls) => { const url = p && (p.agent && VAL_UUID.test(String(p.agent)) ? `/val-agent/${p.agent}/displayicon.png` : p.avatar);
-    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="">` : ""}</span>`; };
+    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="">` : PH}</span>`; };
 
   S.lowerthird = (m) => {
     const ev = m.ev, o = so(ev, "lowerthird"), [L, R] = m.sides, mt = bpMatch(ev), lbl = esc(String((ev.lowerThird || {}).label || "LOCAL TIME").toUpperCase());
@@ -484,7 +485,7 @@
       const t = p.team, rows = m.kind === "rl" ? [["GOALS", stv(ev, p, "goals")], ["ASSISTS", stv(ev, p, "assists")], ["SAVES", stv(ev, p, "saves")], ["SCORE", stv(ev, p, "score")]]
         : m.kind === "lol" ? [["K/D/A", `${stv(ev, p, "kills")} / ${stv(ev, p, "deaths")} / ${stv(ev, p, "assists")}`], ["CS", stv(ev, p, "cs")], ["LEVEL", stv(ev, p, "level")], ["VISION", stv(ev, p, "ward")]]
         : [["K/D/A", `${stv(ev, p, "kills")} / ${stv(ev, p, "deaths")} / ${stv(ev, p, "assists")}`], ["PERFORMANCE SCORE", stv(ev, p, "score")], ["FIRST KILLS", stv(ev, p, "fk")], ["MULTI KILLS", stv(ev, p, "mk")]];
-      const photo = p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<div class="h-sil"></div>`;
+      const photo = p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH;
       h += `<div class="bp-ind" data-k="bp-ind-${esc(p.pid || p.display)}">${o.team && t ? `<span class="vt">${esc(t.name.toUpperCase())}</span>` : ""}<div class="ph">${photo}</div><b class="pn">${esc(noTag(p.display).toUpperCase())}</b>
         ${o.stats ? `<div class="rows">${rows.map(([n, v], i) => `<div class="r" data-k="r${i}"><span>${n}</span><b class="num">${esc(v)}</b></div>`).join("")}</div>` : ""}</div>`;
     }
@@ -495,7 +496,7 @@
   S.lineup = (m) => {
     const ev = m.ev, o = so(ev, "lineup"), s = +o.side ? 1 : 0, t = m.sides[s], ps = (t ? t.players : []).filter(p => p.ign || p.alias).slice(0, 5);
     let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}${o.banner ? bpBanner(ev) : ""}`;
-    if (o.lineup) h += `<div class="bp-lu" data-k="bp-lu${s}" style="--n:${Math.max(1, ps.length)}"><div class="ppl">${ps.map((p, i) => `<div class="pp" data-k="pp${i}">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<div class="h-sil"></div>`}</div>`).join("")}</div>
+    if (o.lineup) h += `<div class="bp-lu" data-k="bp-lu${s}" style="--n:${Math.max(1, ps.length)}"><div class="ppl">${ps.map((p, i) => `<div class="pp" data-k="pp${i}">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH}</div>`).join("")}</div>
       <div class="nms">${ps.map((p, i) => `<div class="nm" data-k="nm${i}">${flag(p.country)}<b>${esc(String(p.alias || p.ign).toUpperCase())}</b></div>`).join("") || `<div class="nm"><b>${esc(t ? t.name.toUpperCase() : "PICK A TEAM")}</b></div>`}</div></div>`;
     return { html: h, cams: [] };
   };

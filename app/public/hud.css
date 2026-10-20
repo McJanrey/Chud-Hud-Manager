@@ -857,3 +857,4 @@
 .bp-cd small{display:block;font:600 38px/1 "Teko",sans-serif;color:#8a6f22;letter-spacing:.02em}
 .bp-cd b{display:block;font:600 150px/1 "Teko",sans-serif;color:#6c6e70;margin-top:22px}
 .bp-tlogo{position:absolute;left:50%;top:150px;width:520px;height:330px;transform:translateX(-50%);display:flex;align-items:center;justify-content:center}.bp-tlogo img{max-width:100%;max-height:100%;object-fit:contain}
+.ph-ph{width:100%;height:100%;object-fit:contain;object-position:center bottom}
