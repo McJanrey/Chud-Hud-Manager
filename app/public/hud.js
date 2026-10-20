@@ -344,7 +344,7 @@
       <div class="kd"><b class="num">${kda(fp)}</b><span class="num">${fp.cs || 0} CS</span><span class="vs num">${EYE}${fp.ward || 0}</span></div><div class="it">${slots(fp, 7)}</div></div>` : "";
     const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), main = sp.find(x => x.type === "main"), order = main ? [main].concat(sp.filter(x => x !== main)) : sp;
     const si = order.length ? Math.floor(Date.now() / 8000) % order.length : 0, cur = order[si]; // the main sponsor first, then each sponsor for 8 seconds
-    const sponsor = cur ? `<div class="l3-sp" data-k="l3-sp"><div class="in" data-k="sp-${si}">${cur.logo ? `<img src="${esc(cur.logo)}" alt="${esc(cur.name || "")}" onerror="this.style.display='none'">` : `<b>${esc(cur.name)}</b>`}</div></div>` : "";
+    const sponsor = cur || logoAds(ev) ? `<div class="l3-sp" data-k="l3-sp"><div class="in">${logoBox(ev, order)}</div></div>` : ""; // cur, si: kept for the vMix fields
     const pc = sh.playerCam ? lolCams(m) : { html: "", cams: [] };
     const band = (sh.focus !== false ? focus : "") + (sh.sponsor !== false ? sponsor : "") + pc.html
       + (sh.card ? (ev.hud.lolPanel === "fight" ? `<div class="l3-fight" data-k="l3-fight"><div class="sd">${m.players[0].map(tile).join("")}</div><div class="mid"><small>TEAMFIGHT</small><b class="num"><span style="color:var(--L)">${fight.kills[gs(0)]}</span> – <span style="color:var(--R)">${fight.kills[gs(1)]}</span></b></div><div class="sd">${m.players[1].map(tile).join("")}</div></div>` : `<div class="l3-board" data-k="l3-board">${board}</div>`) : "")
@@ -419,9 +419,7 @@
     return { t: esc(String(t).toUpperCase()), s: esc(String(s).toUpperCase()) }; };
   const sponsorsOf = ev => (ev.tournament.sponsors || []).filter(x => x && (x.logo || x.name));
   function bpSponsor(ev, cls) {
-    const sp = sponsorsOf(ev); if (!sp.length) return `<div class="bp-spon ${cls || ""}" data-k="bp-spon"></div>`;
-    const i = Math.floor(Date.now() / 8000) % sp.length, x = sp[i];
-    return `<div class="bp-spon ${cls || ""}" data-k="bp-spon">${x.logo ? `<img data-k="sp${i}" src="${esc(x.logo)}" alt="${esc(x.name || "")}">` : `<b data-k="sp${i}">${esc(x.name)}</b>`}</div>`;
+    return `<div class="bp-spon ${cls || ""}" data-k="bp-spon">${logoBox(ev, sponsorsOf(ev))}</div>`;
   }
   function bpSponsorRun(ev) { // the sponsor strip under the bottom line on Starting Soon and Title: logos glide past between two slanted gold lines
     const sp = sponsorsOf(ev); if (!sp.length) return "";
@@ -891,7 +889,7 @@
       const body = (x, k) => `<div class="in" data-k="${k}">${x.logo ? `<img src="${esc(x.logo)}" alt="${esc(x.name || "")}" onerror="this.style.display='none'">` : `<b>${esc(x.name)}</b>`}</div>`;
       const spTop = (720 - info.squad * VAL_PITCH - 60 - 110 / 3).toFixed(2); // the reference gap above the first panel: 5v5 lands on its 445 px, 2v2 sits just over its two panels
       if (main) h += `<div class="v3-sp l" data-k="v3-sp-l" style="top:${spTop}px">${body(main, "spm")}</div>`;
-      if (rest.length) { const si = Math.floor(Date.now() / 8000) % rest.length; h += `<div class="v3-sp r" data-k="v3-sp-r" style="top:${spTop}px">${body(rest[si], "sp-" + si)}</div>`; }
+      if (rest.length || logoAds(ev)) h += `<div class="v3-sp r" data-k="v3-sp-r" style="top:${spTop}px"><div class="in">${logoBox(ev, rest)}</div></div>`; // the others take turns; in "logo box" mode, the ads
     }
     // player panels, bottom-anchored; a padded "Player N" seat (shortcut 0) is never drawn. HP, ultimate, gun and credits are what the
     // operator types on the Skirmish page (a live feed's own values win if one ever sends them); HP starts at 100 and is 0 when out.
@@ -1092,13 +1090,13 @@
       h += `<div class="fn3-ev" data-k="fn3-ev">${emb ? `<img src="${esc(emb)}" alt="" onerror="this.style.display='none'">` : ""}<b>${esc(String(l.roundTitle || l.seriesTitle || ev.tournament.name || "").toUpperCase())}<br>GAME ${Math.min(F.game, F.games)}/${F.games}</b></div>`;
     }
     const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), spx = sp.length ? sp[Math.floor(Date.now() / 15000) % sp.length] : null;
-    const showBoard = on("board") && rows.length && (F.tr === "board" || !spx || (F.tr === "rotate" && Math.floor(Date.now() / 15000) % 2 === 0));
+    const showBoard = on("board") && rows.length && (F.tr === "board" || !(spx || logoAds(ev)) || (F.tr === "rotate" && Math.floor(Date.now() / 15000) % 2 === 0));
     if (showBoard) {
       const live = rows.map(r => ({ r, pts: r.pts + F.gel(r.team) * (+((ev.fn || {}).elimPts) || 0), out: F.out(r.team) })).sort((a, b) => b.pts - a.pts);
       const pages = Math.max(1, Math.ceil(live.length / 5)), pg = Math.floor(Date.now() / 8000) % pages, page = live.slice(pg * 5, pg * 5 + 5);
       h += `<div class="fn3-lb" data-k="fn3-lb" style="height:${56 + 46 * page.length + 6}px"><i class="cn"></i><b class="tt">LEADERBOARD</b><span class="pp">POINTS</span>${page.map((x, i) => { const ns = F.named(x.r.team).map(fnName).filter(Boolean);
         return `<div class="lr${x.out ? " out" : ""}" data-k="lr-${esc(x.r.team.id)}"><b class="rk num">${pg * 5 + i + 1}</b><span class="nms">${(ns.length ? ns.slice(0, 2) : [x.r.team.name]).map(s => `<span>${esc(String(s).toUpperCase())}</span>`).join("")}</span><b class="pt num">${x.pts}</b></div>`; }).join("")}</div>`;
-    } else if (on("sponsor") && spx) h += `<div class="fn3-sp" data-k="fn3-sp-${esc(spx.name || spx.logo)}">${spx.logo ? `<img src="${esc(spx.logo)}" alt="" onerror="this.style.display='none'">` : `<b>${esc(String(spx.name).toUpperCase())}</b>`}</div>`;
+    } else if (on("sponsor") && (spx || logoAds(ev))) h += `<div class="fn3-sp" data-k="fn3-sp">${logoAds(ev) ? logoBox(ev) : spx.logo ? `<img src="${esc(spx.logo)}" alt="" onerror="this.style.display='none'">` : `<b>${esc(String(spx.name).toUpperCase())}</b>`}</div>`;
     const tn = Math.round(+F.thr.n);
     if (on("thr") && F.thr.n !== "" && F.thr.n != null && isFinite(tn)) h += `<div class="fn3-th${showBoard ? "" : " lo"}" data-k="fn3-th"><b class="num">${Math.abs(tn)} ${F.thr.dir === "below" ? "BELOW" : "ABOVE"}</b><div class="bx">${FN_ICON.thr}<span>DAMAGE THRESHOLD</span></div></div>`;
     // bottom right, under the game's minimap: storm phase and the timer (only while a screen-read clock is fresh)
@@ -1338,12 +1336,32 @@
     return list[0];
   }
   const adMedia = x => /\.(mp4|webm|mov)$/i.test(x.url) ? `<video src="${esc(x.url)}" autoplay muted loop playsinline></video>` : `<img src="${esc(x.url)}" alt="">`;
-  S.ads = (m) => { const x = adNow(m.ev); return { html: x ? `<div class="ad-full${x.fit === "cover" ? " cover" : ""}" data-k="ad${esc(x.id)}">${adMedia(x)}</div>` : "", cams: [] }; };
+  /* One rotation for every logo box and ad spot: every item stays on the page and only the shown one changes, so the CSS
+     transition cross-fades (or slides or zooms) between them instead of popping. Ads use their own seconds; sponsors 8 each.
+     Images are always scaled to fit the box they are in. */
+  const ROT_ANIMS = ["fade", "slide", "zoom", "cut"];
+  const adList = ev => ((ev.ads || {}).items || []).filter(x => x && x.url && x.on !== false);
+  function rotHtml(ev, list, start, cls) {
+    if (!list.length) return "";
+    const a = ev.ads || {}, anim = ROT_ANIMS.includes(a.anim) ? a.anim : "fade", ms = Math.max(0, Math.min(3000, Math.round(+(a.fadeMs ?? 800)) || 0));
+    const secs = x => Math.max(2, +x.secs || 8), total = list.reduce((n, x) => n + secs(x), 0);
+    let t = (((Date.now() - (+start || 0)) / 1000) % total + total) % total, cur = 0;
+    for (let i = 0; i < list.length; i++) { if (t < secs(list[i])) { cur = i; break; } t -= secs(list[i]); }
+    const prev = list.length > 1 ? (cur - 1 + list.length) % list.length : -1;
+    return `<div class="rot rot-${anim}${cls ? " " + cls : ""}" style="--rt:${ms}ms">${list.map((x, i) => `<div class="ri${x.cover ? " cover" : ""}${i === cur ? " on" : i === prev ? " was" : ""}" data-k="ri-${esc(x.id)}">${x.html}</div>`).join("")}</div>`;
+  }
+  const adRot = (ev, cls, fit) => rotHtml(ev, adList(ev).map(x => ({ id: "ad" + x.id, html: adMedia(x), secs: x.secs, cover: fit && x.fit === "cover" })), (ev.ads || {}).start, cls);
+  // a logo box: the ads when "In the logo box" is on and there are ads, else the given sponsors (8 seconds each)
+  function logoBox(ev, sponsors) {
+    if ((ev.ads || {}).mode === "logo" && adList(ev).length) return adRot(ev, "", false);
+    return rotHtml(ev, (sponsors || []).map((x, i) => ({ id: "sp" + i + (x.logo || x.name), html: x.logo ? `<img src="${esc(x.logo)}" alt="${esc(x.name || "")}" onerror="this.style.display='none'">` : `<b>${esc(x.name)}</b>`, secs: 8 })), 0);
+  }
+  const logoAds = ev => (ev.ads || {}).mode === "logo" && adList(ev).length > 0;
+  S.ads = (m) => ({ html: adList(m.ev).length ? `<div class="ad-full" data-k="ad-full">${adRot(m.ev, "", true)}</div>` : "", cams: [] });
   function adOverlay(ev, s) {
     const a = ev.ads || {};
     if (!["corner", "banner"].includes(a.mode) || s === "ads") return "";
-    const x = adNow(ev);
-    return x ? `<div class="ad-box ad-${a.mode}" data-k="adb${esc(x.id)}">${adMedia(x)}</div>` : "";
+    return adList(ev).length ? `<div class="ad-box ad-${a.mode}" data-k="adb-${a.mode}">${adRot(ev, "", false)}</div>` : "";
   }
   function render(hudEl, ev, game, scene, ctx) {
     CTX = ctx || {};

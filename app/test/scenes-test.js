@@ -103,7 +103,9 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     const dnow = Date.now; Date.now = () => 0; const s0 = vh(spV); Date.now = () => 8000; const s1 = vh(spV); Date.now = dnow;
     check("VALORANT: the main sponsor sits on the left as an image that hides itself if it breaks", /v3-sp l[\s\S]*src="\/x\/main.png"[^>]*onerror/.test(s0));
     check("VALORANT: the sponsor boxes sit the reference gap above the first panel (5v5 at 296.67 = 445 px at 1080p, 2v2 at 492.67)", /v3-sp l" data-k="v3-sp-l" style="top:492.67px"/.test(s0) && /v3-sp l" data-k="v3-sp-l" style="top:296.67px"/.test(vh(vmk(e => { e.tournament.sponsors = [{ name: "M", logo: "", type: "main" }]; }, 5))));
-    check("VALORANT: the other sponsors rotate every 8 s on the right", /v3-sp r[\s\S]*SIDEKICK/.test(s0) && !/v3-sp r[\s\S]*third/.test(s0) && /v3-sp r[\s\S]*\/x\/third.png/.test(s1) && !/v3-sp r[\s\S]*SIDEKICK/.test(s1));
+    // logo boxes keep every item on the page and mark the one shown ("ri on"), so the change cross-fades
+    const shown = (h, box) => { const i = h.indexOf(box); if (i < 0) return ""; const m = /class="ri[^"]*\bon\b[^"]*"[^>]*>([\s\S]*?)<\/div>/.exec(h.slice(i)); return m ? m[1] : ""; };
+    check("VALORANT: the other sponsors rotate every 8 s on the right, cross-fading", shown(s0, "v3-sp r").includes("SIDEKICK") && shown(s1, "v3-sp r").includes("/x/third.png") && /v3-sp r[\s\S]*class="ri was/.test(s1));
     check("VALORANT: only a main sponsor means only the left box; the sponsor switch hides both", (() => { const h = vh(vmk(e => { e.tournament.sponsors = [{ name: "ONLY", logo: "", type: "main" }]; })); return h.includes("v3-sp l") && !h.includes("v3-sp r"); })() && !vh(vmk(e => { e.tournament.sponsors = [{ name: "A", logo: "" }]; e.hud.show.sponsor = false; })).includes("v3-sp"));
     // player panels: 98 px rows at 1080p, bottom-anchored
     vv = vh(vmk());
@@ -255,8 +257,11 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     check("League: no sponsor box without sponsors", !lh.includes("l3-sp"));
     const spEv = mk(e => { e.tournament.sponsors = [{ name: "SIDEKICK", logo: "", type: "secondary" }, { name: "MAINCO", logo: "/x/main.png", type: "main" }]; });
     const dn = Date.now; Date.now = () => 0; const sp0 = lolHtml(spEv, mkGame()); Date.now = () => 8000; const sp1 = lolHtml(spEv, mkGame()); Date.now = dn;
-    check("League: the sponsor box shows the main sponsor first, logo as an image", sp0.includes("l3-sp") && sp0.includes('src="/x/main.png"') && !sp0.includes("SIDEKICK"));
-    check("League: ...then rotates to the next sponsor (name text without a logo)", sp1.includes("SIDEKICK") && !sp1.includes("/x/main.png"));
+    check("League: the sponsor box shows the main sponsor first, logo as an image", sp0.includes("l3-sp") && shown(sp0, "l3-sp").includes('src="/x/main.png"'));
+    check("League: ...then rotates to the next sponsor (name text without a logo)", shown(sp1, "l3-sp").includes("SIDEKICK") && !shown(sp1, "l3-sp").includes("/x/main.png"));
+    const adEv = mk(e => { e.tournament.sponsors = [{ name: "SIDEKICK", logo: "", type: "secondary" }]; e.ads = { mode: "logo", start: 0, anim: "slide", fadeMs: 500, items: [{ id: "a1", url: "/brand/ads/standby.png", secs: 6, on: true }, { id: "a2", url: "/brand/ads/lotd.png", secs: 6, on: true }] }; });
+    Date.now = () => 7000; const ad1 = lolHtml(adEv, mkGame()); Date.now = dn;
+    check("Ads in the logo boxes: the ads replace the sponsors, take their own seconds and use the chosen animation", shown(ad1, "l3-sp").includes("/brand/ads/lotd.png") && !ad1.includes("SIDEKICK") && /rot rot-slide" style="--rt:500ms"/.test(ad1));
     check("League: the sponsor switch hides the box", !lolHtml(mk(e => { e.tournament.sponsors = [{ name: "A", logo: "" }]; e.hud.show.sponsor = false; }), mkGame()).includes("l3-sp"));
     // minimap frame
     check("League: minimap frame shows and toggles off", lh.includes("l3-map") && !lolHtml(mk(e => { e.hud.show.minimap = false; }), mkGame()).includes("l3-map"));

@@ -14,6 +14,7 @@
 <div id="ovl"></div>
 <div id="toasts" aria-live="polite"></div>
 <script src="/hud.js"></script>
+<script src="/crop.js"></script>
 <script>
 (()=>{
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -148,7 +149,7 @@ Object.assign(I,{
   copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/>',
   up:'<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',swap:'<path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
   trash:'<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/>',x:'<path d="M5 5l14 14M19 5L5 19"/>',full:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
-  reset:'<path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',plus:'<path d="M12 5v14M5 12h14"/>',
+  reset:'<path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',plus:'<path d="M12 5v14M5 12h14"/>',edit:'<path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/>',
   updown:'<path d="M8 9l4-4 4 4M8 15l4 4 4-4"/>',collapse:'<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
   moon:'<path d="M20 14.5A8 8 0 119.5 4a6.5 6.5 0 0010.5 10.5z"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',check:'<path d="M5 12l4 4 10-10"/>',
@@ -165,7 +166,7 @@ const F={
   chk:(p,label)=>`<label class="chk"><input type="checkbox" id="${fid(p)}" data-bind="${p}"${get(E,p)?" checked":""}>${label}</label>`,
   sw:(p,label)=>`<label class="swrow"><span>${label}</span><input class="swin" type="checkbox" id="${fid(p)}" data-bind="${p}"${get(E,p)?" checked":""}></label>`,
   step:p=>`<span class="step"><button type="button" data-act="bump" data-path="${p}" data-d="-1" aria-label="Decrease">−</button><output data-mirror="${p}">${get(E,p)}</output><button type="button" data-act="bump" data-path="${p}" data-d="1" aria-label="Increase">+</button></span>`,
-  dz:(p,title,cls="")=>{const v=get(E,p);return`<div class="dz ${cls}">${v?`<img src="${esc(v)}" alt=""><button class="btn icon x" type="button" data-act="clearImg" data-path="${p}" aria-label="Remove image">${ico("x")}</button>`:cls.includes("mini")?ico("up"):`<span>${ico("up")}</span><b>${title}</b><span>Click to browse or drop an image</span>`}<input type="file" accept="image/*" id="${fid(p)}" data-upload="${p}" aria-label="${esc(title||"Image")}"></div>`},
+  dz:(p,title,cls="")=>{const v=get(E,p);return`<div class="dz ${cls}">${v?`<img src="${esc(v)}" alt="">${/\.(gif|svg)$/i.test(v)?"":`<button class="btn icon ed" type="button" data-act="imgEdit" data-path="${p}" aria-label="Resize or crop" title="Resize or crop">${ico("edit")}</button>`}<button class="btn icon x" type="button" data-act="clearImg" data-path="${p}" aria-label="Remove image">${ico("x")}</button>`:cls.includes("mini")?ico("up"):`<span>${ico("up")}</span><b>${title}</b><span>Click to browse or drop an image</span>`}<input type="file" accept="image/*" id="${fid(p)}" data-upload="${p}" aria-label="${esc(title||"Image")}"></div>`},
 };
 const ml=(t,cls="ml")=>!t?`<span class="${cls}">?</span>`:t.logos&&t.logos[0]?`<img class="${cls}" src="${esc(t.logos[0])}" alt="">`:`<span class="${cls}" style="background:${esc(t.color)}">${esc((t.tag||"?").slice(0,4))}</span>`;
 const teamOpts=e=>[["","Select team"],...e.teams.map(t=>[t.id,t.name])];
@@ -195,6 +196,9 @@ function valWeaponList(){
   if(VALWP===null){VALWP=[];fetch("/api/val/weapons").then(r=>r.ok?r.json():[]).then(a=>{if(Array.isArray(a)&&a.length){VALWP=a;if(ui.view==="val"&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)))render()}else setTimeout(()=>{VALWP=null},30000)}).catch(()=>setTimeout(()=>{VALWP=null},30000))}
   return VALWP;
 }
+const SPONSOR_MAX=8;
+const BUILTIN_ADS=[{id:"standby",name:"StandBy",url:"/brand/ads/standby.png"},{id:"lotd",name:"LOTD",url:"/brand/ads/lotd.png"}];
+const flagImg=cc=>/^[A-Z]{2}$/i.test(cc||"")?`<img class="flag" src="https://flagcdn.com/w40/${String(cc).toLowerCase()}.png" alt="" onerror="this.remove()">`:"";
 const agentOpts=cur=>{const l=valAgentList();return[["","No agent"],...(cur&&!l.some(a=>a.uuid===cur)?[[cur,"Chosen agent"]]:[]),...l.map(a=>[a.uuid,a.name])]};
 
 /* ---------- shell ---------- */
@@ -389,9 +393,9 @@ teams(e){
       <div class="sec" style="gap:10px">${F.text(P+".name","","Team name")}${F.text(P+".tag","","Short tag",'maxlength="5" data-upper')}${F.text(P+".division","","Division, e.g. Varsity Premier")}${F.text(P+".seed","","Seed or subtitle, e.g. LCK #3 (League score bar)")}</div></div>
     <div class="sec"><div><h2>Team logo</h2><p class="sub">Upload your team's primary, secondary and tertiary logos. The HUD uses the primary.</p></div>
       <div class="cols" style="--n:3">${["Primary","Secondary","Tertiary"].map((l,j)=>F.dz(`${P}.logos.${j}`,l)).join("")}</div></div>
-    <div class="sec"><div class="sechead"><div><h2>Team members</h2><p class="sub">The in-game name must match the IGN exactly for auto team tracking.</p></div><button class="btn" type="button" data-act="addPlayer">+ Add player</button></div>
-      <div class="tw"><table class="grid"><thead><tr><th style="width:60px">Avatar</th><th>${IGN_LABEL(e.game)} *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source URL</th>${e.game==="Valorant"?"<th>Agent</th>":""}<th style="width:44px"></th></tr></thead><tbody>
-      ${t.players.map((p,j)=>`<tr><td>${F.dz(`${P}.players.${j}.avatar`,"Avatar","mini")}</td><td>${F.text(`${P}.players.${j}.ign`,"","In-game name")}</td><td>${F.text(`${P}.players.${j}.alias`,"","Alias")}</td><td>${F.sel(`${P}.players.${j}.country`,"",COUNTRIES)}</td><td>${F.text(`${P}.players.${j}.cam`,"","https://vdo.ninja/?view=…")}</td>${e.game==="Valorant"?`<td>${F.sel(`${P}.players.${j}.agent`,"",agentOpts(p.agent))}</td>`:""}<td><button class="btn icon" type="button" data-act="delPlayer" data-arg="${j}" aria-label="Remove player">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="7" class="sub" style="padding:16px">No players yet.</td></tr>`}
+    <div class="sec"><div class="sechead"><div><h2>Team members</h2><p class="sub">The in-game name must match the IGN exactly for auto team tracking.</p></div><div class="row c" style="gap:8px"><button class="btn" type="button" data-act="nav" data-arg="camera">${ico("link")}Webcams</button><button class="btn" type="button" data-act="addPlayer">${ico("plus")}Add player</button></div></div>
+      <div class="tw"><table class="grid"><thead><tr><th style="width:60px">Avatar</th><th>${IGN_LABEL(e.game)} *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source</th>${e.game==="Valorant"?`<th style="min-width:150px">Agent</th>`:""}<th style="width:44px"></th></tr></thead><tbody>
+      ${t.players.map((p,j)=>`<tr><td>${F.dz(`${P}.players.${j}.avatar`,"Avatar","mini pt")}</td><td>${F.text(`${P}.players.${j}.ign`,"","In-game name")}</td><td>${F.text(`${P}.players.${j}.alias`,"","Alias")}</td><td><div class="row c nowrap ctry">${flagImg(p.country)}${F.sel(`${P}.players.${j}.country`,"",COUNTRIES)}</div></td><td>${p.cam||ui.camEdit===p.id?F.text(`${P}.players.${j}.cam`,"","Camera link, or blank for our own"):`<button class="btn ghost camsrc" type="button" data-act="camEdit" data-arg="${esc(p.id)}" title="Our own camera system. Click to use another link instead.">${ico("cam")}Internal Webcam</button>`}</td>${e.game==="Valorant"?`<td>${F.sel(`${P}.players.${j}.agent`,"",agentOpts(p.agent))}</td>`:""}<td><button class="btn icon" type="button" data-act="delPlayer" data-arg="${j}" aria-label="Remove player">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="7" class="sub" style="padding:16px">No players yet.</td></tr>`}
       </tbody></table></div></div>`:`<div class="empty"><div class="ico">${ico("teams")}</div><p>No teams yet. Add your first team to start building the roster.</p><button class="btn primary" type="button" data-act="addTeam">${ico("plus")}Add team</button></div>`}</div></div>`;
 },
 tournament(e){
@@ -400,8 +404,9 @@ tournament(e){
     <div class="cols" style="--n:3">${F.sel("tournament.size","",["8 Teams","16 Teams","32 Teams","64 Teams"])}${F.sel("tournament.format","",["Single Elimination","Double Elimination","Swiss","Round Robin"])}</div></div>
   <div class="sec"><div><h2>Tournament logos</h2><p class="sub">The primary logo shows in the scorebug and title screen.</p></div>
     <div class="cols" style="--n:4">${["Primary","Secondary","Tertiary","Outline"].map((l,i)=>F.dz(`tournament.logos.${i}`,l)).join("")}</div></div>
-  <div class="sec"><div class="sechead"><div><h2>Tournament sponsors</h2><p class="sub">Sponsor names rotate through the HUD ticker.</p></div><button class="btn" type="button" data-act="addSponsor">+ Add sponsor</button></div>
-    ${e.tournament.sponsors.map((s,i)=>`<div class="row c nowrap">${F.dz(`tournament.sponsors.${i}.logo`,"Logo","mini")}${F.text(`tournament.sponsors.${i}.name`,"","Sponsor name")}${F.sel(`tournament.sponsors.${i}.type`,"",[["secondary","Secondary sponsor"],["main","Main sponsor"]])}<button class="btn icon" type="button" data-act="delSponsor" data-arg="${i}" aria-label="Remove sponsor">${ico("x")}</button></div>`).join("")||`<p class="sub">No sponsors yet.</p>`}</div>`;
+  <div class="sec"><div class="sechead"><div><h2>Tournament sponsors</h2><p class="sub">Sponsors show in the sponsor spots of the designs and rotate through the ticker.</p></div>${e.tournament.sponsors.length>=SPONSOR_MAX?`<button class="btn" type="button" disabled>${ico("plus")}Max sponsors reached</button>`:`<button class="btn" type="button" data-act="addSponsor">${ico("plus")}Add sponsor</button>`}</div>
+    ${e.tournament.sponsors.length?`<div class="spgrid">${e.tournament.sponsors.map((s,i)=>`<div class="spcard"><div class="row c" style="justify-content:space-between">${F.dz(`tournament.sponsors.${i}.logo`,"Logo","mini sq")}<button class="btn icon danger" type="button" data-act="delSponsor" data-arg="${i}" aria-label="Remove sponsor">${ico("trash")}</button></div>
+      <div class="row c nowrap" style="gap:10px">${F.text(`tournament.sponsors.${i}.name`,"","Sponsor name")}${F.sel(`tournament.sponsors.${i}.type`,"",[["secondary","Secondary Sponsor"],["main","Main Sponsor"]])}</div></div>`).join("")}</div>`:`<p class="sub">No sponsors yet.</p>`}</div>`;
 },
 talent(e){
   if(!ui.talent||!e.talent.find(t=>t.id===ui.talent))ui.talent=e.talent[0]?.id||null;
@@ -483,7 +488,7 @@ camera(e){
   <div class="halves"><div class="sec"><div><h2>Caster nameplates</h2><p class="sub">Pick who sits on the desk. Add a camera link (VDO.Ninja, OBS.Ninja or any web camera page) to show live video; otherwise the portrait is used.</p></div>
     <div class="fld"><span>Seats in the ${esc(e.kit)} kit</span><div class="seg">${[[1,"Solo"],[2,"Duo"],[3,"Trio"],[4,"Quad"],[5,"Five"],[6,"Six"],[7,"Seven"],[8,"Eight"]].map(([k,l])=>`<button type="button" data-act="kitSeats" data-arg="${k}" aria-pressed="${n===k}">${l}</button>`).join("")}</div>
       <span class="note">The seat count belongs to the kit, so every event using ${esc(e.kit)} shares it. Who sits in each seat, and their camera link, are set per event below.</span></div>
-    ${Array.from({length:n},(_,i)=>`<div class="box"><b>Seat ${i+1}</b>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.url`,"Camera link","https://vdo.ninja/?view=…")}</div>`).join("")}
+    ${Array.from({length:n},(_,i)=>`<div class="box"><b>Seat ${i+1}</b>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.url`,"Camera link (blank = our own camera)","Blank = our own camera")}</div>`).join("")}
   </div><div class="sec">${stage("casters")}</div></div>`;
 },
 ads(e){
@@ -496,8 +501,14 @@ ads(e){
       <label class="btn primary" style="position:relative;overflow:hidden">${ico("plus")}Add ad<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.mov" data-upload="!ads.add" data-video style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Add an ad (picture, GIF or video)"></label></div>
       ${items.length?`<div class="adlist">${items.map(row).join("")}</div>`:`<p class="sub">No ads yet. Add a PNG, JPG, WebP or GIF picture, or an MP4, WebM or MOV video (1920×1080 fills the screen).</p>`}</div>
     <div class="sec"><h2>Where they show</h2>
-      <div class="seg">${[["off","Full screen only"],["corner","Corner box on every scene"],["banner","Banner on every scene"]].map(([k,l])=>`<button type="button" data-act="adMode" data-arg="${k}" aria-pressed="${(a.mode||"off")===k}">${l}</button>`).join("")}</div>
-      <p class="note">Full screen is the Ad Rotation scene: switch to it for breaks. The corner box and the banner sit on top of whatever scene is live, until you set this back to Full screen only.</p>
+      <div class="seg" style="flex-wrap:wrap">${[["off","Full screen only"],["logo","In the logo boxes"],["corner","Corner box on every scene"],["banner","Banner on every scene"]].map(([k,l])=>`<button type="button" data-act="adMode" data-arg="${k}" aria-pressed="${(a.mode||"off")===k}">${l}</button>`).join("")}</div>
+      <p class="note">Full screen is the Ad Rotation scene: switch to it for breaks. "In the logo boxes" puts the ads in the scenes' sponsor boxes in place of the sponsors, shrunk to fit. The corner box and the banner sit on top of whatever scene is live, until you set this back to Full screen only.</p></div>
+    <div class="sec"><h2>Animation</h2>
+      <div class="seg">${[["fade","Fade"],["slide","Slide"],["zoom","Zoom"],["cut","Cut"]].map(([k,l])=>`<button type="button" data-act="adAnim" data-arg="${k}" aria-pressed="${(a.anim||"fade")===k}">${l}</button>`).join("")}</div>
+      <div class="row c" style="gap:12px;flex-wrap:wrap;align-items:flex-end">${(a.anim||"fade")==="cut"?"":F.num("ads.fadeMs","Transition (milliseconds)",'min="0" max="3000" step="100"')}
+        <div class="fld" style="flex:none"><span>Every ad shows for</span><div class="row c nowrap" style="gap:8px"><input type="number" id="adAllSecs" min="2" max="600" value="${esc(String((items[0]&&items[0].secs)||8))}" style="width:90px" aria-label="Seconds for every ad"><span class="note">seconds</span><button class="btn" type="button" data-act="adAllSecs"${items.length?"":" disabled"}>Apply to all</button></div></div></div>
+      <p class="note">The same animation is used when the sponsors take turns in the logo boxes.</p>
+      ${(()=>{const miss=BUILTIN_ADS.filter(b=>!items.some(x=>x.url===b.url));return miss.length?`<div class="row c" style="gap:8px;flex-wrap:wrap"><span class="note">Built-in ads:</span>${miss.map(b=>`<button class="btn sm" type="button" data-act="adBuiltin" data-arg="${b.id}">${ico("plus")}${esc(b.name)}</button>`).join("")}</div>`:""})()}
       <div class="row c" style="flex-wrap:wrap"><button class="btn" type="button" data-act="scene" data-arg="ads">Show Ad Rotation now</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button><button class="btn" type="button" data-act="adRestart">Start again from the first ad</button></div></div>
   </div><div class="sec">${stage("ads")}</div></div>`;
 },
@@ -918,14 +929,17 @@ setInterval(()=>{updateStages();liveBits()},500);
 let toastT;
 function toast(msg){const box=$("#toasts"),t=document.createElement("div");t.className="toast";t.setAttribute("role","status");t.innerHTML=`${ico("check")}<span></span>`;t.lastChild.textContent=msg;box.appendChild(t);while(box.children.length>4)box.firstChild.remove();setTimeout(()=>{t.style.transition="opacity .2s";t.style.opacity="0";setTimeout(()=>t.remove(),220)},3200)}
 function confirmTwice(b){if(b.dataset.armed)return true;b.dataset.armed="1";const h=b.innerHTML;b.textContent="Click again to confirm";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.innerHTML=h}},3000);return false}
-async function upload(input,file){
+// the frame the photo editor starts with: people are portrait, covers and screenshots wide, logos and ads keep their own shape
+const cropShape=up=>/\.(avatar|portrait)$/.test(up)?"portrait":/(^|\.)(cover|bgImage|barBg)$/.test(up)?"wide":"free";
+async function upload(input,file,edited){
+  if(!edited&&file&&/^image\/(png|jpeg|webp)$/.test(file.type)&&window.ChudCrop){const out=await ChudCrop.open(file,cropShape(input.dataset.upload||""));if(!out)return;file=out}
   const vid=input.dataset.video!==undefined&&file&&(/^video\/(mp4|webm|quicktime)$/.test(file.type)||/\.mov$/i.test(file.name));
   if(!file||!(file.type.startsWith("image/")||vid)){toast(input.dataset.video!==undefined?"Use a picture (PNG, JPG, WebP, GIF) or a video (MP4, WebM, MOV).":"That file isn't an image. Use PNG, JPG, SVG or WebP.");return}
   try{const r=await fetch("/api/upload",{method:"POST",headers:{"content-type":vid&&!file.type?"video/quicktime":file.type},body:file});const j=await r.json();
     if(!r.ok)return toast(j.error||"Upload failed.");
     const up=input.dataset.upload;
     if(up==="!ads.add"){const e=ev(),cur=e.ads||{items:[],mode:"off",start:0};
-      await put("ads",Object.assign({},cur,{start:cur.start||Date.now(),items:(cur.items||[]).concat([{id:uid(),url:j.url,secs:/\.(mp4|webm|mov)$/i.test(j.url)?15:10,fit:"contain",on:true}])}));toast("Ad added")}
+      await put("ads",Object.assign({},cur,{start:cur.start||Date.now(),items:(cur.items||[]).concat([{id:uid(),url:j.url,secs:/\.(mp4|webm|mov)$/i.test(j.url)?15:8,fit:"contain",on:true}])}));toast("Ad added")}
     else if(up.startsWith("!settings.icons."))await put("settings.icons",Object.assign({},DB.settings.icons||{},{[up.slice(16)]:j.url}),false);
     else await put(up,j.url);
     render()}
@@ -975,7 +989,10 @@ document.addEventListener("click",async ev0=>{
       if(!lines.length)return toast("No players on this event yet.");
       if(r&&!r.on)toast("Camera links copied. Switch on Let players connect on Camera feed before players open them.");
       try{await navigator.clipboard.writeText(lines.join("\n"));if(!r||r.on)toast("Copied "+lines.length+" link"+(lines.length===1?"":"s"))}catch{toast("Copy failed.")}return;}
-    case "adMode":put("ads.mode",arg);toast(arg==="off"?"Ads show on the Ad Rotation scene only":"Ads now show over every scene");break;
+    case "adMode":put("ads.mode",arg);toast(arg==="off"?"Ads show on the Ad Rotation scene only":arg==="logo"?"Ads now take turns in the logo boxes":"Ads now show over every scene");break;
+    case "adAnim":put("ads.anim",arg);break;
+    case "adAllSecs":{const n=Math.max(2,Math.min(600,Math.round(+($("#adAllSecs")||{}).value)||8));put("ads.items",(e.ads.items||[]).map(x=>Object.assign({},x,{secs:n})));toast(`Every ad now shows for ${n} seconds`);break}
+    case "adBuiltin":{const b=BUILTIN_ADS.find(x=>x.id===arg);if(!b)break;const cur=e.ads||{items:[]};put("ads",Object.assign({},cur,{start:cur.start||Date.now(),items:(cur.items||[]).concat([{id:uid(),url:b.url,secs:8,fit:"contain",on:true}])}));toast(b.name+" added");break}
     case "adRestart":put("ads.start",Date.now());toast("Ads start again from the first one");break;
     case "adMove":{const[i,d]=arg.split("|").map(Number),L=(e.ads.items||[]).slice(),j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];put("ads.items",L);break;}
     case "adDel":{const L=(e.ads.items||[]).filter((_,k)=>k!==+arg);put("ads.items",L);toast("Ad removed");break;}
@@ -993,7 +1010,7 @@ document.addEventListener("click",async ev0=>{
     case "delTeam":{if(!confirmTwice(b))return;const t=tm(e,ui.team);put("teams",e.teams.filter(x=>x!==t));if(e.live.left===t.id)put("live.left","");if(e.live.right===t.id)put("live.right","");ui.team=null;toast(`${t.name} deleted`);break;}
     case "addPlayer":{const t=tm(e,ui.team);t.players.push(blankPlayer());put(`teams.${e.teams.indexOf(t)}.players`,t.players);break;}
     case "delPlayer":{const t=tm(e,ui.team);t.players.splice(+arg,1);put(`teams.${e.teams.indexOf(t)}.players`,t.players);break;}
-    case "addSponsor":e.tournament.sponsors.push({name:"",logo:"",type:"secondary"});put("tournament.sponsors",e.tournament.sponsors);break;
+    case "addSponsor":if(e.tournament.sponsors.length>=SPONSOR_MAX)break;e.tournament.sponsors.push({name:"",logo:"",type:"secondary"});put("tournament.sponsors",e.tournament.sponsors);break;
     case "delSponsor":e.tournament.sponsors.splice(+arg,1);put("tournament.sponsors",e.tournament.sponsors);break;
     case "clearImg":ev0.preventDefault();ev0.stopPropagation();put(b.dataset.path,"");break;
     case "addTalent":{const t={id:uid(),name:"New talent",role:"Caster",portrait:"",socials:[]};e.talent.push(t);ui.talent=t.id;put("talent",e.talent);break;}
@@ -1024,6 +1041,9 @@ document.addEventListener("click",async ev0=>{
     case "pause":api("/api/rl",{Command:"SetMatchPaused",Data:{bPaused:!(G()&&G().paused)}});return;
     case "demoReset":api("/api/demo/reset",{event:e.id});return;
     case "demoPause":api("/api/demo/pause",{event:e.id});return;
+    case "camEdit":ui.camEdit=arg;break;
+    case "imgEdit":{ev0.preventDefault();ev0.stopPropagation();const p=b.dataset.path,url=get(e,p),inp=document.getElementById(fid(p));if(!url||!inp)return;
+      fetch(url).then(r=>r.blob()).then(b=>upload(inp,new File([b],url.split("/").pop(),{type:b.type}))).catch(()=>toast("Could not open that picture"));return}
     case "mcState":put("hud.mcState",arg);break;
     case "valState":put("val.state",arg);if(arg==="timeout")put("val.to.at",Date.now());break;
     case "valToSide":put("val.to.side",+arg);break;

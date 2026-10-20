@@ -33,6 +33,8 @@ const blankTeam = (name, tag, color, color2, igns = []) => ({
 });
 const talent = (name, role, socials = []) => ({ id: uid(), name, role, portrait: "", socials });
 
+// ads that ship with the app; every new event starts with them, and the Ads page can add them back
+const BUILTIN_ADS = [{ id: "standby", url: "/brand/ads/standby.png", secs: 8, fit: "contain", on: true }, { id: "lotd", url: "/brand/ads/lotd.png", secs: 8, fit: "contain", on: true }];
 function newEvent(name, game = "Rocket League", organiser = "") {
   return {
     id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(), source: "auto", cover: "", // cover: an uploaded image for the event card // source: which live feed the event reads (auto = its game's own)
@@ -53,7 +55,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
       { name: "Grand Final", matches: [{ a: "", b: "", sa: "", sb: "" }] }] },
     standings: [],
     lowerThird: { title: "", subtitle: "" },
-    ads: { items: [], mode: "off", start: 0 }, // ad rotation: pictures, GIFs or videos taking turns (hud.js adNow)
+    ads: { items: BUILTIN_ADS.map(x => Object.assign({}, x)), mode: "off", start: 0, anim: "fade", fadeMs: 800 }, // ad rotation: pictures, GIFs or videos taking turns (hud.js rotHtml); anim: fade, slide, zoom or cut; mode: off (full screen scene only), corner, banner or logo (in the scenes' logo boxes)
     timer: { label: "BACK SOON", seconds: 300, endsAt: 0, remaining: 300 },
     // Minecraft: Hunger Games and Build Battle
     mc: { mode: "hungergames", title: "HUNGER GAMES", total: 24, spotlight: "", winner: "", clock: { running: false, base: 0, startedAt: 0 },
@@ -95,6 +97,11 @@ function upgrade(ev) {
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
   ev.val = Object.assign({}, d.val, ev.val); ev.val.squad = Math.max(2, Math.min(5, Math.round(+ev.val.squad) || 2)); if (!ev.val.dead || typeof ev.val.dead !== "object" || Array.isArray(ev.val.dead)) ev.val.dead = {};
   if (!ev.val.p || typeof ev.val.p !== "object" || Array.isArray(ev.val.p)) ev.val.p = {}; if (!["solid", "clear", "media"].includes(ev.val.barStyle)) ev.val.barStyle = "solid"; if (!Array.isArray(ev.val.feed)) ev.val.feed = []; if (typeof ev.val.spec !== "string") ev.val.spec = "";
+  if (!ev.ads || typeof ev.ads !== "object") ev.ads = { items: [], mode: "off", start: 0 };
+  if (!Array.isArray(ev.ads.items)) ev.ads.items = [];
+  if (!["off", "corner", "banner", "logo"].includes(ev.ads.mode)) ev.ads.mode = "off";
+  if (!["fade", "slide", "zoom", "cut"].includes(ev.ads.anim)) ev.ads.anim = "fade";
+  ev.ads.fadeMs = Math.max(0, Math.min(3000, Math.round(+(ev.ads.fadeMs ?? 800)) || 0));
   if (!["main", "buy", "timeout"].includes(ev.val.state)) ev.val.state = "main";
   { const t = ev.val.to && typeof ev.val.to === "object" ? ev.val.to : {}; ev.val.to = { side: +t.side === 1 ? 1 : 0, role: ["atk", "def"].includes(t.role) ? t.role : "", at: +t.at || 0, secs: Math.max(10, Math.min(300, Math.round(+t.secs) || 60)) }; }
   ev.val.rounds = (Array.isArray(ev.val.rounds) ? ev.val.rounds : []).filter(x => x === 0 || x === 1).slice(0, 60);
