@@ -248,6 +248,7 @@ function rail(e){
     <div class="navscroll">${nav}</div>
     <div class="navfoot">${updPill()}<div id="conn" style="display:flex;flex-direction:column;gap:8px"></div><div class="row">
       <button class="btn icon ghost" type="button" data-act="collapse" aria-label="Collapse sidebar" title="Collapse sidebar">${ico("collapse")}</button>
+      ${window.chudUpdate?`<button class="btn icon ghost" type="button" data-act="updCheck" aria-label="Check for updates" title="Check for updates">${ico("reset")}</button>`:""}
       <button class="btn icon ghost" type="button" data-act="theme" aria-label="Toggle theme" title="Toggle theme">${ico(PREF.theme==="dark"?"sun":"moon")}</button></div></div></aside>`;
 }
 function topbar(e){
@@ -969,7 +970,7 @@ setInterval(()=>{updateStages();liveBits()},500);
 /* ---------- update pop-up (installed app only) ----------
    A centred card whenever a new version is waiting: what is new, then "Update now" downloads it, backs up the data folder and
    installs (Chud Hud restarts). "Later" hides it until the next start; the pill at the bottom of the sidebar brings it back. */
-let UPD=null,UPDV="",UPDHIDE=false;
+let UPD=null,UPDV="",UPDHIDE=false,UPDASK=false; // UPDASK: the sidebar button asked, so say the answer
 const UPD_SHOW=["available","downloading","ready","installing"];
 function updPill(){return UPD&&UPD_SHOW.includes(UPD.state)&&UPDHIDE?`<button class="btn sm primary updpill" type="button" data-act="updOpen">${ico("up")}Update to ${esc(UPD.version)}</button>`:""}
 function updPaint(){
@@ -991,11 +992,14 @@ if(window.chudUpdate){
   chudUpdate.state().then(r=>{if(r){UPDV=r.version;UPD=r.update;updPaint();render()}}).catch(()=>{});
   // going: "Update now" was pressed, so a failure keeps the pop-up open with the reason; the page redraws only when the state changes (the sidebar pill)
   chudUpdate.onUpdate(u=>{const prev=UPD||{},going=!!prev.going&&!["none","idle"].includes(u.state);UPD=Object.assign({},u,{going});
-    if(u.state==="available"&&u.version!==prev.version)UPDHIDE=false;updPaint();if(u.state!==prev.state)render()});
+    if(u.state==="available"&&u.version!==prev.version)UPDHIDE=false;
+    if(UPDASK&&["none","error","available"].includes(u.state)){UPDASK=false;if(u.state==="none")toast(`You're up to date (v${UPDV})`);else if(u.state==="error")toast(u.error||"Couldn't check for updates.");else UPDHIDE=false}
+    updPaint();if(u.state!==prev.state)render()});
 }
 document.addEventListener("click",ev0=>{const b=ev0.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
   if(a==="updLater"){UPDHIDE=true;updPaint();render()}
   else if(a==="updOpen"){UPDHIDE=false;updPaint();render()}
+  else if(a==="updCheck"&&window.chudUpdate){UPDASK=true;chudUpdate.check().then(r=>{if(r&&r.ok===false){UPDASK=false;toast(r.error)}else if(r&&r.state&&r.state!=="checking"){UPDASK=false;UPDHIDE=false;updPaint()}else toast("Checking for updates…")}).catch(()=>{})}
   else if(a==="updGo"&&window.chudUpdate){UPD=Object.assign({},UPD,{going:true,error:""});updPaint();chudUpdate.go().then(r=>{if(r&&r.ok===false){UPD=Object.assign({},UPD,{going:false,error:r.error||"The update could not start."});updPaint()}}).catch(()=>{})}
 });
 

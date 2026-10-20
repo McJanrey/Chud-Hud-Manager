@@ -78,6 +78,8 @@ let installWhenReady = false;
 function setupControlIpc() {
   const on = (ch, fn) => ipcMain.handle(ch, (e, ...a) => (win && e.sender === win.webContents ? fn(...a) : undefined)); // only our own control room page
   on("app:update-state", () => ({ version: app.getVersion(), update: upd }));
+  on("app:update-check", () => { if (!updater) return { ok: false, error: "Updates only work in the installed app." }; if ([...BUSY, "available"].includes(upd.state)) return { ok: true, state: upd.state };
+    lastCheck = Date.now(); updater.checkForUpdates().catch(() => {}); return { ok: true, state: "checking" }; });
   on("app:update-go", () => {
     if (upd.state === "ready") return installUpdate();
     if (upd.state === "downloading") { installWhenReady = true; return { ok: true }; }
@@ -93,7 +95,8 @@ function createWindow(id) {
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, "control-preload.js") },
   });
   win.loadURL(controlUrl(id));
-  win.once("ready-to-show", () => win.show());
+  win.once("ready-to-show", () => { win.show(); quietCheck(60 * 1000); }); // opening the control room looks for an update
+  win.on("focus", () => quietCheck()); // and coming back to it (at most every 5 minutes)
   win.on("page-title-updated", e => e.preventDefault()); // keep the app name in the title bar
   // links to other sites open in the normal browser
   win.webContents.setWindowOpenHandler(({ url }) => { if (!url.startsWith(base)) shell.openExternal(url); return { action: "deny" }; });
@@ -138,8 +141,8 @@ function setupUpdates() {
     if (manualCheck && !launcher) dialog.showMessageBox(win, { type: "warning", message: "Couldn't check for updates.", detail: String(err && err.message || err) });
     manualCheck = false;
   });
-  updater.checkForUpdates().catch(() => {});
-  setInterval(() => { if (![...BUSY, "available"].includes(upd.state)) updater.checkForUpdates().catch(() => {}); }, 60 * 60 * 1000);
+  lastCheck = Date.now(); updater.checkForUpdates().catch(() => {});
+  setInterval(() => quietCheck(0), 10 * 60 * 1000); // every 10 minutes, so a release shows up while the app stays open
 }
 // GitHub release notes as plain text (electron-updater gives the release body as HTML, or a list of notes)
 function notesOf(info) {
@@ -179,6 +182,12 @@ function installUpdate() {
   setUpdate({ state: "installing" });
   setImmediate(() => updater.quitAndInstall(true, true)); // silent installer, relaunches the app afterwards
   return { ok: true };
+}
+// a background check: skipped while an update is downloading or waiting, and at most once per `gap` ms
+let lastCheck = 0;
+function quietCheck(gap = 5 * 60 * 1000) {
+  if (!updater || [...BUSY, "available", "checking"].includes(upd.state) || Date.now() - lastCheck < gap) return;
+  lastCheck = Date.now(); updater.checkForUpdates().catch(() => {});
 }
 function checkNow() {
   if (!updater) { if (!launcher) dialog.showMessageBox(win, { type: "info", message: "Updates only work in the installed app.", detail: "You're running from source. Use git pull to update." }); return; }
