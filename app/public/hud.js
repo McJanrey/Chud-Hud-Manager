@@ -920,6 +920,11 @@
       const ag = (u, cls) => (VAL_UUID.test(String(u || "")) ? artImg(`/val-agent/${u}/displayicon.png`, cls) : "");
       h += `<div class="v3-kf" data-k="v3-kf">${feed.map(x => `<div class="kr" data-k="kf-${+x.t || 0}" style="--k:${esc(m.colors[x.ks ? 1 : 0])};--v:${esc(m.colors[x.vs ? 1 : 0])}"><span class="kn">${esc(x.k)}</span>${ag(x.ka, "ka")}${VAL_UUID.test(String(x.gun || "")) ? artImg(`/val-weapon/${x.gun}.png`, "gn") : `<i class="gx"></i>`}${ag(x.va, "va")}<span class="vn">${esc(x.v)}</span></div>`).join("")}</div>`;
     }
+    // series maps, top left: the picked maps and the decider in play order; the one being played is bright, a box shows who picked it
+    if (sh.maps !== false) {
+      const vt = vetoFix(v.veto, v.squad), maps = vt.steps.filter(x => x.map && x.act !== "ban"), cur = (+m.series[0] || 0) + (+m.series[1] || 0);
+      if (maps.length) h += `<div class="v3-mp" data-k="v3-mp">${maps.map((x, i) => `<span class="${i === cur ? "on" : i < cur ? "done" : ""}" data-k="mp-${i}">${x.team < 0 ? `<i class="dc"></i>` : lg(m.sides[x.team], "lgbox mb")}<b>${esc(String(x.name || "").toUpperCase())}</b></span>`).join("")}</div>`;
+    }
     if (vs !== "main" && sh.stats !== false) h += valBoard(m, info);
     if (vs === "timeout") h += valTimeout(m);
     const pc = sh.playerCam ? valCams(m) : { html: "", cams: [] };

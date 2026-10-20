@@ -366,7 +366,7 @@ hud(e){
   </div>
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (one big camera per team)":"Player webcams (3 a team)")}${e.game==="League of Legends"?F.chk("hud.show.focus","Focus panel")+F.chk("hud.show.sponsor","Sponsor box")+F.chk("hud.show.minimap","Minimap frame"):""}${F.chk("hud.autoBoard","Team stats on podium")}</div>`:""}
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)&&e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}
-  ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${e.game==="Valorant"?F.chk("hud.show.boost","Players Alive")+F.chk("hud.show.feed","Game Events")+F.chk("hud.show.score","Score Line")+F.chk("hud.show.sponsor","Sponsors")+F.chk("hud.show.stats","Team Stats (Buy and Timeout board)"):""}${F.chk("hud.show.playerCam","Player webcams")}</div>${inGame&&e.game==="Valorant"&&(e.val||{}).state!=="main"&&(e.val||{}).state?valRounds(e):""}${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
+  ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${e.game==="Valorant"?F.chk("hud.show.boost","Players Alive")+F.chk("hud.show.feed","Game Events")+F.chk("hud.show.score","Score Line")+F.chk("hud.show.sponsor","Sponsors")+F.chk("hud.show.stats","Team Stats (Buy and Timeout board)")+F.chk("hud.show.maps","Series Maps"):""}${F.chk("hud.show.playerCam","Player webcams")}</div>${inGame&&e.game==="Valorant"&&(e.val||{}).state!=="main"&&(e.val||{}).state?valRounds(e):""}${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
   ${scControls(e,h.scene)}
   <div class="hudprev">${stage()}${HGCARD}</div>
   ${["statsteam","statsplayer"].includes(h.scene)&&!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?statsEditor(e):""}
@@ -871,7 +871,7 @@ const SC_LABEL={bg:"Background",ticker:"Bottom Announcement",match:"Match Text",
    click on the last round when the right team has it clears it. */
 function valRounds(e){
   const V=e.val||{},r=V.rounds||[],t=Math.max(1,Math.round(+V.target)||10),sq=Math.max(2,Math.round(+V.squad)||2),n=Math.min(60,Math.max(sq===2?2*t-1:2*t-2,r.length+1)),T=s=>{const id=s?e.live.right:e.live.left,x=e.teams.find(q=>q.id===id);return x&&(x.tag||x.name)||(s?"Right":"Left")};
-  return`<div class="fld"><span>Round history (${esc(T(0))} / ${esc(T(1))})</span><div class="row c" style="gap:4px;flex-wrap:wrap">${Array.from({length:Math.min(n,r.length+1)},(_,i)=>`<button class="btn sm" type="button" data-act="valRound" data-arg="${i}" title="Round ${i+1}" style="min-width:44px">${i+1}${i<r.length?`: ${esc(T(r[i]))}`:" +"}</button>`).join("")}</div></div>`;
+  return`<div class="fld"><span>Round history (${esc(T(0))} / ${esc(T(1))})</span><div class="row c" style="gap:4px;flex-wrap:wrap">${Array.from({length:Math.min(n,r.length+1)},(_,i)=>`<button class="btn sm" type="button" data-act="valRoundEd" data-arg="${i}" title="Round ${i+1}" style="min-width:44px">${i+1}${i<r.length?`: ${esc(T(r[i]))}`:" +"}</button>`).join("")}</div></div>`;
 }
 function scControls(e,sc){
   const D=(SaintsHUD.SC_DEF||{})[sc];if(!D||!e.hud.sc||!e.hud.sc[sc])return"";
@@ -1029,7 +1029,8 @@ document.addEventListener("click",async ev0=>{
     case "valToSide":put("val.to.side",+arg);break;
     case "valToRole":put("val.to.role",arg);break;
     case "valToStart":put("val.to.at",Date.now());break;
-    case "valRound":{const r=((e.val||{}).rounds||[]).slice(),i=+arg;if(i>=r.length)r.push(0);else if(r[i]===0)r[i]=1;else if(i===r.length-1)r.pop();else r[i]=0;put("val.rounds",r);break}
+    case "valRoundEd":{const r=((e.val||{}).rounds||[]).slice(),i=+arg;if(i>=r.length)r.push(0);else if(r[i]===0)r[i]=1;else if(i===r.length-1)r.pop();else r[i]=0;
+      put("val.rounds",r);put("live.score",[0,1].map(s=>r.filter(x=>x===s).length));put("live.autoScore",false);break} // the score is the round history's count, so the two never disagree
     case "hgEl":HGEL=HGEL===arg?null:arg;break;
     case "addCaster":{const n=Math.min(8,kitSeats(e)+1);DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:n};put(`settings.kits.${e.kit}`,{seats:n},false);break}
     case "rmCaster":{const n=Math.max(1,kitSeats(e)-1),seats=e.camera.seats.slice();seats.splice(+arg,1);seats.push({talent:"",url:"",role:""});

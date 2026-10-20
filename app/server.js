@@ -38,7 +38,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
     id: uid(), name, game, organiser, kit: "Saints Default", created: Date.now(), source: "auto", cover: "", // cover: an uploaded image for the event card // source: which live feed the event reads (auto = its game's own)
     hud: { scene: "ingame", colorMode: "team", custom: [TEAM_A, TEAM_B], bg: "pitch", autoBoard: true,
       show: { boost: true, card: true, score: true, stats: true, feed: true, goal: true, playerCam: false, focus: true, sponsor: true, minimap: true, // focus, sponsor, minimap: League's bottom band
-        mcTop: true, mcKills: true, mcFeed: true, mcElim: true, mcSpot: true, mcGrid: true, mcSponsors: true, mcCam: false }, // Hunger Games elements
+        maps: true, mcTop: true, mcKills: true, mcFeed: true, mcElim: true, mcSpot: true, mcGrid: true, mcSponsors: true, mcCam: false }, // Hunger Games elements
       mcSet: { killRows: 5, feedRows: 4, bars: true, elimSecs: 6, showBorder: true }, mcState: "main" }, // their settings, and the HUD state: main, final or winner
     teams: [],
     tournament: { name: "", region: "", lang: "", size: "32 Teams", format: "Double Elimination", logos: ["", "", "", ""], sponsors: [] },
