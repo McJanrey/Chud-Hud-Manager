@@ -269,3 +269,7 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 @media (prefers-reduced-motion:reduce){.bgloop video{display:none}}
 #ovl{position:relative;z-index:50;color:var(--text);font:var(--fs-base)/1.45 var(--font-sans)}#updlg{position:relative;z-index:300}
 .top>.grow{flex:1}
+/* My Events: delete straight from the card (two clicks) */
+.evtop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.evtop b{min-width:0}
+.evdel{width:30px;height:30px;min-height:0;padding:0;flex:none;border-radius:8px}.evdel svg{width:15px;height:15px}
+.evdel.armed{width:auto;padding:0 10px;font-size:12px;font-weight:700;background:var(--err);color:#fff}

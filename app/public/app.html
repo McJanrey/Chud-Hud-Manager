@@ -274,7 +274,7 @@ function evCards(){
   const q=(ui.evq||"").toLowerCase().trim();
   let list=DB.events.filter(e=>(!ui.evgame||e.game===ui.evgame)&&(!q||(e.name+" "+e.game).toLowerCase().includes(q)));
   if(ui.evsort==="name")list=list.slice().sort((a,b)=>a.name.localeCompare(b.name));
-  const cards=list.map(e=>`<a class="evcard" href="#" data-act="open" data-arg="${e.id}"><div class="art" style="background-image:${coverCss(e)}"></div><div class="evbody"><b>${esc(e.name)}</b><div class="evmeta"><span class="open">Open workspace</span><span class="tag">${esc(e.game)}</span></div></div></a>`).join("");
+  const cards=list.map(e=>`<a class="evcard" href="#" data-act="open" data-arg="${e.id}"><div class="art" style="background-image:${coverCss(e)}"></div><div class="evbody"><div class="evtop"><b>${esc(e.name)}</b><button class="btn icon danger evdel" type="button" data-act="delEventCard" data-arg="${e.id}" aria-label="Delete ${esc(e.name)}" title="Delete this workspace">${ico("trash")}</button></div><div class="evmeta"><span class="open">Open workspace</span><span class="tag">${esc(e.game)}</span></div></div></a>`).join("");
   const empty=!DB.events.length?`<div class="box sec" style="grid-column:1/-1;align-items:center;text-align:center;padding:48px"><h2>No events yet</h2><p class="muted">Create your first event. Pick the game and the scenes and data sources follow.</p></div>`:list.length?"":`<div class="box sec" style="grid-column:1/-1;align-items:center;text-align:center;padding:36px"><h2>Nothing matches</h2><p class="muted">Try a different search or game.</p></div>`;
   return cards+empty+`<button class="newcard" type="button" data-act="newEvent">${`<i>${ico("plus")}</i>`}<b>New event</b><span class="faint">Pick a game and name it</span></button>`;
 }
@@ -1037,6 +1037,9 @@ document.addEventListener("click",async ev0=>{
     case "palRun":{const it=PAL[+arg];closeOverlay();if(it)it.run();return}
     case "copyLink":copyLink();return;
     case "copyText":{try{await navigator.clipboard.writeText(b.dataset.arg);toast("Copied")}catch(err){toast("Select the text and press Ctrl+C")}return}
+    case "delEventCard":{ev0.preventDefault();const x=DB.events.find(q=>q.id===arg);if(!x)return;
+      if(!b.dataset.armed){b.dataset.armed="1";b.classList.add("armed");b.textContent="Delete?";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.classList.remove("armed");b.innerHTML=ico("trash")}},3000);return} // a second click within 3 seconds deletes
+      await put("events",DB.events.filter(q=>q.id!==arg),false);if(ui.cur===arg)ui.cur=null;toast(`${x.name} deleted`);break}
     case "delEvent":if(!confirmTwice(b))return;await put("events",DB.events.filter(x=>x!==e),false);ui.cur=null;toast("Event deleted");break;
     case "camLan":{const r=await fetch("/api/cam/lan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on:!(CAM&&CAM.on)})}).then(r=>r.json()).catch(()=>({error:"No answer from the server."}));
       if(r.error)toast(r.error);else{CAM=r;camPaint()}return;}
