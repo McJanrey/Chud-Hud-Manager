@@ -29,7 +29,7 @@ const log = (...a) => console.log(new Date().toLocaleTimeString(), ...a);
 /* ------------------------------------------------------------------ data */
 const blankTeam = (name, tag, color, color2, igns = []) => ({
   id: uid(), name, tag, division: "", seed: "", color, color2: color2 || "#ffffff", logos: ["", "", ""],
-  players: igns.map(ign => ({ id: uid(), ign, alias: "", country: "", avatar: "", cam: "" })),
+  players: igns.map(ign => ({ id: uid(), ign, alias: "", country: "", avatar: "", cam: "", stats: {} })),
 });
 const talent = (name, role, socials = []) => ({ id: uid(), name, role, portrait: "", socials });
 
@@ -85,7 +85,11 @@ function upgrade(ev) {
   if (ev.hud.draftAuto === undefined) ev.hud.draftAuto = true; // League: the in-game scene shows champion select while it is on
   if (ev.camera && !ev.camera.director) ev.camera.director = "all"; // "all" shows every player's webcam, "action" only the player in the action
   if (ev.camera && !Array.isArray(ev.camera.pin)) ev.camera.pin = [0, 0];
-  if (ev.camera && ev.camera.own === undefined) ev.camera.own = true; // our own camera links are used unless an event opts out
+  if (ev.camera && ev.camera.own === undefined) ev.camera.own = true;
+  { const SC = require("./public/hud.js").SC_DEF; ev.hud.sc = ev.hud.sc || {}; // each broadcast-pack scene's own switches (Background, Bottom Announcement, ...)
+    for (const k of Object.keys(SC)) ev.hud.sc[k] = Object.assign({}, SC[k], ev.hud.sc[k]); }
+  ev.lowerThird = Object.assign({ label: "LOCAL TIME", ticker: "" }, ev.lowerThird);
+  ev.teams.forEach(t => t.players.forEach(p => { if (!p.stats || typeof p.stats !== "object") p.stats = {}; })); // typed stats for the Stats scenes // our own camera links are used unless an event opts out
   ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
@@ -113,7 +117,7 @@ function upgrade(ev) {
   return ev;
 }
 const SQUAD = { "League of Legends": 5, "Rocket League": 3, "Dead by Daylight": 5, "Fortnite": 2, "Valorant": 2 };
-const seatPlayers = (ev, n) => ev.teams.forEach(t => { while (t.players.length < n) t.players.push(Object.assign({ id: uid(), ign: "", alias: "", country: "", avatar: "", cam: "" }, ev.game === "Valorant" ? { agent: "" } : {})); });
+const seatPlayers = (ev, n) => ev.teams.forEach(t => { while (t.players.length < n) t.players.push(Object.assign({ id: uid(), ign: "", alias: "", country: "", avatar: "", cam: "", stats: {} }, ev.game === "Valorant" ? { agent: "" } : {})); });
 function freshEvent(game, name = "New Event") {
   const ev = newEvent(name, game);
   // Blue and Orange are Rocket League's sides (and League has blue and red); every other game starts with names that fit it

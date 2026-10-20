@@ -365,7 +365,9 @@ hud(e){
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (one big camera per team)":"Player webcams (3 a team)")}${e.game==="League of Legends"?F.chk("hud.show.focus","Focus panel")+F.chk("hud.show.sponsor","Sponsor box")+F.chk("hud.show.minimap","Minimap frame"):""}${F.chk("hud.autoBoard","Team stats on podium")}</div>`:""}
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)&&e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}
   ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.playerCam","Player webcams")}</div>${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
+  ${scControls(e,h.scene)}
   <div class="hudprev">${stage()}${HGCARD}</div>
+  ${["statsteam","statsplayer"].includes(h.scene)&&!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?statsEditor(e):""}
   ${inGame&&e.game==="League of Legends"?lolSettings(e):""}
   ${hg}
   ${h.scene==="casters"?castersPanel(e):""}
@@ -499,7 +501,8 @@ ads(e){
 },
 graphics(e){
   const t=e.timer,rem=t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining;
-  return`<div class="halves"><div class="sec"><h2>Lower third</h2>${F.text("lowerThird.title","Headline","Welcome to NACE Varsity")}${F.text("lowerThird.subtitle","Subline","Optional")}
+  return`<div class="halves"><div class="sec"><h2>Lower third</h2>${F.text("lowerThird.label","Clock label (under the time)","LOCAL TIME")}${F.text("lowerThird.title","Match title (empty: the tournament name)","VALORANT GC")}${F.text("lowerThird.subtitle","Match subline (empty: the round title)","GROUP STAGE A - ROUND 3")}
+    ${F.text("lowerThird.ticker","Bottom announcement: messages separated by |","THANKS FOR WATCHING | AURORA SERIES IS BACK!")}<p class="note">The bottom announcement scrolls along the bottom of the lower third, schedule and stats scenes. Turn it on or off per scene in the HUD Editor.</p>
     <div class="row"><button class="btn" type="button" data-act="scene" data-arg="lowerthird">Show lower third</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button></div></div>
     <div class="sec">${stage("lowerthird")}</div></div>
   <div class="halves"><div class="sec"><h2>Timer</h2>${F.text("timer.label","Label","BACK SOON")}
@@ -859,6 +862,25 @@ function bbJudgesPanel(e,names){
       <button class="btn" type="button" data-act="pollShow" aria-pressed="${!!pl.show}">${pl.show?"Hide on screen":"Show on screen"}</button><button class="btn sm" type="button" data-act="pollClear">Clear votes</button>
       <span class="note">${pl.total} vote${pl.total===1?"":"s"}${pl.options.map((o,i)=>o?` · !${i+1} ${esc(o)}: ${pl.counts[i]||0}`:"").join("")}</span></div></div>`;
 }
+/* The broadcast-pack scenes (lower third, schedule, stats, lineup, bracket, starting soon, title): each has its own ticks, like the reference. */
+const SC_LABEL={bg:"Background",ticker:"Bottom Announcement",match:"Match Text",top:"Top Bar",banner:"Tournament Banner",stats:"Individual Stats",team:"Team Name",lineup:"Team Lineup",border:"Border",count:"Countdown",sponsors:"Sponsors"};
+function scControls(e,sc){
+  const D=(SaintsHUD.SC_DEF||{})[sc];if(!D||!e.hud.sc||!e.hud.sc[sc])return"";
+  const ticks=Object.keys(D).filter(k=>typeof D[k]==="boolean").map(k=>F.chk(`hud.sc.${sc}.${k}`,k==="logo"?(sc==="bracket"?"Tournament Logo":"Logo"):SC_LABEL[k]||k)).join("");
+  const T=id=>e.teams.find(t=>t.id===id),pl=[...(T(e.live.left)||{players:[]}).players,...(T(e.live.right)||{players:[]}).players].filter(p=>p.ign||p.alias);
+  const extra=sc==="statsplayer"?`<div style="width:240px">${F.sel("hud.sc.statsplayer.pid","",[["","Player: spotlight or MVP"],...pl.map(p=>[p.id,p.alias||p.ign])])}</div>`
+    :sc==="lineup"?`<div style="width:240px">${F.sel("hud.sc.lineup.side","",[[0,"Team: "+((T(e.live.left)||{}).name||"left")],[1,"Team: "+((T(e.live.right)||{}).name||"right")]],"data-num")}</div>`
+    :["starting","title"].includes(sc)?`<div class="row c nowrap" style="gap:8px">${F.dz(`hud.sc.${sc}.img`,"Logo","mini")}<span class="note">Logo for this scene (empty: the tournament logo)</span></div>`:"";
+  return`<div class="row c" style="gap:16px;flex-wrap:wrap"><div class="chks hudchks">${ticks}</div>${extra}</div>`;
+}
+/* Typed player stats for games with no live stats feed (VALORANT, screen-read games): what the Stats scenes show. */
+function statsEditor(e){
+  const K=[["kills","K"],["deaths","D"],["assists","A"],["score","Perf"],["fk","First kills"],["mk","Multi kills"]];
+  const side=id=>{const ti=e.teams.findIndex(t=>t.id===id);if(ti<0)return"";const t=e.teams[ti];
+    return`<div class="sec"><h2>${esc(t.name)}</h2><div class="tw"><table class="grid"><thead><tr><th>Player</th>${K.map(([,l])=>`<th style="width:84px">${l}</th>`).join("")}</tr></thead><tbody>
+    ${t.players.map((p,pi)=>p.ign||p.alias?`<tr><td>${esc(p.alias||p.ign)}</td>${K.map(([k])=>`<td>${p.stats?F.num(`teams.${ti}.players.${pi}.stats.${k}`,"",'min="0"'):""}</td>`).join("")}</tr>`:"").join("")}</tbody></table></div></div>`};
+  return`<div class="sec"><div><h2>Player stats</h2><p class="sub">This game sends no player stats, so type them here for the Stats scenes. Press Save Changes to put them on air.</p></div><div class="halves">${side(e.live.left)}${side(e.live.right)}</div></div>`;
+}
 function liveBits(){
   railStatus();
   const e=ev();if(!e)return;
@@ -901,7 +923,7 @@ async function upload(input,file){
   catch(e){toast("Upload failed. Is the server running?")}
 }
 const blankTeam=()=>({id:uid(),name:"New Team",tag:"NEW",division:"",seed:"",color:"#7c83f5",color2:"#ffffff",logos:["","",""],players:[]});
-const blankPlayer=()=>({id:uid(),ign:"",alias:"",country:"",avatar:"",cam:""});
+const blankPlayer=()=>({id:uid(),ign:"",alias:"",country:"",avatar:"",cam:"",stats:{}});
 
 document.addEventListener("click",async ev0=>{
   const b=ev0.target.closest("[data-act]");if(!b)return;if(b.tagName==="A")ev0.preventDefault();if(b.classList.contains("scrim")&&ev0.target!==b)return;

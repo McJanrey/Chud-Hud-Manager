@@ -388,6 +388,158 @@
     return { html: `<div class="h-full"><div class="h-eyebrow">${esc(m.ev.live.seriesTitle || m.ev.name)}</div><div class="h-title" style="font-size:80px">${esc(t.label)}</div><div class="h-timer num">${fmt(rem)}</div></div>`, cams: [] };
   };
 
+  /* ---------------- broadcast pack: lower third, schedule, team and player stats, lineup, bracket, starting soon, title ----------------
+     Laid out on MJ's references at 1280x720. Shared pieces: a top bar (series title over a gold rule), the tournament banner (a pennant
+     with the tournament logo, top right), the match text (title and gold subline), a sponsor box, and the bottom announcement ticker.
+     Each scene has its own switches in hud.sc[scene] (Background, Bottom Announcement, Match Text, ...), set in the HUD Editor. */
+  const SC_DEF = {
+    lowerthird: { ticker: true, match: true },
+    schedule: { bg: true, ticker: true, match: true },
+    statsteam: { bg: false, ticker: true, match: true, top: true, banner: true },
+    statsplayer: { bg: false, ticker: true, top: true, banner: true, stats: true, team: true, pid: "" },
+    lineup: { bg: true, top: true, banner: true, lineup: true, side: 0 },
+    bracket: { bg: true, logo: true },
+    starting: { bg: false, border: true, count: true, logo: true, sponsors: true, img: "" },
+    title: { bg: false, border: true, logo: true, sponsors: true, img: "" },
+  };
+  const so = (ev, sc) => Object.assign({}, SC_DEF[sc], ((ev.hud || {}).sc || {})[sc]);
+  const bpClock = () => { try { return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).toUpperCase(); } catch { return ""; } };
+  const tickerMsgs = ev => String((ev.lowerThird || {}).ticker || "").split(/\n|\|/).map(s => s.trim()).filter(Boolean);
+  function bpTicker(ev) {
+    const msgs = tickerMsgs(ev); if (!msgs.length) return "";
+    const one = msgs.map(x => `<span>${esc(x.toUpperCase())}</span><i></i>`).join(""), reps = Math.max(2, Math.ceil(12 / msgs.length));
+    const group = one.repeat(reps), secs = Math.max(18, Math.round(msgs.join(" ").length * reps * 0.22));
+    return `<div class="bp-tk" data-k="bp-tk"><div class="rl" style="animation-duration:${secs}s"><div class="g">${group}</div><div class="g">${group}</div></div></div>`;
+  }
+  const bpSeries = ev => esc(String(ev.live.seriesTitle || ev.tournament.name || ev.name || "").toUpperCase());
+  const bpTop = ev => `<div class="bp-top" data-k="bp-top"><b>${bpSeries(ev)}</b><i></i></div>`;
+  const bpBanner = ev => `<div class="bp-ban" data-k="bp-ban"><svg viewBox="0 0 136 250" preserveAspectRatio="none" aria-hidden="true"><polygon points="1.5,0 134.5,0 134.5,206 68,248 1.5,206" fill="#02140c" stroke="#FDC82F" stroke-width="2.5"/></svg><img src="${esc(tourLogo(ev))}" alt=""></div>`;
+  const bpMatch = ev => { const l = ev.lowerThird || {}, t = l.title || ev.tournament.name || ev.game, s = l.subtitle || ev.live.roundTitle || ev.live.gameSeries || "";
+    return { t: esc(String(t).toUpperCase()), s: esc(String(s).toUpperCase()) }; };
+  const sponsorsOf = ev => (ev.tournament.sponsors || []).filter(x => x && (x.logo || x.name));
+  function bpSponsor(ev, cls) {
+    const sp = sponsorsOf(ev); if (!sp.length) return `<div class="bp-spon ${cls || ""}" data-k="bp-spon"></div>`;
+    const i = Math.floor(Date.now() / 8000) % sp.length, x = sp[i];
+    return `<div class="bp-spon ${cls || ""}" data-k="bp-spon">${x.logo ? `<img data-k="sp${i}" src="${esc(x.logo)}" alt="${esc(x.name || "")}">` : `<b data-k="sp${i}">${esc(x.name)}</b>`}</div>`;
+  }
+  function bpSponsorRun(ev) { // the sponsor strip under the bottom line on Starting Soon and Title: logos glide past between two slanted gold lines
+    const sp = sponsorsOf(ev); if (!sp.length) return "";
+    const one = sp.map(x => x.logo ? `<img src="${esc(x.logo)}" alt="">` : `<b>${esc(x.name)}</b>`).join(""), reps = Math.max(2, Math.ceil(6 / sp.length));
+    return `<div class="bp-run" data-k="bp-run"><div class="rl" style="animation-duration:${Math.max(12, sp.length * reps * 3)}s"><div class="g">${one.repeat(reps)}</div><div class="g">${one.repeat(reps)}</div></div></div>`;
+  }
+  const tagOf = (t, s, kind) => esc(t ? (t.tag || t.name) : kind === "lol" ? (s ? "RED" : "BLUE") : s ? "ORG" : "BLU");
+  // per-player stats: what a live game reports, unless a number was typed on the Stats page (roster player's stats)
+  const rosterP = (ev, pid) => { for (const t of ev.teams) { const p = t.players.find(x => x.id === pid); if (p) return p; } return null; };
+  const stv = (ev, p, k) => { const r = p && p.pid ? rosterP(ev, p.pid) : null, typed = r && r.stats ? r.stats[k] : undefined;
+    return typed != null && typed !== "" ? typed : p && p[k] != null ? p[k] : 0; };
+  const BPCOLS = {
+    rl: [["goals", "GOALS"], ["assists", "ASSISTS"], ["saves", "SAVES"], ["score", "SCORE"]],
+    lol: [["kills", "KILLS"], ["deaths", "DEATHS"], ["assists", "ASSISTS"], ["cs", "CS"]],
+    def: [["kills", "KILLS"], ["deaths", "DEATHS"], ["assists", "ASSISTS"], ["score", "PERFORMANCE SCORE"]],
+  };
+  const bpCols = m => BPCOLS[m.kind] || BPCOLS.def;
+  // only real players: a named roster player, or one a live game reports (never a padded "Player 3" seat)
+  const bpPlayers = (m, s) => m.players[s].filter(p => { if (!p || p.shortcut === 0 || !p.display) return false;
+    if (m.live) return true; const r = p.pid ? rosterP(m.ev, p.pid) : null; return !!(r && (r.ign || r.alias)); });
+  const pic = (p, cls) => { const url = p && (p.agent && VAL_UUID.test(String(p.agent)) ? `/val-agent/${p.agent}/displayicon.png` : p.avatar);
+    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="">` : ""}</span>`; };
+
+  S.lowerthird = (m) => {
+    const ev = m.ev, o = so(ev, "lowerthird"), [L, R] = m.sides, mt = bpMatch(ev), lbl = esc(String((ev.lowerThird || {}).label || "LOCAL TIME").toUpperCase());
+    let h = `<div class="bp-l3" data-k="bp-l3"><div class="ck"><b class="num">${esc(bpClock())}</b><small>${lbl}</small></div><i class="sl"></i>`;
+    if (o.match) h += `<div class="scb">${lg(L)}<b class="num">${+m.series[0] || 0}</b><i></i><b class="num">${+m.series[1] || 0}</b>${lg(R)}</div><i class="sl"></i>`;
+    h += `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>${bpSponsor(ev)}</div>`;
+    if (o.ticker) h += bpTicker(ev);
+    return { html: h, cams: [] };
+  };
+  S.schedule = (m) => {
+    const ev = m.ev, o = so(ev, "schedule"), [L, R] = m.sides, mt = bpMatch(ev);
+    const cards = ev.schedule.slice(0, 3).map((x, i) => { const a = sideTeam(ev, x.left), b = sideTeam(ev, x.right), done = x.sa !== "" && x.sb !== "";
+      return `<div class="card" data-k="sc${i}"><b>${esc(String(x.label || "MATCH " + (i + 1)).toUpperCase())}</b><em>${esc(String(ev.game).toUpperCase())}</em>
+        <small>${esc((a ? a.name : "TBD").toUpperCase())} VS. ${esc((b ? b.name : "TBD").toUpperCase())}${done ? ` · ${esc(x.sa)}-${esc(x.sb)}` : ""}</small><small class="tm">${esc(String(x.time || "").toUpperCase())}</small></div>`; }).join("");
+    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}<div class="bp-frame" data-k="bp-frame"></div>
+      <div class="bp-sch" data-k="bp-sch"><em>UPCOMING</em><b>SCHEDULE</b>${cards || `<div class="card"><small>NO MATCHES SCHEDULED</small></div>`}</div>${bpSponsor(ev, "big")}
+      <div class="bp-bar" data-k="bp-bar"><div class="ck"><b class="num">${esc(bpClock())}</b><small>LOCAL TIME</small></div>
+        <div class="sb">${L && R && !["mc", "rb", "fn"].includes(m.kind) ? `${lg(L)}<b class="tg">${tagOf(L, 0, m.kind)}</b><b class="num sc">${+m.series[0] || 0}</b><i></i><b class="num sc">${+m.series[1] || 0}</b><b class="tg">${tagOf(R, 1, m.kind)}</b>${lg(R)}` : ""}</div>
+        ${o.match ? `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>` : ""}</div>`;
+    if (o.ticker) h += bpTicker(ev);
+    return { html: h, cams: [] };
+  };
+  S.statsteam = (m) => {
+    const ev = m.ev, o = so(ev, "statsteam"), [L, R] = m.sides, mt = bpMatch(ev), cols = bpCols(m);
+    const table = s => `<div class="tb ${s ? "r" : "l"}" style="--c:${esc(m.colors[s])}"><div class="thd"><span></span><span></span>${cols.map(([, n]) => `<span class="${n.length > 8 ? "sm" : ""}">${n}</span>`).join("")}</div>
+      ${bpPlayers(m, s).slice(0, 5).map((p, i) => `<div class="rw" data-k="p${s}${i}">${pic(p, "pf")}<b class="nm">${esc(noTag(p.display).toUpperCase())}</b>${cols.map(([k]) => `<b class="num">${esc(stv(ev, p, k))}</b>`).join("")}</div>`).join("")}</div>`;
+    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}${o.banner ? bpBanner(ev) : ""}
+      <div class="bp-st" data-k="bp-st">${o.match ? `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>` : ""}
+        <div class="sbar"><div class="h l" style="--c:${esc(m.colors[0])}">${lg(L)}<b class="tg">${tagOf(L, 0, m.kind)}</b><b class="num">${+m.score[0] || 0}</b></div><div class="h r" style="--c:${esc(m.colors[1])}"><b class="num">${+m.score[1] || 0}</b><b class="tg">${tagOf(R, 1, m.kind)}</b>${lg(R)}</div></div>
+        <div class="tbs">${table(0)}${table(1)}</div></div>`;
+    if (o.ticker) h += bpTicker(ev);
+    return { html: h, cams: [] };
+  };
+  S.statsplayer = (m) => {
+    const ev = m.ev, o = so(ev, "statsplayer"), all = [...bpPlayers(m, 0), ...bpPlayers(m, 1)];
+    const p = (o.pid && all.find(x => x.pid === o.pid)) || all.find(x => x === m.focus) || all.find(x => x === m.mvp) || all[0];
+    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}${o.banner ? bpBanner(ev) : ""}`;
+    if (p) {
+      const t = p.team, rows = m.kind === "rl" ? [["GOALS", stv(ev, p, "goals")], ["ASSISTS", stv(ev, p, "assists")], ["SAVES", stv(ev, p, "saves")], ["SCORE", stv(ev, p, "score")]]
+        : m.kind === "lol" ? [["K/D/A", `${stv(ev, p, "kills")} / ${stv(ev, p, "deaths")} / ${stv(ev, p, "assists")}`], ["CS", stv(ev, p, "cs")], ["LEVEL", stv(ev, p, "level")], ["VISION", stv(ev, p, "ward")]]
+        : [["K/D/A", `${stv(ev, p, "kills")} / ${stv(ev, p, "deaths")} / ${stv(ev, p, "assists")}`], ["PERFORMANCE SCORE", stv(ev, p, "score")], ["FIRST KILLS", stv(ev, p, "fk")], ["MULTI KILLS", stv(ev, p, "mk")]];
+      const photo = p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<div class="h-sil"></div>`;
+      h += `<div class="bp-ind" data-k="bp-ind-${esc(p.pid || p.display)}">${o.team && t ? `<span class="vt">${esc(t.name.toUpperCase())}</span>` : ""}<div class="ph">${photo}</div><b class="pn">${esc(noTag(p.display).toUpperCase())}</b>
+        ${o.stats ? `<div class="rows">${rows.map(([n, v], i) => `<div class="r" data-k="r${i}"><span>${n}</span><b class="num">${esc(v)}</b></div>`).join("")}</div>` : ""}</div>`;
+    }
+    if (o.ticker) h += bpTicker(ev);
+    return { html: h, cams: [] };
+  };
+  const flag = cc => /^[a-z]{2}$/i.test(String(cc || "")) ? `<img class="fl" src="https://flagcdn.com/w40/${String(cc).toLowerCase()}.png" alt="" onerror="this.remove()">` : "";
+  S.lineup = (m) => {
+    const ev = m.ev, o = so(ev, "lineup"), s = +o.side ? 1 : 0, t = m.sides[s], ps = (t ? t.players : []).filter(p => p.ign || p.alias).slice(0, 5);
+    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}${o.banner ? bpBanner(ev) : ""}`;
+    if (o.lineup) h += `<div class="bp-lu" data-k="bp-lu${s}" style="--n:${Math.max(1, ps.length)}"><div class="ppl">${ps.map((p, i) => `<div class="pp" data-k="pp${i}">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<div class="h-sil"></div>`}</div>`).join("")}</div>
+      <div class="nms">${ps.map((p, i) => `<div class="nm" data-k="nm${i}">${flag(p.country)}<b>${esc(String(p.alias || p.ign).toUpperCase())}</b></div>`).join("") || `<div class="nm"><b>${esc(t ? t.name.toUpperCase() : "PICK A TEAM")}</b></div>`}</div></div>`;
+    return { html: h, cams: [] };
+  };
+  S.bracket = (m) => {
+    const ev = m.ev, o = so(ev, "bracket"), R = (ev.bracket.rounds || []).filter(r => r.matches && r.matches.length).slice(0, 4);
+    const W = 156, RH = 30, GAP = 4, X0 = 104, DX = 190, TOP = 158, BOT = 640;
+    const ys = []; // y of each match's centre, per round
+    R.forEach((r, ri) => { ys[ri] = r.matches.map((_, j) => { const prev = ys[ri - 1]; if (prev && prev[2 * j] != null && prev[2 * j + 1] != null) return (prev[2 * j] + prev[2 * j + 1]) / 2;
+      const n = r.matches.length, step = (BOT - TOP) / n; return TOP + step * (j + .5); }); });
+    const row = (id, sc, seed, win) => { const t = sideTeam(ev, id); return `<div class="tr${win ? " w" : ""}">${seed ? `<i>${seed}</i>` : ""}<span>${esc(t ? (t.tag || t.name).toUpperCase() : "TBD")}</span><b class="num">${esc(sc)}</b></div>`; };
+    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}<div class="bp-cn tl"></div><div class="bp-cn tr"></div><div class="bp-cn bl"></div><div class="bp-cn br"></div>
+      <div class="bp-hd">${esc(String(ev.tournament.name || "TOURNAMENT").toUpperCase())}</div><div class="bp-ft">${esc(String(ev.live.seriesTitle || ev.tournament.format || "").toUpperCase())}</div>
+      <div class="bp-bt">${(R[0] ? R[0].matches.length * 2 : 0)} COMPETITOR BRACKET</div>`;
+    let seed = 0;
+    R.forEach((r, ri) => r.matches.forEach((x, j) => {
+      const y = ys[ri][j], x0 = X0 + ri * DX, a = +x.sa, b = +x.sb, d = x.sa !== "" && x.sb !== "";
+      h += `<div class="bp-mt" data-k="m${ri}-${j}" style="left:${x0}px;top:${y - RH - GAP / 2}px;width:${W}px">${row(x.a, x.sa, ri ? "" : String(++seed).padStart(2, "0"), d && a > b)}${row(x.b, x.sb, ri ? "" : String(++seed).padStart(2, "0"), d && b > a)}</div>`;
+      if (ri < R.length - 1 && j % 2 === 0 && ys[ri][j + 1] != null) { // bracket line joining this pair to the next round
+        const y2 = ys[ri][j + 1], xm = x0 + W + 12;
+        h += `<i class="bp-ln" style="left:${x0 + W}px;top:${y}px;width:12px;height:2px"></i><i class="bp-ln" style="left:${x0 + W}px;top:${y2}px;width:12px;height:2px"></i>
+          <i class="bp-ln" style="left:${xm}px;top:${y}px;width:2px;height:${y2 - y + 2}px"></i><i class="bp-ln" style="left:${xm}px;top:${(y + y2) / 2}px;width:${DX - W - 12}px;height:2px"></i>`;
+      }
+    }));
+    if (R.length) { const last = R.length - 1, y = ys[last][0], x0 = X0 + last * DX + W, fm = R[last].matches[0], a = +fm.sa, b = +fm.sb, d = fm.sa !== "" && fm.sb !== "";
+      const champ = d ? sideTeam(ev, a > b ? fm.a : fm.b) : null;
+      h += `<i class="bp-ln" style="left:${x0}px;top:${y}px;width:36px;height:2px"></i><div class="bp-win" style="left:${x0 + 36}px;top:${y - 30}px"><span>${champ ? esc((champ.name || "").toUpperCase()) : ""}</span></div>`; }
+    if (o.logo) h += `<div class="bp-tl"><img src="${esc(tourLogo(ev))}" alt=""></div>`;
+    return { html: h, cams: [] };
+  };
+  const bpFrame = (o, ev) => `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.border ? `<i class="bp-gl t"></i><i class="bp-gl b"></i>` : ""}${o.sponsors ? bpSponsorRun(ev) : ""}`;
+  S.starting = (m) => {
+    const ev = m.ev, o = so(ev, "starting"), t = ev.timer, rem = t.endsAt ? Math.max(0, Math.round((t.endsAt - Date.now()) / 1000)) : t.remaining;
+    let h = bpFrame(o, ev);
+    if (o.logo) h += `<div class="bp-slogo" data-k="bp-slogo"><img src="${esc(o.img || tourLogo(ev))}" alt=""></div>`;
+    if (o.count) h += `<div class="bp-cd" data-k="bp-cd"><small>${esc(String(t.label && t.label !== "BACK SOON" ? t.label : "STREAM STARTING IN").toUpperCase())}</small><b class="num">${fmt(rem)}</b></div>`;
+    return { html: h, cams: [] };
+  };
+  S.title = (m) => {
+    const ev = m.ev, o = so(ev, "title");
+    let h = bpFrame(o, ev);
+    if (o.logo) h += `<div class="bp-tlogo" data-k="bp-tlogo"><img src="${esc(o.img || tourLogo(ev))}" alt=""></div>`;
+    return { html: h, cams: [] };
+  };
+
   /* ---------------- Minecraft: Hunger Games and Build Battle ---------------- */
   // Player heads come from a public skin service. If it can't be reached (no internet), a letter tile is shown instead.
   const BAD = new Set();
@@ -1010,14 +1162,14 @@
   /* each of these scenes keeps its Rocket League / League version and swaps in the game's own for the others */
   const BASE = { statsteam: S.statsteam, statsplayer: S.statsplayer, lineup: S.lineup, starting: S.starting };
   const SWAP = {
-    statsteam: { mc: mcStatsTeam, rb: rbStatsTeam, gen: genStatsTeam }, statsplayer: { mc: mcStatsPlayer, rb: rbStatsPlayer, gen: genStatsPlayer },
+    statsteam: { mc: mcStatsTeam, rb: rbStatsTeam }, statsplayer: { mc: mcStatsPlayer, rb: rbStatsPlayer },
     lineup: { mc: mcLineup, rb: rbLineup }, starting: { mc: mcStarting, rb: rbStarting },
   };
   BASE.rankings = S.rankings;
-  Object.assign(SWAP.statsteam, { fn: m => fnFull(m, 12), dbd: dbdTrials, val: genStatsTeam });
-  Object.assign(SWAP.statsplayer, { fn: genStatsPlayer, dbd: genStatsPlayer, val: genStatsPlayer });
+  Object.assign(SWAP.statsteam, { fn: m => fnFull(m, 12), dbd: dbdTrials }); // VALORANT and the screen-read games use the broadcast pack's two-team board
+  Object.assign(SWAP.statsplayer, { fn: genStatsPlayer, dbd: genStatsPlayer });
   Object.assign(SWAP.lineup, { fn: fnLineup, dbd: dbdLineup });
-  Object.assign(SWAP.starting, { fn: kStarting, dbd: kStarting, val: kStarting });
+  Object.assign(SWAP.starting, { fn: kStarting, dbd: kStarting });
   SWAP.rankings = { fn: m => fnFull(m, 12) };
   for (const name of Object.keys(SWAP)) S[name] = m => (SWAP[name][m.kind] || BASE[name])(m);
 
@@ -1214,7 +1366,7 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, vetoPreset, vetoFix, VETO_FMT, agsInfo };
+  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, vetoPreset, vetoFix, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();
