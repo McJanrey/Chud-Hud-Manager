@@ -273,3 +273,9 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 .evtop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.evtop b{min-width:0}
 .evdel{width:30px;height:30px;min-height:0;padding:0;flex:none;border-radius:8px}.evdel svg{width:15px;height:15px}
 .evdel.armed{width:auto;padding:0 10px;font-size:12px;font-weight:700;background:var(--err);color:#fff}
+/* team members: fixed column widths, so the header lines up the same with or without players */
+table.grid.members{table-layout:fixed}
+table.grid th{padding:10px 8px 8px}table.grid td{padding:6px 8px}
+table.grid.members td{overflow:hidden}table.grid.members th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}table.grid.members .camsrc span,table.grid.members td select{min-width:0;max-width:100%;text-overflow:ellipsis}
+.ctry select{min-width:0;width:100%}
