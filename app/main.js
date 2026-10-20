@@ -240,6 +240,6 @@ app.whenReady().then(() => {
     app.quit();
   });
 }).catch(startupFailed);
-app.on("second-instance", () => { const w = launcher || win; if (w) { if (w.isMinimized()) w.restore(); w.focus(); } });
+app.on("second-instance", () => { const w = launcher || win; if (w) { if (w.isMinimized()) w.restore(); w.show(); w.focus(); } else if (app.isReady()) createLauncher(); }); // opening Chud Hud again always shows a window, even if the running copy had none
 app.on("will-quit", () => globalShortcut.unregisterAll());
 app.on("window-all-closed", () => app.quit());
