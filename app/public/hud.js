@@ -866,6 +866,7 @@
   }
   S.valingame = (m) => {
     const ev = m.ev, sh = ev.hud.show, v = ev.val || {}, [L, R] = m.sides, info = valInfo(m);
+    const vs = ["buy", "timeout"].includes(v.state) ? v.state : "main"; // HUD state: buy and timeout swap the side panels for the buy-round board
     let h = "";
     if (sh.score !== false) {
       // top bar, laid out on MJ's reference: two team halves, a centre plate with the score, clock and round, the players-left chips
@@ -885,7 +886,7 @@
       if (emb) h += `<div class="v3-emb" data-k="v3-emb"><img src="${esc(emb)}" alt="" onerror="this.style.display='none'"></div>`;
     }
     // sponsor boxes: the main sponsor on the left, the others (one at a time, 8 seconds each) on the right
-    if (sh.sponsor !== false) {
+    if (sh.sponsor !== false && vs === "main") {
       const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), main = sp.find(x => x.type === "main"), rest = sp.filter(x => x !== main);
       const body = (x, k) => `<div class="in" data-k="${k}">${x.logo ? `<img src="${esc(x.logo)}" alt="${esc(x.name || "")}" onerror="this.style.display='none'">` : `<b>${esc(x.name)}</b>`}</div>`;
       const spTop = (720 - info.squad * VAL_PITCH - 60 - 110 / 3).toFixed(2); // the reference gap above the first panel: 5v5 lands on its 445 px, 2v2 sits just over its two panels
@@ -894,7 +895,7 @@
     }
     // player panels, bottom-anchored; a padded "Player N" seat (shortcut 0) is never drawn. HP, ultimate, gun and credits are what the
     // operator types on the Skirmish page (a live feed's own values win if one ever sends them); HP starts at 100 and is 0 when out.
-    if (sh.boost !== false) {
+    if (sh.boost !== false && vs === "main") {
       const top = 720 - info.squad * VAL_PITCH, stats = (v.p && typeof v.p === "object") ? v.p : {};
       [0, 1].forEach(s => m.players[s].forEach((p, i) => {
         const name = p ? noTag(p.display) : "";
@@ -915,13 +916,52 @@
     }
     // killfeed, top right like the game's own: killer, their agent, the gun, the victim's agent and name; each row stays 10 seconds
     const feed = (Array.isArray(v.feed) ? v.feed : []).filter(x => x && Date.now() - (+x.t || 0) < 10000).slice(-4);
-    if (sh.feed !== false && feed.length) {
+    if (sh.feed !== false && vs === "main" && feed.length) {
       const ag = (u, cls) => (VAL_UUID.test(String(u || "")) ? artImg(`/val-agent/${u}/displayicon.png`, cls) : "");
       h += `<div class="v3-kf" data-k="v3-kf">${feed.map(x => `<div class="kr" data-k="kf-${+x.t || 0}" style="--k:${esc(m.colors[x.ks ? 1 : 0])};--v:${esc(m.colors[x.vs ? 1 : 0])}"><span class="kn">${esc(x.k)}</span>${ag(x.ka, "ka")}${VAL_UUID.test(String(x.gun || "")) ? artImg(`/val-weapon/${x.gun}.png`, "gn") : `<i class="gx"></i>`}${ag(x.va, "va")}<span class="vn">${esc(x.v)}</span></div>`).join("")}</div>`;
     }
+    if (vs !== "main" && sh.stats !== false) h += valBoard(m, info);
+    if (vs === "timeout") h += valTimeout(m);
     const pc = sh.playerCam ? valCams(m) : { html: "", cams: [] };
+    if (vs !== "main") { pc.html = ""; pc.cams.forEach(c => { c.show = false; }); } // kept loaded behind the board, so they come back at once
     return { html: h + pc.html, cams: pc.cams };
   };
+  /* Buy-round board: the main sponsor, the round history and the event's emblem over two player tables (agent, name, K/D/A,
+     ultimate, gun, credits). Abilities and shields have no source (no live VALORANT feed), so they are not drawn. */
+  function valBoard(m, info) {
+    const ev = m.ev, v = ev.val || {}, stats = v.p && typeof v.p === "object" ? v.p : {}, n = info.squad, RH = 37.4, top = 713 - n * RH;
+    const regs = n === 2 ? 2 * info.target - 1 : 2 * info.target - 2, rounds = Array.isArray(v.rounds) ? v.rounds : [], cols = Math.max(regs, rounds.length);
+    const tag = s => esc(String((m.sides[s] && (m.sides[s].tag || m.sides[s].name)) || (s ? "B" : "A")).slice(0, 5).toUpperCase());
+    const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), main = sp.find(x => x.type === "main") || sp[0], emb = (ev.tournament.logos || []).find(Boolean);
+    let h = `<div class="v3-bd" data-k="v3-bd" style="top:${(top - 100).toFixed(1)}px">`;
+    h += `<div class="sp" data-k="bd-sp">${main ? main.logo ? `<img src="${esc(main.logo)}" alt="" onerror="this.style.display='none'">` : `<b>${esc(main.name)}</b>` : ""}</div>`;
+    h += `<div class="rh" data-k="bd-rh" style="--n:${cols}"><div class="rhd"><small>${n === 2 ? "ROUNDS" : "1ST HALF"}</small>${Array.from({ length: cols }, (_, i) => `<span class="${i >= rounds.length ? "fut" : ""}">${String(i + 1).padStart(2, "0")}</span>`).join("")}</div>
+      ${[0, 1].map(s => `<div class="tr" style="--c:${esc(m.colors[s])}"><small>${lg(m.sides[s])}<b>${tag(s)}</b></small>${Array.from({ length: cols }, (_, i) => `<span>${rounds[i] === s ? "<i></i>" : ""}</span>`).join("")}</div>`).join("")}</div>`;
+    h += `<div class="em" data-k="bd-em">${emb ? `<img src="${esc(emb)}" alt="" onerror="this.style.display='none'">` : ""}</div></div>`;
+    [0, 1].forEach(s => {
+      const ps = m.players[s].filter(p => p && p.shortcut !== 0 && noTag(p.display)).slice(0, n), has = x => x != null && x !== "";
+      h += `<div class="v3-tb ${s ? "r" : "l"}" data-k="v3-tb-${s}" style="top:${(top - 14).toFixed(1)}px;--c:${esc(m.colors[s])}"><div class="th">${(s ? ["cr", "lo", "ul", "k", "d", "a", "pl", "pt"] : ["pt", "pl", "k", "d", "a", "ul", "lo", "cr"]).map(c => `<span class="${c}">${{ pl: "PLAYER", k: "K", d: "D", a: "A", ul: "ULTIMATE", lo: "LOADOUT", cr: "CREDS", pt: "" }[c]}</span>`).join("")}</div>
+        ${ps.map((p, i) => {
+          const st = (p.pid && stats[p.pid]) || {}, name = noTag(p.display), dead = !!(p.pid && info.dead[p.pid]);
+          const um = Math.max(1, Math.min(9, Math.round(+(p.ultMax || st.ultMax)) || 8)), ul = Math.max(0, Math.min(um, Math.round(+(has(p.ult) ? p.ult : st.ult)) || 0));
+          const agent = VAL_UUID.test(String(p.agent || "")) ? artImg(`/val-agent/${p.agent}/displayicon.png`, "ag") : p.avatar ? artImg(p.avatar, "ag") : PH;
+          const gun = VAL_UUID.test(String(st.gun || "")) ? artImg(`/val-weapon/${st.gun}.png`, "gn") : "", cr = has(p.credits) ? p.credits : has(st.cr) ? st.cr : "";
+          const cell = { pt: `<span class="pt">${agent}</span>`, pl: `<b class="pl">${esc(name)}</b>`, k: `<span class="num">${esc(stv(ev, p, "kills"))}</span>`, d: `<span class="num">${esc(stv(ev, p, "deaths"))}</span>`,
+            a: `<span class="num">${esc(stv(ev, p, "assists"))}</span>`, ul: `<span class="ul">${Array.from({ length: um }, (_, k) => `<i class="${k < ul ? "on" : ""}"></i>`).join("")}</span>`,
+            lo: `<span class="lo">${gun}</span>`, cr: `<span class="cr num">${esc(String(cr).slice(0, 6))}</span>` };
+          return `<div class="rw${dead ? " dead" : ""}" data-k="tb-${s}-${i}">${(s ? ["cr", "lo", "ul", "k", "d", "a", "pl", "pt"] : ["pt", "pl", "k", "d", "a", "ul", "lo", "cr"]).map(c => cell[c]).join("")}</div>`;
+        }).join("")}</div>`;
+    });
+    return h;
+  }
+  // timeout banner: the side's role, the team and a bar that empties over the timeout's length
+  function valTimeout(m) {
+    const to = (m.ev.val || {}).to || {}, s = +to.side === 1 ? 1 : 0, t = m.sides[s], secs = Math.max(10, +to.secs || 60);
+    const left = to.at ? Math.max(0, secs - (Date.now() - to.at) / 1000) : secs, role = to.role === "atk" ? "ATTACKERS" : to.role === "def" ? "DEFENDERS" : "";
+    const name = noTag(t ? t.name || t.tag : "") || (s ? "TEAM B" : "TEAM A");
+    return `<div class="v3-to" data-k="v3-to-${s}" style="--c:${esc(m.colors[s])}">${role ? `<small class="ro">${role}</small>` : ""}<small class="tn">${esc(name)}</small><b class="big">TIMEOUT ACTIVE</b>
+      <div class="bar"><i style="transform:scaleX(${(left / secs).toFixed(3)})"></i><b class="num">${fmt(Math.ceil(left))}</b></div></div>`;
+  }
 
   /* Map selection (VALORANT veto). A step is { team: 0 left | 1 right | -1 decider, act: "ban" | "pick" | "decider", map: uuid, name,
      side: "" | "atk" | "def", by: the side (0/1) that chose it }. Presets follow the usual orders: the competitive pool has seven maps,

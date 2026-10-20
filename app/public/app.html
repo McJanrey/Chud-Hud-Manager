@@ -358,13 +358,15 @@ hud(e){
     <div class="fld"><span>Selected Scene</span><div class="row c nowrap" style="gap:8px"><div style="width:240px">${F.sel("hud.scene","",Object.entries(SCENES),"data-rerender")}</div><button class="btn icon" type="button" data-act="copySceneLink" title="Copy this scene's overlay link" aria-label="Copy this scene's overlay link">${ico("copy")}</button></div></div>
     <div class="fld"><span>Colors</span><div class="row c nowrap" style="gap:8px"><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}"><i class="tdots"><b style="background:${esc((T0&&T0.color)||"#2f7dff")}"></b><b style="background:${esc((T1&&T1.color)||"#ff9b1a")}"></b></i>Team</button></div>${h.colorMode==="custom"?`<span class="row c nowrap" style="gap:6px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></span>`:""}</div></div>
     ${inGame&&e.game==="League of Legends"?`<div class="fld" style="flex:none"><span>Bottom board (F9)</span><div class="seg">${[["lane","Lane board"],["fight","Teamfight strip"]].map(([k,l])=>`<button type="button" data-act="lolPanel" data-arg="${k}" aria-pressed="${(e.hud.lolPanel==="fight"?"fight":"lane")===k}">${l}</button>`).join("")}</div></div>`:""}
+    ${inGame&&e.game==="Valorant"?(()=>{const V=e.val||{},vs=V.state||"main",to=V.to||{};return`<div class="fld" style="flex:none"><span>HUD State</span><div class="seg">${[["main","Main"],["buy","Buy"],["timeout","Timeout"]].map(([k,l])=>`<button type="button" data-act="valState" data-arg="${k}" aria-pressed="${vs===k}">${l}</button>`).join("")}</div></div>
+      ${vs==="timeout"?`<div class="fld" style="flex:none"><span>Timeout</span><div class="row c nowrap" style="gap:8px"><div class="seg">${[0,1].map(s=>{const t=s?T1:T0;return`<button type="button" data-act="valToSide" data-arg="${s}" aria-pressed="${(+to.side||0)===s}">${esc((t&&(t.tag||t.name))||(s?"Right":"Left"))}</button>`}).join("")}</div><div class="seg">${[["","No side"],["atk","Attackers"],["def","Defenders"]].map(([k,l])=>`<button type="button" data-act="valToRole" data-arg="${k}" aria-pressed="${(to.role||"")===k}">${l}</button>`).join("")}</div><button class="btn" type="button" data-act="valToStart">Restart ${Math.round(+to.secs||60)}s</button></div></div>`:""}`})():""}
     <span class="grow"></span>
     ${inGame?`<div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>`:""}
     ${inGame&&h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (one big camera per team)":"Player webcams (3 a team)")}${e.game==="League of Legends"?F.chk("hud.show.focus","Focus panel")+F.chk("hud.show.sponsor","Sponsor box")+F.chk("hud.show.minimap","Minimap frame"):""}${F.chk("hud.autoBoard","Team stats on podium")}</div>`:""}
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)&&e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}
-  ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.playerCam","Player webcams")}</div>${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
+  ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${e.game==="Valorant"?F.chk("hud.show.boost","Players Alive")+F.chk("hud.show.feed","Game Events")+F.chk("hud.show.score","Score Line")+F.chk("hud.show.sponsor","Sponsors")+F.chk("hud.show.stats","Team Stats (Buy and Timeout board)"):""}${F.chk("hud.show.playerCam","Player webcams")}</div>${inGame&&e.game==="Valorant"&&(e.val||{}).state!=="main"&&(e.val||{}).state?valRounds(e):""}${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
   ${scControls(e,h.scene)}
   <div class="hudprev">${stage()}${HGCARD}</div>
   ${["statsteam","statsplayer"].includes(h.scene)&&!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?statsEditor(e):""}
@@ -592,6 +594,7 @@ outputs(e){
         +g("Webcams",[["Webcams on","action=cams&value=on"],["Webcams off","action=cams&value=off"],["Webcams on or off","action=cams&value=toggle"],["Every player's webcam","action=director&value=all"],["Only the player in the action","action=director&value=action"],["Left team: auto","action=pin&side=0&value=0"],["Left team: player 1","action=pin&side=0&value=1"],["Left team: player 2","action=pin&side=0&value=2"],["Right team: auto","action=pin&side=1&value=0"],["Right team: player 1","action=pin&side=1&value=1"],["Right team: player 2","action=pin&side=1&value=2"]])
         +g("Score",[["Left +1","action=score&side=0&delta=1"],["Left −1","action=score&side=0&delta=-1"],["Right +1","action=score&side=1&delta=1"],["Right −1","action=score&side=1&delta=-1"]])
         +g("Show or hide an element",Object.keys(e.hud.show).map(k=>[k,`action=show&name=${k}&value=toggle`]))
+        +(e.game==="Valorant"?g("VALORANT HUD state",[["Main","action=valstate&value=main"],["Buy round","action=valstate&value=buy"],["Timeout: left team","action=valstate&value=timeout&side=0"],["Timeout: right team","action=valstate&value=timeout&side=1"]]):"")
         +(e.game==="Minecraft"?g("Hunger Games HUD state",[["Main","action=hgstate&value=main"],["Final","action=hgstate&value=final"],["Winner","action=hgstate&value=winner"]]):"")})()
       :`<p class="sub">The addresses are shown on the PC that runs the app.</p>`}</div>
   <div class="sec"><div><h2>Other events</h2><p class="sub">Each one has its own link too.</p></div>${others.map(x=>row(x.name+" · "+x.game,overlayUrl("auto",x))).join("")||`<p class="sub">No other events.</p>`}</div>`;
@@ -864,6 +867,12 @@ function bbJudgesPanel(e,names){
 }
 /* The broadcast-pack scenes (lower third, schedule, stats, lineup, bracket, starting soon, title): each has its own ticks, like the reference. */
 const SC_LABEL={bg:"Background",ticker:"Bottom Announcement",match:"Match Text",top:"Top Bar",banner:"Tournament Banner",stats:"Individual Stats",team:"Team Name",lineup:"Team Lineup",border:"Border",count:"Countdown",sponsors:"Sponsors"};
+/* Round history for the buy-round board: the "+" round goes to the left team, a click flips a round to the right team, and a
+   click on the last round when the right team has it clears it. */
+function valRounds(e){
+  const V=e.val||{},r=V.rounds||[],t=Math.max(1,Math.round(+V.target)||10),sq=Math.max(2,Math.round(+V.squad)||2),n=Math.min(60,Math.max(sq===2?2*t-1:2*t-2,r.length+1)),T=s=>{const id=s?e.live.right:e.live.left,x=e.teams.find(q=>q.id===id);return x&&(x.tag||x.name)||(s?"Right":"Left")};
+  return`<div class="fld"><span>Round history (${esc(T(0))} / ${esc(T(1))})</span><div class="row c" style="gap:4px;flex-wrap:wrap">${Array.from({length:Math.min(n,r.length+1)},(_,i)=>`<button class="btn sm" type="button" data-act="valRound" data-arg="${i}" title="Round ${i+1}" style="min-width:44px">${i+1}${i<r.length?`: ${esc(T(r[i]))}`:" +"}</button>`).join("")}</div></div>`;
+}
 function scControls(e,sc){
   const D=(SaintsHUD.SC_DEF||{})[sc];if(!D||!e.hud.sc||!e.hud.sc[sc])return"";
   const ticks=Object.keys(D).filter(k=>typeof D[k]==="boolean").map(k=>F.chk(`hud.sc.${sc}.${k}`,k==="logo"?(sc==="bracket"?"Tournament Logo":"Logo"):SC_LABEL[k]||k)).join("");
@@ -1016,6 +1025,11 @@ document.addEventListener("click",async ev0=>{
     case "demoReset":api("/api/demo/reset",{event:e.id});return;
     case "demoPause":api("/api/demo/pause",{event:e.id});return;
     case "mcState":put("hud.mcState",arg);break;
+    case "valState":put("val.state",arg);if(arg==="timeout")put("val.to.at",Date.now());break;
+    case "valToSide":put("val.to.side",+arg);break;
+    case "valToRole":put("val.to.role",arg);break;
+    case "valToStart":put("val.to.at",Date.now());break;
+    case "valRound":{const r=((e.val||{}).rounds||[]).slice(),i=+arg;if(i>=r.length)r.push(0);else if(r[i]===0)r[i]=1;else if(i===r.length-1)r.pop();else r[i]=0;put("val.rounds",r);break}
     case "hgEl":HGEL=HGEL===arg?null:arg;break;
     case "addCaster":{const n=Math.min(8,kitSeats(e)+1);DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:n};put(`settings.kits.${e.kit}`,{seats:n},false);break}
     case "rmCaster":{const n=Math.max(1,kitSeats(e)-1),seats=e.camera.seats.slice();seats.splice(+arg,1);seats.push({talent:"",url:"",role:""});
