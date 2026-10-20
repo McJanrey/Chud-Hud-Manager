@@ -253,3 +253,10 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 /* cards inside a card: no extra side indent */
 .halves>.sec>.sec .sec{padding-left:0;padding-right:0;padding-bottom:0}
 .seg{flex-wrap:wrap}.seg>button{white-space:nowrap}
+/* update pop-up */
+.upd-scrim{position:fixed;inset:0;z-index:300;align-items:center;padding-top:0;color:var(--text);font:var(--fs-base)/1.45 var(--font-sans)}
+.upd-dlg{width:520px;max-width:calc(100vw - 32px)}
+.upd-hd{display:flex;align-items:center;gap:14px}.upd-hd img{width:48px;height:48px;object-fit:contain}.upd-hd h2{font-size:20px;font-weight:650;margin:0}.upd-hd p{margin:2px 0 0}
+.upd-notes{max-height:200px;overflow:auto;white-space:pre-wrap;padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line);font-size:13px;color:var(--text-2)}
+.upd-bar{height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden}.upd-bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.updpill{width:100%;justify-content:center;margin-bottom:8px}

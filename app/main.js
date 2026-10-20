@@ -25,7 +25,7 @@ function loadLauncher() { try { const j = JSON.parse(fs.readFileSync(LAUNCHER_FI
 function saveLauncher() { try { fs.mkdirSync(path.dirname(LAUNCHER_FILE()), { recursive: true }); fs.writeFileSync(LAUNCHER_FILE(), JSON.stringify(LS, null, 2)); } catch { /* read-only folder: keep going */ } }
 // state: source (running from source) | idle | checking | none | available | downloading | ready | installing | error
 let upd = { state: "idle", version: "", percent: 0, error: "" };
-function setUpdate(patch) { upd = Object.assign({}, upd, patch); if (launcher) launcher.webContents.send("launcher:update", upd); }
+function setUpdate(patch) { upd = Object.assign({}, upd, patch); if (launcher) launcher.webContents.send("launcher:update", upd); if (win) win.webContents.send("app:update", upd); } // the launcher and the control room's update pop-up
 
 // Every event has its own overlay link; they are all live at once.
 let dbOf = () => null, menuSig = "";
@@ -73,12 +73,24 @@ function setupLauncherIpc() {
   on("win:close", () => launcher && launcher.close());
 }
 
+// The control room's update pop-up: read the state, and "Update now" (download, then back up and install when it arrives).
+let installWhenReady = false;
+function setupControlIpc() {
+  const on = (ch, fn) => ipcMain.handle(ch, (e, ...a) => (win && e.sender === win.webContents ? fn(...a) : undefined)); // only our own control room page
+  on("app:update-state", () => ({ version: app.getVersion(), update: upd }));
+  on("app:update-go", () => {
+    if (upd.state === "ready") return installUpdate();
+    if (upd.state === "downloading") { installWhenReady = true; return { ok: true }; }
+    if (upd.state === "error") { checkNow(); return { ok: true }; } // check again; the pop-up comes back when GitHub answers
+    const r = downloadUpdate(); if (r.ok) installWhenReady = true; return r;
+  });
+}
 function createWindow(id) {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 980, minHeight: 640,
     title: V.name + " Control Room", backgroundColor: V.bg, show: false, autoHideMenuBar: true,
     icon: path.join(__dirname, V.icon),
-    webPreferences: { contextIsolation: true, sandbox: true },
+    webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, "control-preload.js") },
   });
   win.loadURL(controlUrl(id));
   win.once("ready-to-show", () => win.show());
@@ -111,28 +123,28 @@ function setupUpdates() {
   updater.on("checking-for-update", () => setUpdate({ state: "checking", error: "" }));
   updater.on("update-available", info => {
     if (BUSY.includes(upd.state)) return;
-    setUpdate({ state: "available", version: info.version, percent: 0, error: "" });
-    if (!launcher && win) dialog.showMessageBox(win, { type: "info", buttons: ["Download", "Later"], defaultId: 0, cancelId: 1,
-      title: "Update available", message: `${V.name} ${info.version} is available.`, detail: "Downloading does not restart anything. You choose when to install it." })
-      .then(r => { if (r.response === 0) downloadUpdate(); });
+    setUpdate({ state: "available", version: info.version, percent: 0, error: "", notes: notesOf(info) }); // the control room shows its own pop-up
   });
   updater.on("download-progress", p => setUpdate({ state: "downloading", percent: Math.round(p.percent || 0) }));
   updater.on("update-downloaded", info => {
     setUpdate({ state: "ready", version: info.version });
-    if (!launcher && win) dialog.showMessageBox(win, { type: "info", buttons: ["Restart now", "Later"], defaultId: 0, cancelId: 1,
-      title: "Update ready", message: `${V.name} ${info.version} is ready to install.`,
-      detail: "Your events and settings are backed up first. Restarting briefly takes the overlay offline in OBS." })
-      .then(r => { if (r.response === 0) installUpdate(); });
+    if (installWhenReady) { installWhenReady = false; installUpdate(); } // "Update now" in the pop-up: install as soon as it is downloaded
   });
   updater.on("update-not-available", () => { setUpdate({ state: "none" }); manualCheck = false; });
   updater.on("error", err => {
     const why = String((err && err.message) || err).split("\n")[0].slice(0, 200), offline = /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|net::ERR/i.test(why);
+    installWhenReady = false;
     setUpdate({ state: "error", error: offline ? "No internet connection to GitHub." : why });
     if (manualCheck && !launcher) dialog.showMessageBox(win, { type: "warning", message: "Couldn't check for updates.", detail: String(err && err.message || err) });
     manualCheck = false;
   });
   updater.checkForUpdates().catch(() => {});
   setInterval(() => { if (![...BUSY, "available"].includes(upd.state)) updater.checkForUpdates().catch(() => {}); }, 60 * 60 * 1000);
+}
+// GitHub release notes as plain text (electron-updater gives the release body as HTML, or a list of notes)
+function notesOf(info) {
+  const n = info && info.releaseNotes, raw = Array.isArray(n) ? n.map(x => (x && x.note) || "").join("\n") : String(n || "");
+  return raw.replace(/<\/(p|li|h\d)>|<br\s*\/?>/gi, "\n").replace(/<li[^>]*>/gi, "• ").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1500);
 }
 function downloadUpdate() {
   if (!updater || upd.state !== "available") return { ok: false, error: "No update to download." };
@@ -204,7 +216,7 @@ app.whenReady().then(() => {
   setOcrProvider(require("./ocr.js"));
   base = `http://127.0.0.1:${PORT}`;
   loadLauncher();
-  setupLauncherIpc();
+  setupLauncherIpc(); setupControlIpc();
   buildMenu();
   setInterval(() => { if (menuSig !== eventsList().map(e => e.id + e.name + e.game).join("|")) buildMenu(); }, 4000); // the File menu lists each event's overlay link
   setupUpdates();
