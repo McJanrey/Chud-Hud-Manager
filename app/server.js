@@ -53,6 +53,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
       { name: "Grand Final", matches: [{ a: "", b: "", sa: "", sb: "" }] }] },
     standings: [],
     lowerThird: { title: "", subtitle: "" },
+    ads: { items: [], mode: "off", start: 0 }, // ad rotation: pictures, GIFs or videos taking turns (hud.js adNow)
     timer: { label: "BACK SOON", seconds: 300, endsAt: 0, remaining: 300 },
     // Minecraft: Hunger Games and Build Battle
     mc: { mode: "hungergames", title: "HUNGER GAMES", total: 24, spotlight: "", winner: "", clock: { running: false, base: 0, startedAt: 0 },

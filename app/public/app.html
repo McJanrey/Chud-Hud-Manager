@@ -154,7 +154,7 @@ Object.assign(I,{
 });
 const ico=k=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
 const META={fn:["Fortnite scoring","trophy"],dbd:["Trials","rank"],val:["Skirmish","bracket"],overview:["Overview","overview"],hud:["HUD Editor","hud"],teams:["Players & Teams","teams"],tournament:["Tournament","trophy"],talent:["Talent Profiles","talent"],
-  live:["Live Game","live"],ocr:["Screen OCR","ocr"],mc:["Minecraft","mcicon"],rb:["Riftbound","rbicon"],outputs:["Outputs","link"],camera:["Camera feed","cam"],graphics:["Lower Thirds & Timer","gfx"],schedule:["Schedule","sched"],bracket:["Bracket","bracket"],standings:["Rankings","rank"]};
+  live:["Live Game","live"],ocr:["Screen OCR","ocr"],mc:["Minecraft","mcicon"],rb:["Riftbound","rbicon"],outputs:["Outputs","link"],camera:["Camera feed","cam"],graphics:["Lower Thirds & Timer","gfx"],ads:["Ad Rotation","gfx"],schedule:["Schedule","sched"],bracket:["Bracket","bracket"],standings:["Rankings","rank"]};
 
 /* ---------- form helpers ---------- */
 const F={
@@ -221,7 +221,7 @@ const GRAD={"Rocket League":"linear-gradient(135deg,#1f5bff,#0b1430 55%,#ff8a1a)
 // The cover is the event's own upload, else the game's official key art (downloaded by the app, see /covers), over the game's gradient.
 const gameCover=g=>`url('/covers/${slug(g)}'),${GRAD[g]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`;
 const coverCss=e=>(e.cover?`url('${e.cover}'),${GRAD[e.game]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`:gameCover(e.game));
-const PAGE_DESC={overview:"Your overlay link, workspace details and where this game gets its data.",hud:"Pick a scene, set colours and choose what shows. Changes go live on stream as you make them.",
+const PAGE_DESC={ads:"Pictures, GIFs or videos that take turns on screen, full screen during breaks or in a box over the live scene.",overview:"Your overlay link, workspace details and where this game gets its data.",hud:"Pick a scene, set colours and choose what shows. Changes go live on stream as you make them.",
   teams:"Teams and rosters for this event. Names here are what the overlay shows.",tournament:"Tournament name, logos and sponsors. These show on the overlay.",talent:"Casters, hosts and observers for the broadcast.",
   live:"Where the match data comes from, who is playing and what the score is.",ocr:"Read scores and the clock from the screen for games without a data feed.",mc:"Connect your server, manage the roster and run Hunger Games or Build Battle.",
   rb:"Score the match by hand and put cards on screen.",camera:"Caster seats and the camera link for each one.",graphics:"The lower third and the countdown timer.",schedule:"Matches for the Schedule scene.",
@@ -232,7 +232,7 @@ function rail(e){
   const grp=(t,vs)=>`<div class="navgroup">${t}</div>${vs.map(link).join("")}`;
   const nav=e?grp("Event setup",["overview","teams","tournament","talent"])
     +grp("Live game",["live",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),"ocr"])
-    +grp("Broadcast",["hud","camera","graphics","schedule","bracket","standings","outputs"])
+    +grp("Broadcast",["hud","camera","graphics","ads","schedule","bracket","standings","outputs"])
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
   const crest="/brand/chud-hud.png"; // fixed: the app logo cannot be changed
   return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
@@ -476,6 +476,21 @@ camera(e){
       <span class="note">The seat count belongs to the kit, so every event using ${esc(e.kit)} shares it. Who sits in each seat, and their camera link, are set per event below.</span></div>
     ${Array.from({length:n},(_,i)=>`<div class="box"><b>Seat ${i+1}</b>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.url`,"Camera link","https://vdo.ninja/?view=…")}</div>`).join("")}
   </div><div class="sec">${stage("casters")}</div></div>`;
+},
+ads(e){
+  const a=e.ads||{items:[],mode:"off"},items=a.items||[],isVid=u=>/\.(mp4|webm|mov)$/i.test(u||"");
+  const thumb=x=>isVid(x.url)?`<video src="${esc(x.url)}" muted loop autoplay playsinline></video>`:`<img src="${esc(x.url)}" alt="">`;
+  const row=(x,i)=>`<div class="adrow${x.on===false?" off":""}"><div class="adthumb">${thumb(x)}</div>${F.num(`ads.items.${i}.secs`,"Seconds",'min="2" max="600"')}${F.sel(`ads.items.${i}.fit`,"Full-screen fit",[["contain","Fit"],["cover","Fill"]])}
+    ${F.chk(`ads.items.${i}.on`,"On")}<span class="row c nowrap" style="gap:4px"><button class="btn icon sm" type="button" data-act="adMove" data-arg="${i}|-1"${i?"":" disabled"} aria-label="Move up">↑</button><button class="btn icon sm" type="button" data-act="adMove" data-arg="${i}|1"${i<items.length-1?"":" disabled"} aria-label="Move down">↓</button><button class="btn icon sm" type="button" data-act="adDel" data-arg="${i}" aria-label="Remove">${ico("trash")}</button></span></div>`;
+  return`<div class="halves"><div class="sec" style="gap:24px">
+    <div class="sec"><div class="sechead"><div><h2>Ads</h2><p class="sub">They take turns in this order, each for its own number of seconds. Untick one to skip it without deleting it.</p></div>
+      <label class="btn primary" style="position:relative;overflow:hidden">${ico("plus")}Add ad<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.mov" data-upload="!ads.add" data-video style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Add an ad (picture, GIF or video)"></label></div>
+      ${items.length?`<div class="adlist">${items.map(row).join("")}</div>`:`<p class="sub">No ads yet. Add a PNG, JPG, WebP or GIF picture, or an MP4, WebM or MOV video (1920×1080 fills the screen).</p>`}</div>
+    <div class="sec"><h2>Where they show</h2>
+      <div class="seg">${[["off","Full screen only"],["corner","Corner box on every scene"],["banner","Banner on every scene"]].map(([k,l])=>`<button type="button" data-act="adMode" data-arg="${k}" aria-pressed="${(a.mode||"off")===k}">${l}</button>`).join("")}</div>
+      <p class="note">Full screen is the Ad Rotation scene: switch to it for breaks. The corner box and the banner sit on top of whatever scene is live, until you set this back to Full screen only.</p>
+      <div class="row c" style="flex-wrap:wrap"><button class="btn" type="button" data-act="scene" data-arg="ads">Show Ad Rotation now</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button><button class="btn" type="button" data-act="adRestart">Start again from the first ad</button></div></div>
+  </div><div class="sec">${stage("ads")}</div></div>`;
 },
 graphics(e){
   const t=e.timer,rem=t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining;
@@ -873,7 +888,9 @@ async function upload(input,file){
   try{const r=await fetch("/api/upload",{method:"POST",headers:{"content-type":vid&&!file.type?"video/quicktime":file.type},body:file});const j=await r.json();
     if(!r.ok)return toast(j.error||"Upload failed.");
     const up=input.dataset.upload;
-    if(up.startsWith("!settings.icons."))await put("settings.icons",Object.assign({},DB.settings.icons||{},{[up.slice(16)]:j.url}),false);
+    if(up==="!ads.add"){const e=ev(),cur=e.ads||{items:[],mode:"off",start:0};
+      await put("ads",Object.assign({},cur,{start:cur.start||Date.now(),items:(cur.items||[]).concat([{id:uid(),url:j.url,secs:/\.(mp4|webm|mov)$/i.test(j.url)?15:10,fit:"contain",on:true}])}));toast("Ad added")}
+    else if(up.startsWith("!settings.icons."))await put("settings.icons",Object.assign({},DB.settings.icons||{},{[up.slice(16)]:j.url}),false);
     else await put(up,j.url);
     render()}
   catch(e){toast("Upload failed. Is the server running?")}
@@ -922,6 +939,10 @@ document.addEventListener("click",async ev0=>{
       if(!lines.length)return toast("No players on this event yet.");
       if(r&&!r.on)toast("Camera links copied. Switch on Let players connect on Camera feed before players open them.");
       try{await navigator.clipboard.writeText(lines.join("\n"));if(!r||r.on)toast("Copied "+lines.length+" link"+(lines.length===1?"":"s"))}catch{toast("Copy failed.")}return;}
+    case "adMode":put("ads.mode",arg);toast(arg==="off"?"Ads show on the Ad Rotation scene only":"Ads now show over every scene");break;
+    case "adRestart":put("ads.start",Date.now());toast("Ads start again from the first one");break;
+    case "adMove":{const[i,d]=arg.split("|").map(Number),L=(e.ads.items||[]).slice(),j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];put("ads.items",L);break;}
+    case "adDel":{const L=(e.ads.items||[]).filter((_,k)=>k!==+arg);put("ads.items",L);toast("Ad removed");break;}
     case "saveAll":saveAll();return;
     case "saveCancel":cancelAll();return;
     case "copy":{const v=$("#ovUrl").value;try{await navigator.clipboard.writeText(v);toast("Overlay URL copied")}catch(err){$("#ovUrl").select();toast("Press Ctrl+C to copy")}return;}

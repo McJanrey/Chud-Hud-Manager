@@ -208,3 +208,9 @@ body.has-savebar .page{padding-bottom:96px}
 .lg-series .lg-tn{max-width:110px}.lg-series .step button{width:28px;height:32px}.lg-series .step output{min-width:30px}
 .lg-series .lg-lbl{margin:0;white-space:nowrap}.lg-series .fld{margin:0}
 .lg-div{width:1px;align-self:stretch;background:var(--line)}
+
+/* Ad Rotation list */
+.adlist{display:flex;flex-direction:column;gap:8px}
+.adrow{display:grid;grid-template-columns:112px 84px minmax(0,1fr) auto auto;align-items:end;gap:12px;padding:8px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2)}
+.adrow.off{opacity:.55}.adrow .fld{margin:0;min-width:0}.adrow .chk{margin-bottom:8px}
+.adthumb{width:112px;height:63px;border-radius:6px;overflow:hidden;background:#000}.adthumb img,.adthumb video{width:100%;height:100%;object-fit:contain;display:block}

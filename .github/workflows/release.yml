@@ -40,6 +40,7 @@ jobs:
           node test/control-test.js
           node test/draft-test.js
           node test/packaging-test.js
+          node test/ads-test.js
       # Release builds only run with a code from the owner, but only once the license service is set up (app/license-config.json exists),
       # so a release made before that can never lock anyone out. The flag is written into this build only, not committed.
       - name: Turn licensing on

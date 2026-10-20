@@ -40,7 +40,7 @@
   const SCENES = {
     ingame: "Ingame HUD", bracket: "Bracket", casters: "Caster Nameplates", lowerthird: "Lower Thirds",
     rankings: "Rankings Screen", replay: "Replay", schedule: "Schedule", starting: "Starting Soon",
-    statsplayer: "Stats Page Individual", statsteam: "Stats Page Team", lineup: "Team Lineup", timer: "Timer", title: "Title Screen", draft: "Champion Select", mapveto: "Map Selection", agents: "Agent Select",
+    statsplayer: "Stats Page Individual", statsteam: "Stats Page Team", lineup: "Team Lineup", timer: "Timer", title: "Title Screen", ads: "Ad Rotation", draft: "Champion Select", mapveto: "Map Selection", agents: "Agent Select",
   };
 
   /* Combine event config with the live game feed into one view model. */
@@ -1129,12 +1129,31 @@
   }
 
   let CTX = {}; // per-render extras: { icons } (the uploaded objective icons)
+  /* Ad rotation: the event's ads take turns, each for its own number of seconds. The clock decides which one is up, so every
+     overlay and preview shows the same ad without the server ticking. */
+  function adNow(ev) {
+    const a = ev.ads || {}, list = (a.items || []).filter(x => x && x.url && x.on !== false);
+    if (!list.length) return null;
+    const secs = x => Math.max(2, +x.secs || 10), total = list.reduce((n, x) => n + secs(x), 0);
+    let t = (((Date.now() - (+a.start || 0)) / 1000) % total + total) % total;
+    for (const x of list) { if (t < secs(x)) return x; t -= secs(x); }
+    return list[0];
+  }
+  const adMedia = x => /\.(mp4|webm|mov)$/i.test(x.url) ? `<video src="${esc(x.url)}" autoplay muted loop playsinline></video>` : `<img src="${esc(x.url)}" alt="">`;
+  S.ads = (m) => { const x = adNow(m.ev); return { html: x ? `<div class="ad-full${x.fit === "cover" ? " cover" : ""}" data-k="ad${esc(x.id)}">${adMedia(x)}</div>` : "", cams: [] }; };
+  function adOverlay(ev, s) {
+    const a = ev.ads || {};
+    if (!["corner", "banner"].includes(a.mode) || s === "ads") return "";
+    const x = adNow(ev);
+    return x ? `<div class="ad-box ad-${a.mode}" data-k="adb${esc(x.id)}">${adMedia(x)}</div>` : "";
+  }
   function render(hudEl, ev, game, scene, ctx) {
     CTX = ctx || {};
     if (!hudEl.firstChild) hudEl.innerHTML = `<div class="lay"></div><div class="cams"></div>`;
     const m = model(ev, game);
     const s = resolveScene(ev, m, scene);
     const out = S[s](m);
+    out.html += adOverlay(ev, s); // the ad corner box or banner, over every scene when switched on
     hudEl.style.setProperty("--L", m.colors[0]); hudEl.style.setProperty("--R", m.colors[1]);
     const lay = hudEl.firstChild;
     if (lay.dataset.scene !== s) { lay.dataset.scene = s; lay.className = "lay"; lay.textContent = ""; lay.__html = null; lay.__seen = false; }
@@ -1192,10 +1211,10 @@
   }
 
   // the html a scene draws for an event and a live feed, without a page (used by the tests)
-  function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m).html; }
+  function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, vetoPreset, vetoFix, VETO_FMT, agsInfo };
+  const api = { SCENES, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, vetoPreset, vetoFix, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();
