@@ -915,7 +915,7 @@ function bbJudgesPanel(e,names){
       <span class="note">${pl.total} vote${pl.total===1?"":"s"}${pl.options.map((o,i)=>o?` · !${i+1} ${esc(o)}: ${pl.counts[i]||0}`:"").join("")}</span></div></div>`;
 }
 /* The broadcast-pack scenes (lower third, schedule, stats, lineup, bracket, starting soon, title): each has its own ticks, like the reference. */
-const SC_LABEL={bg:"Background",ticker:"Bottom Announcement",match:"Match Text",top:"Top Bar",banner:"Tournament Banner",stats:"Individual Stats",team:"Team Name",lineup:"Team Lineup",border:"Border",count:"Countdown",sponsors:"Sponsors"};
+const SC_LABEL={map:"Map Name",bg:"Background",ticker:"Bottom Announcement",match:"Match Text",top:"Top Bar",banner:"Tournament Banner",stats:"Individual Stats",team:"Team Name",lineup:"Team Lineup",border:"Border",count:"Countdown",sponsors:"Sponsors"};
 /* Round history for the buy-round board: the "+" round goes to the left team, a click flips a round to the right team, and a
    click on the last round when the right team has it clears it. */
 function valRounds(e){
@@ -1176,7 +1176,7 @@ document.addEventListener("click",async ev0=>{
     case "ocrSaveFrame":{const r=await fetch("/api/ocr/save-frame",{method:"POST",headers:{"content-type":"application/json"},body:"{}"}).then(x=>x.json()).catch(()=>null);toast(r&&r.ok?"Saved to "+r.file:(r&&r.error)||"Couldn't save the frame.");return}
     case "draftDemo":{const on=!(DRAFTST&&DRAFTST.demo);await fetch("/api/draft/demo",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on})});DRAFTST=Object.assign({},DRAFTST,{demo:on});const b=$("#draftBox");if(b)b.innerHTML=draftBoxHtml();return}
     case "draftSeriesReset":await fetch("/api/draft/series-reset",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});toast("Series bans cleared.");return;
-    case "valRound":{const i=+arg,sc=[...e.live.score];sc[i]=(sc[i]||0)+1;put("live.score",sc);put("live.autoScore",false);put("val.rounds",[...(e.val.rounds||[]),i]);put("val.dead",{});put("val.aliveUsed",false);put("val.feed",[]);break} // a new round: everyone is alive again, the killfeed is cleared
+    case "valRound":{const i=+arg,sc=[...e.live.score];sc[i]=(sc[i]||0)+1;put("live.score",sc);put("live.autoScore",false);put("val.rounds",[...(e.val.rounds||[]),i]);put("val.dead",{});put("val.aliveUsed",false);put("val.feed",[]);put("val.win",{side:i,at:Date.now()});break} // a new round: everyone is alive again, the killfeed is cleared, the ROUND WIN banner shows
     case "valUndo":{const r=[...(e.val.rounds||[])],i=r.pop();if(i===undefined)break;const sc=[...e.live.score];sc[i]=Math.max(0,(sc[i]||0)-1);put("live.score",sc);put("val.rounds",r);break}
     case "valReset":put("live.score",[0,0]);put("val.rounds",[]);put("val.dead",{});put("val.aliveUsed",false);break;
     case "valAlive":{const d=Object.assign({},e.val.dead||{});if(d[arg])delete d[arg];else d[arg]=true;put("val.dead",d);put("val.aliveUsed",true);break}

@@ -63,7 +63,7 @@ function newEvent(name, game = "Rocket League", organiser = "") {
         judges: [], judgeScores: {}, audience: { open: false, weight: 0, scores: {} } },
       poll: { question: "", options: ["", ""], open: false, show: false, counts: [0, 0], total: 0 } },
     // VALORANT 2v2 Skirmish: first to "target" rounds, scored by hand
-    val: { target: 10, squad: 2, dead: {}, aliveUsed: false, p: {}, barBg: "", barStyle: "solid", veto: null, feed: [], spec: "", state: "main", to: { side: 0, role: "", at: 0, secs: 60 }, rounds: [] }, // state: the HUD state (main, buy or timeout); to: the timeout being shown; rounds: who won each round (0 left, 1 right) // feed: the killfeed rows; spec: the spectated player's id // squad: players a side (2 to 5); dead: player id -> true while out this round; aliveUsed: a toggle was used since the last reset;
+    val: { target: 10, squad: 2, dead: {}, aliveUsed: false, p: {}, barBg: "", barStyle: "solid", veto: null, feed: [], spec: "", state: "main", to: { side: 0, role: "", at: 0, secs: 60 }, rounds: [], win: { side: 0, at: 0 } }, // win: the last round win, for the ROUND WIN banner // state: the HUD state (main, buy or timeout); to: the timeout being shown; rounds: who won each round (0 left, 1 right) // feed: the killfeed rows; spec: the spectated player's id // squad: players a side (2 to 5); dead: player id -> true while out this round; aliveUsed: a toggle was used since the last reset;
     // p: player id -> { hp, ult, ultMax, gun, cr } typed by the operator (VALORANT has no live feed); barStyle: solid | clear | media, barBg: the picture or video behind the top bar
     // Dead by Daylight: one trial is a killer against survivors; points per kill, per escape and per generator
     dbd: { killPts: 1, escapePts: 1, genPts: 0, trials: [] },
@@ -105,6 +105,7 @@ function upgrade(ev) {
   if (!["main", "buy", "timeout"].includes(ev.val.state)) ev.val.state = "main";
   { const t = ev.val.to && typeof ev.val.to === "object" ? ev.val.to : {}; ev.val.to = { side: +t.side === 1 ? 1 : 0, role: ["atk", "def"].includes(t.role) ? t.role : "", at: +t.at || 0, secs: Math.max(10, Math.min(300, Math.round(+t.secs) || 60)) }; }
   ev.val.rounds = (Array.isArray(ev.val.rounds) ? ev.val.rounds : []).filter(x => x === 0 || x === 1).slice(0, 60);
+  { const w = ev.val.win && typeof ev.val.win === "object" ? ev.val.win : {}; ev.val.win = { side: +w.side === 1 ? 1 : 0, at: +w.at || 0 }; }
   ev.val.veto = require("./public/hud.js").vetoFix(ev.val.veto, ev.val.squad); // map selection: format, pool and one step per map
   if (ev.game === "Valorant") ev.teams.forEach(t => t.players.forEach(p => { if (p.agent === undefined) p.agent = ""; })); // the agent a player picks (a valorant-api.com uuid)
   if (ev.rb) { const D = d.rb; ["legend", "champ", "bf", "hand", "deck", "cams"].forEach(k => { if (!Array.isArray(ev.rb[k]) || ev.rb[k].length !== 2) ev.rb[k] = JSON.parse(JSON.stringify(D[k])); });

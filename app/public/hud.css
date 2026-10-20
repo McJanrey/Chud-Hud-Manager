@@ -902,3 +902,11 @@
 /* map selection reveal: a card animates in when its map is set; a replay brings every card in, one after another */
 .v3-veto .vc{animation:vcIn var(--mvt,750ms) cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d,0ms)}
 @keyframes vcIn{from{opacity:0;transform:translateY(26px) scale(.96)}to{opacity:1;transform:none}}
+/* ROUND WIN banner */
+.v3-rw{position:absolute;left:376px;top:262px;width:528px;height:126px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--c) 38%,transparent) 30%,color-mix(in srgb,var(--c) 38%,transparent) 70%,transparent),rgba(5,8,12,.82);border:1px solid rgba(255,255,255,.22);
+  animation:rwIn .45s cubic-bezier(.2,.8,.2,1) both,rwOut .4s ease 3.6s forwards}
+.v3-rw .cn{position:absolute;width:12px;height:12px;border:2px solid rgba(255,255,255,.8)}.v3-rw .tl{left:8px;top:8px;border-right:0;border-bottom:0}.v3-rw .tr{right:8px;top:8px;border-left:0;border-bottom:0}.v3-rw .bl{left:8px;bottom:8px;border-right:0;border-top:0}.v3-rw .br{right:8px;bottom:8px;border-left:0;border-top:0}
+.v3-rw .rwh{display:flex;align-items:center;gap:14px;font-family:var(--v3-cond);font-size:26px;font-weight:600;color:rgba(255,255,255,.85);line-height:1}.v3-rw .rwh b{padding-top:4px}.v3-rw .lgbox{width:30px;height:30px}.v3-rw .lgbox .lg,.v3-rw .lgbox img{width:30px;height:30px;font-size:12px}
+.v3-rw .big{font-family:var(--v3-cond);font-size:62px;font-weight:700;line-height:.9;letter-spacing:.02em;color:#fff;padding-top:6px}
+@keyframes rwIn{from{opacity:0;transform:scaleX(.6)}to{opacity:1;transform:none}}@keyframes rwOut{to{opacity:0;transform:scale(.97)}}

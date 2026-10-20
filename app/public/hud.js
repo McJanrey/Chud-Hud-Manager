@@ -402,6 +402,7 @@
     bracket: { bg: true, logo: true },
     starting: { bg: false, border: true, count: true, logo: true, sponsors: true, img: "" },
     title: { bg: false, border: true, logo: true, sponsors: true, img: "" },
+    agents: { bg: false, map: true, lineup: true },
   };
   const so = (ev, sc) => Object.assign({}, SC_DEF[sc], ((ev.hud || {}).sc || {})[sc]);
   const bpClock = () => { try { return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).toUpperCase(); } catch { return ""; } };
@@ -925,6 +926,7 @@
     }
     if (vs !== "main" && sh.stats !== false) h += valBoard(m, info);
     if (vs === "timeout") h += valTimeout(m);
+    if (vs === "main" && sh.feed !== false) h += valRoundWin(m, info);
     const pc = sh.playerCam ? valCams(m) : { html: "", cams: [] };
     if (vs !== "main") { pc.html = ""; pc.cams.forEach(c => { c.show = false; }); } // kept loaded behind the board, so they come back at once
     return { html: h + pc.html, cams: pc.cams };
@@ -956,6 +958,17 @@
         }).join("")}</div>`;
     });
     return h;
+  }
+  /* ROUND WIN banner, centre screen for 4 seconds after "+ Round": the winner's side on this map (from the veto's side pick,
+     swapped after half time), their logo and tag. */
+  function valRoundWin(m, info) {
+    const w = (m.ev.val || {}).win || {}, s = +w.side === 1 ? 1 : 0, age = Date.now() - (+w.at || 0);
+    if (!w.at || age > 4000 || age < -5000) return ""; // a little clock skew is fine
+    const A = agsInfo(m.ev), first = A.side(s), rounds = (+m.score[0] || 0) + (+m.score[1] || 0), half = Math.max(1, info.target - 1);
+    const role = !first ? "" : info.squad === 2 || rounds <= half ? first : first === "ATK" ? "DEF" : "ATK"; // 2v2 Skirmish has no halves
+    const t = m.sides[s], tag = String((t && (t.tag || t.name)) || (s ? "TEAM B" : "TEAM A")).toUpperCase();
+    return `<div class="v3-rw" data-k="v3-rw-${+w.at}" style="--c:${esc(m.colors[s])}"><i class="cn tl"></i><i class="cn tr"></i><i class="cn bl"></i><i class="cn br"></i>
+      <div class="rwh">${role ? `<b class="ro">${role}</b>` : ""}${lg(t)}<b class="tg">${esc(tag)}</b></div><b class="big">ROUND WIN</b></div>`;
   }
   // timeout banner: the side's role, the team and a bar that empties over the timeout's length
   function valTimeout(m) {
@@ -1038,7 +1051,7 @@
     return { step, map: x, side, st: a.st && typeof a.st === "object" ? a.st : {} };
   }
   S.agents = (m) => {
-    const ev = m.ev, [L, R] = m.sides, A = agsInfo(ev), n = Math.max(2, Math.min(5, m.squad || 2));
+    const ev = m.ev, [L, R] = m.sides, A = agsInfo(ev), n = Math.max(2, Math.min(5, m.squad || 2)), o = so(ev, "agents");
     const roster = {}; ev.teams.forEach(t => (t.players || []).forEach(p => { roster[p.id] = p; }));
     const tag = s => { const t = s ? R : L; return String((t && (t.tag || t.name)) || (s ? "TEAM B" : "TEAM A")).toUpperCase(); };
     const logo = s => { const t = s ? R : L, u = t && (t.logos || []).find(Boolean); return u ? `<img class="tl" src="${esc(u)}" alt="" onerror="this.style.display='none'">` : ""; };
@@ -1054,10 +1067,10 @@
       return `<div class="ac ${s ? "r" : "l"} ${st}" data-k="ag-${s}-${i}-${ag || "x"}-${st}" style="--c:${esc(m.colors[s])}"><i class="gl"></i>${art}${st === "hover" ? `<i class="tint"></i>` : ""}${role}
         ${name ? `<span class="tx"><b>${esc(name.toUpperCase())}</b>${r.agentName && ag ? `<small>${esc(String(r.agentName).toUpperCase())}</small>` : ""}</span>` : ""}<i class="ul"></i></div>`;
     };
-    const mp = A.map ? `<div class="ac mp" data-k="ag-map-${A.map.map}">${artImg(`/val-map/${A.map.map}/listviewicontall.png`, "art")}<b class="mn">${esc(String(A.map.name || "").toUpperCase())}</b></div>`
+    const mp = A.map ? `<div class="ac mp" data-k="ag-map-${A.map.map}">${artImg(`/val-map/${A.map.map}/listviewicontall.png`, "art")}${o.map ? `<b class="mn">${esc(String(A.map.name || "").toUpperCase())}</b>` : ""}</div>`
       : `<div class="ac mp" data-k="ag-map-none"></div>`;
     const cards = Array.from({ length: n }, (_, i) => card(0, i)).join("") + mp + Array.from({ length: n }, (_, i) => card(1, i)).join("");
-    return { html: `<div class="v3-ags" data-k="v3-ags" style="--k:${2 * n + 1}">${end(0)}${mid}${end(1)}<div class="ag-row">${cards}</div></div>`, cams: [] };
+    return { html: `${o.bg ? `<div class="bp-bg"></div>` : ""}<div class="v3-ags" data-k="v3-ags" style="--k:${2 * n + 1}">${end(0)}${mid}${end(1)}${o.lineup ? `<div class="ag-row">${cards}</div>` : ""}</div>`, cams: [] };
   };
 
   S.dbdingame = (m) => {
