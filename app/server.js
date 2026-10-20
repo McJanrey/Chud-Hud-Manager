@@ -90,7 +90,7 @@ function upgrade(ev) {
   if (ev.camera && ev.camera.own === undefined) ev.camera.own = true;
   { const SC = require("./public/hud.js").SC_DEF; ev.hud.sc = ev.hud.sc || {}; // each broadcast-pack scene's own switches (Background, Bottom Announcement, ...)
     for (const k of Object.keys(SC)) ev.hud.sc[k] = Object.assign({}, SC[k], ev.hud.sc[k]); }
-  ev.lowerThird = Object.assign({ label: "LOCAL TIME", ticker: "" }, ev.lowerThird);
+  ev.lowerThird = Object.assign({ label: "LOCAL TIME", ticker: "" }, ev.lowerThird); ev.lowerThird.ticker = String(ev.lowerThird.ticker || "").replace(/\s*\n\s*/g, " | "); // older events kept one message per line
   ev.teams.forEach(t => t.players.forEach(p => { if (!p.stats || typeof p.stats !== "object") p.stats = {}; })); // typed stats for the Stats scenes // our own camera links are used unless an event opts out
   ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";

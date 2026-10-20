@@ -226,10 +226,10 @@ const GRAD={"Rocket League":"linear-gradient(135deg,#1f5bff,#0b1430 55%,#ff8a1a)
 // The cover is the event's own upload, else the game's official key art (downloaded by the app, see /covers), over the game's gradient.
 const gameCover=g=>`url('/covers/${slug(g)}'),${GRAD[g]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`;
 const coverCss=e=>(e.cover?`url('${e.cover}'),${GRAD[e.game]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`:gameCover(e.game));
-const PAGE_DESC={veto:"Choose the map pool and team order, then run the veto. The Map Selection scene follows every click.",ads:"Pictures, GIFs or videos that take turns on screen, full screen during breaks or in a box over the live scene.",overview:"Your overlay link, workspace details and where this game gets its data.",hud:"Pick a scene, set colours and choose what shows. Buttons act at once; ticks, colours and typed fields go live when you press Save Changes.",
+const PAGE_DESC={val:"Score each round, mark who is out, add kills and fill the player panels. Everything on stream follows.",veto:"Choose the map pool and team order, then run the veto. The Map Selection scene follows every click.",ads:"Pictures, GIFs or videos that take turns on screen, full screen during breaks or in a box over the live scene.",overview:"Your overlay link, workspace details and where this game gets its data.",hud:"Pick a scene, set colours and choose what shows. Buttons act at once; ticks, colours and typed fields go live when you press Save Changes.",
   teams:"Teams and rosters for this event. Names here are what the overlay shows.",tournament:"Tournament name, logos and sponsors. These show on the overlay.",talent:"Casters, hosts and observers for the broadcast.",
   live:"Where the match data comes from, who is playing and what the score is.",ocr:"Read scores and the clock from the screen for games without a data feed.",mc:"Connect your server, manage the roster and run Hunger Games or Build Battle.",
-  rb:"Score the match by hand and put cards on screen.",camera:"Caster seats and the camera link for each one.",graphics:"The lower third and the countdown timer.",schedule:"Matches for the Schedule scene.",
+  rb:"Score the match by hand and put cards on screen.",camera:"Every player and caster camera: who is live, their link, and a switch to keep any of them off air.",graphics:"The lower third and the countdown timer.",schedule:"Matches for the Schedule scene.",
   bracket:"Rounds and results for the Bracket scene.",standings:"Standings for the Rankings scene.",outputs:"Every overlay link and data address for this event."};
 function railStatus(){const sb=$("#srvbanner");if(sb)sb.hidden=online;const el=$("#conn");if(!el)return;const[c,t]=sourceState();el.innerHTML=`<span class="pill ${c==="bad"?"err":c}"><span class="lbl">${esc(t)}</span></span><span class="faint" style="font-size:12px;padding-left:2px">${screensText()}</span>`}
 function rail(e){
@@ -383,7 +383,7 @@ teams(e){
   if(!ui.team||!tm(e,ui.team))ui.team=e.teams[0]?.id||null;
   const t=tm(e,ui.team),i=e.teams.indexOf(t),P=`teams.${i}`;
   return`<div class="split"><div class="box pane"><div class="list"><div class="lhead"><input id="teamq" value="${esc(ui.teamq)}" placeholder="Search teams" aria-label="Search teams">
-    <button class="btn" type="button" data-act="addTeam" style="justify-content:space-between"><span>+ Add team</span><span class="note">${e.teams.length} / 64</span></button></div>
+    <button class="btn" type="button" data-act="addTeam" style="justify-content:space-between"><span class="row c nowrap" style="gap:8px">${ico("plus")}Add team</span><span class="note">${e.teams.length} / 64</span></button></div>
     <div class="items" id="teamlist">${teamList(e)}</div></div></div>
   <div class="box detail">${t?`
     <div class="row c" style="justify-content:space-between"><div class="row c">${ml(t,"ml big")}<div><h2 style="font-size:20px">${esc(t.name)} <span style="color:var(--dim)">/ ${esc(t.tag)}</span></h2><p class="sub">${esc(t.division||"No division set")}</p></div></div>
@@ -411,10 +411,10 @@ tournament(e){
 talent(e){
   if(!ui.talent||!e.talent.find(t=>t.id===ui.talent))ui.talent=e.talent[0]?.id||null;
   const t=e.talent.find(x=>x.id===ui.talent),i=e.talent.indexOf(t);
-  return`<div class="split"><div class="box pane"><div class="list"><div class="lhead"><input id="talentq" value="${esc(ui.talentq)}" placeholder="Search talent" aria-label="Search talent"><button class="btn" type="button" data-act="addTalent">+ Add talent</button></div><div class="items" id="talentlist">${talentList(e)}</div></div></div>
+  return`<div class="split"><div class="box pane"><div class="list"><div class="lhead"><input id="talentq" value="${esc(ui.talentq)}" placeholder="Search talent" aria-label="Search talent"><button class="btn" type="button" data-act="addTalent">${ico("plus")}Add talent</button></div><div class="items" id="talentlist">${talentList(e)}</div></div></div>
   <div class="box detail">${t?`<div class="row" style="align-items:stretch;gap:24px"><div style="width:230px">${F.dz(`talent.${i}.portrait`,"Portrait")}</div>
     <div class="sec" style="flex:1;min-width:220px">${F.text(`talent.${i}.name`,"Display name")}${F.text(`talent.${i}.role`,"Role / title","Caster")}<div class="row" style="justify-content:flex-end"><button class="btn danger" type="button" data-act="delTalent">${ico("trash")}Delete profile</button></div></div></div>
-    <div class="sec"><div class="sechead"><h2>Socials</h2><button class="btn" type="button" data-act="addSocial">+ Add social</button></div>
+    <div class="sec"><div class="sechead"><h2>Socials</h2><button class="btn" type="button" data-act="addSocial">${ico("plus")}Add social</button></div>
     ${t.socials.map((s,j)=>`<div class="row">${F.sel(`talent.${i}.socials.${j}.p`,j?"":"Platform",PLATFORMS)}${F.text(`talent.${i}.socials.${j}.h`,j?"":"Handle","@handle")}<button class="btn icon" type="button" data-act="delSocial" data-arg="${j}" aria-label="Remove social">${ico("trash")}</button></div>`).join("")||`<p class="sub">No socials yet. The first one shows on the caster nameplate.</p>`}</div>`
   :`<div class="empty"><div class="ico">${ico("talent")}</div><p>No talent yet. Add casters, hosts and observers.</p><button class="btn primary" type="button" data-act="addTalent">${ico("plus")}Add talent</button></div>`}</div></div>`;
 },
@@ -501,43 +501,44 @@ ads(e){
       <label class="btn primary" style="position:relative;overflow:hidden">${ico("plus")}Add ad<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.mov" data-upload="!ads.add" data-video style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Add an ad (picture, GIF or video)"></label></div>
       ${items.length?`<div class="adlist">${items.map(row).join("")}</div>`:`<p class="sub">No ads yet. Add a PNG, JPG, WebP or GIF picture, or an MP4, WebM or MOV video (1920×1080 fills the screen).</p>`}</div>
     <div class="sec"><h2>Where they show</h2>
-      <div class="seg" style="flex-wrap:wrap">${[["off","Full screen only"],["logo","In the logo boxes"],["corner","Corner box on every scene"],["banner","Banner on every scene"]].map(([k,l])=>`<button type="button" data-act="adMode" data-arg="${k}" aria-pressed="${(a.mode||"off")===k}">${l}</button>`).join("")}</div>
-      <p class="note">Full screen is the Ad Rotation scene: switch to it for breaks. "In the logo boxes" puts the ads in the scenes' sponsor boxes in place of the sponsors, shrunk to fit. The corner box and the banner sit on top of whatever scene is live, until you set this back to Full screen only.</p></div>
+      <div class="seg" style="flex-wrap:wrap">${[["off","Full screen only"],["logo","Logo boxes"],["corner","Corner box"],["banner","Banner"]].map(([k,l])=>`<button type="button" data-act="adMode" data-arg="${k}" aria-pressed="${(a.mode||"off")===k}">${l}</button>`).join("")}</div>
+      <p class="note">Full screen is the Ad Rotation scene: switch to it for breaks. "Logo boxes" puts the ads in the scenes' sponsor boxes in place of the sponsors, shrunk to fit. The corner box and the banner sit on top of every scene, until you set this back to Full screen only.</p>
+      <div class="row c" style="flex-wrap:wrap"><button class="btn" type="button" data-act="scene" data-arg="ads">Show Ad Rotation now</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button><button class="btn" type="button" data-act="adRestart">Start again from the first ad</button></div></div>
     <div class="sec"><h2>Animation</h2>
       <div class="seg">${[["fade","Fade"],["slide","Slide"],["zoom","Zoom"],["cut","Cut"]].map(([k,l])=>`<button type="button" data-act="adAnim" data-arg="${k}" aria-pressed="${(a.anim||"fade")===k}">${l}</button>`).join("")}</div>
       <div class="row c" style="gap:12px;flex-wrap:wrap;align-items:flex-end">${(a.anim||"fade")==="cut"?"":F.num("ads.fadeMs","Transition (milliseconds)",'min="0" max="3000" step="100"')}
         <div class="fld" style="flex:none"><span>Every ad shows for</span><div class="row c nowrap" style="gap:8px"><input type="number" id="adAllSecs" min="2" max="600" value="${esc(String((items[0]&&items[0].secs)||8))}" style="width:90px" aria-label="Seconds for every ad"><span class="note">seconds</span><button class="btn" type="button" data-act="adAllSecs"${items.length?"":" disabled"}>Apply to all</button></div></div></div>
       <p class="note">The same animation is used when the sponsors take turns in the logo boxes.</p>
       ${(()=>{const miss=BUILTIN_ADS.filter(b=>!items.some(x=>x.url===b.url));return miss.length?`<div class="row c" style="gap:8px;flex-wrap:wrap"><span class="note">Built-in ads:</span>${miss.map(b=>`<button class="btn sm" type="button" data-act="adBuiltin" data-arg="${b.id}">${ico("plus")}${esc(b.name)}</button>`).join("")}</div>`:""})()}
-      <div class="row c" style="flex-wrap:wrap"><button class="btn" type="button" data-act="scene" data-arg="ads">Show Ad Rotation now</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button><button class="btn" type="button" data-act="adRestart">Start again from the first ad</button></div></div>
+</div>
   </div><div class="sec">${stage("ads")}</div></div>`;
 },
 graphics(e){
   const t=e.timer,rem=t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining;
-  return`<div class="halves"><div class="sec"><h2>Lower third</h2>${F.text("lowerThird.label","Clock label (under the time)","LOCAL TIME")}${F.text("lowerThird.title","Match title (empty: the tournament name)","VALORANT GC")}${F.text("lowerThird.subtitle","Match subline (empty: the round title)","GROUP STAGE A - ROUND 3")}
+  return`<div class="halves"><div class="sec"><div class="sec"><h2>Lower third</h2>${F.text("lowerThird.label","Clock label (under the time)","LOCAL TIME")}${F.text("lowerThird.title","Match title (empty: the tournament name)","VALORANT GC")}${F.text("lowerThird.subtitle","Match subline (empty: the round title)","GROUP STAGE A - ROUND 3")}
     ${F.text("lowerThird.ticker","Bottom announcement: messages separated by |","THANKS FOR WATCHING | AURORA SERIES IS BACK!")}<p class="note">The bottom announcement scrolls along the bottom of the lower third, schedule and stats scenes. Turn it on or off per scene in the HUD Editor.</p>
-    <div class="row"><button class="btn" type="button" data-act="scene" data-arg="lowerthird">Show lower third</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button></div></div>
+    <div class="row"><button class="btn" type="button" data-act="scene" data-arg="lowerthird">Show lower third</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button></div></div></div>
     <div class="sec">${stage("lowerthird")}</div></div>
-  <div class="halves"><div class="sec"><h2>Timer</h2>${F.text("timer.label","Label","BACK SOON")}
+  <div class="halves"><div class="sec"><div class="sec"><h2>Timer</h2>${F.text("timer.label","Label","BACK SOON")}
     <div class="row"><label class="fld" style="max-width:160px"><span>Length (minutes)</span><input type="number" id="timerMin" min="0" max="180" step="0.5" value="${t.seconds/60}"></label>
     <span class="row c"><button class="btn" type="button" data-act="timer" data-arg="start">${t.endsAt?"Pause":"Start"}</button><button class="btn" type="button" data-act="timer" data-arg="reset">Reset</button><button class="btn" type="button" data-act="scene" data-arg="timer">Show timer</button></span></div>
-    <p class="note">Remaining: <b data-timer>${SaintsHUD.fmt(rem)}</b></p></div><div class="sec">${stage("timer")}</div></div>`;
+    <p class="note">Remaining: <b data-timer>${SaintsHUD.fmt(rem)}</b></p></div></div><div class="sec">${stage("timer")}</div></div>`;
 },
 schedule(e){
-  return`<div class="sec"><div class="sechead"><div><h2>Schedule</h2><p class="sub">The first six matches show on the Schedule scene. Fill in both scores to mark a match as played.</p></div><button class="btn" type="button" data-act="addMatch">+ Add match</button></div>
+  return`<div class="sec"><div class="sechead"><div><h2>Schedule</h2><p class="sub">The first six matches show on the Schedule scene. Fill in both scores to mark a match as played.</p></div><button class="btn" type="button" data-act="addMatch">${ico("plus")}Add match</button></div>
     <div class="tw"><table class="grid"><thead><tr><th>Time</th><th>Team A</th><th style="width:80px">Score A</th><th style="width:80px">Score B</th><th>Team B</th><th>Label</th><th style="width:44px"></th></tr></thead><tbody>
     ${e.schedule.map((m,i)=>`<tr><td>${F.text(`schedule.${i}.time`,"","6:00 PM")}</td><td>${F.sel(`schedule.${i}.left`,"",teamOpts(e))}</td><td>${F.text(`schedule.${i}.sa`,"","–")}</td><td>${F.text(`schedule.${i}.sb`,"","–")}</td><td>${F.sel(`schedule.${i}.right`,"",teamOpts(e))}</td><td>${F.text(`schedule.${i}.label`,"","Upper Round 1")}</td><td><button class="btn icon" type="button" data-act="delMatch" data-arg="${i}" aria-label="Remove match">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="7" class="sub" style="padding:16px">No matches yet.</td></tr>`}
     </tbody></table></div></div><div class="sec">${stage("schedule")}</div>`;
 },
 bracket(e){
-  return`<div class="sec"><div class="sechead"><div><h2>Bracket</h2><p class="sub">Edit each round's matches. The higher score is highlighted as the winner.</p></div><span class="row c"><button class="btn" type="button" data-act="addRound">+ Add round</button></span></div>
-  <div class="cols" style="--n:${Math.min(4,e.bracket.rounds.length)}">${e.bracket.rounds.map((r,ri)=>`<div class="box">${F.text(`bracket.rounds.${ri}.name`,"","Round name")}
-    ${r.matches.map((m,mi)=>`<div class="box" style="background:var(--raised)"><div class="row nowrap">${F.sel(`bracket.rounds.${ri}.matches.${mi}.a`,"",teamOpts(e))}<div style="width:64px">${F.text(`bracket.rounds.${ri}.matches.${mi}.sa`,"","–")}</div></div><div class="row nowrap">${F.sel(`bracket.rounds.${ri}.matches.${mi}.b`,"",teamOpts(e))}<div style="width:64px">${F.text(`bracket.rounds.${ri}.matches.${mi}.sb`,"","–")}</div></div></div>`).join("")}
-    <div class="row"><button class="btn sm" type="button" data-act="addBMatch" data-arg="${ri}">+ Match</button><button class="btn sm" type="button" data-act="delBMatch" data-arg="${ri}">− Match</button><button class="btn sm danger" type="button" data-act="delRound" data-arg="${ri}">Remove round</button></div></div>`).join("")}</div></div>
+  return`<div class="sec"><div class="sechead"><div><h2>Bracket</h2><p class="sub">Edit each round's matches. The higher score is highlighted as the winner.</p></div><span class="row c"><button class="btn" type="button" data-act="addRound">${ico("plus")}Add round</button></span></div>
+  <div class="cols" style="--n:${Math.min(4,e.bracket.rounds.length)}">${e.bracket.rounds.map((r,ri)=>`<div class="box bround">${F.text(`bracket.rounds.${ri}.name`,"","Round name")}
+    <div class="bmatches">${r.matches.map((m,mi)=>`<div class="box" style="background:var(--raised)"><div class="row nowrap">${F.sel(`bracket.rounds.${ri}.matches.${mi}.a`,"",teamOpts(e))}<div style="width:64px">${F.text(`bracket.rounds.${ri}.matches.${mi}.sa`,"","–")}</div></div><div class="row nowrap">${F.sel(`bracket.rounds.${ri}.matches.${mi}.b`,"",teamOpts(e))}<div style="width:64px">${F.text(`bracket.rounds.${ri}.matches.${mi}.sb`,"","–")}</div></div></div>`).join("")}</div>
+    <div class="row"><button class="btn sm" type="button" data-act="addBMatch" data-arg="${ri}">${ico("plus")}Match</button><button class="btn sm" type="button" data-act="delBMatch" data-arg="${ri}">− Match</button><button class="btn sm danger" type="button" data-act="delRound" data-arg="${ri}">Remove round</button></div></div>`).join("")}</div></div>
   <div class="sec">${stage("bracket")}</div>`;
 },
 standings(e){
-  return`<div class="sec"><div class="sechead"><div><h2>Rankings</h2><p class="sub">Sorted by wins, then losses, then the difference column. The top ten show on screen.</p></div><button class="btn" type="button" data-act="addStanding">+ Add team</button></div>
+  return`<div class="sec"><div class="sechead"><div><h2>Rankings</h2><p class="sub">Sorted by wins, then losses, then the difference column. The top ten show on screen.</p></div><button class="btn" type="button" data-act="addStanding">${ico("plus")}Add team</button></div>
   <div class="tw"><table class="grid" style="min-width:560px"><thead><tr><th>Team</th><th style="width:90px">Wins</th><th style="width:90px">Losses</th><th style="width:110px">${esc(SaintsHUD.gdLabel(e.game))}</th><th style="width:44px"></th></tr></thead><tbody>
   ${e.standings.map((r,i)=>`<tr><td>${F.sel(`standings.${i}.team`,"",teamOpts(e))}</td><td>${F.num(`standings.${i}.w`,"")}</td><td>${F.num(`standings.${i}.l`,"")}</td><td>${F.num(`standings.${i}.gd`,"")}</td><td><button class="btn icon" type="button" data-act="delStanding" data-arg="${i}" aria-label="Remove row">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="5" class="sub" style="padding:16px">No rows yet.</td></tr>`}
   </tbody></table></div></div><div class="sec">${stage("rankings")}</div>`;
@@ -580,7 +581,7 @@ function hgEditor(e){
 function castersPanel(e){
   const n=kitSeats(e),opts=[["","Open seat"],...e.talent.map(t=>[t.id,`${t.name} · ${t.role}`])];
   return`<div class="sec"><div class="sechead"><div><h2>Caster nameplates</h2><p class="sub">Drag a nameplate in the preview to put it anywhere. The number of casters belongs to the ${esc(e.kit)} kit, so every event using it shares the count.</p></div>
-    <span class="row c"><span class="note">${n} caster${n===1?"":"s"} shown</span><button class="btn" type="button" data-act="addCaster"${n>=8?" disabled":""}>+ Add caster</button><button class="btn sm" type="button" data-act="resetCasterPos">Reset positions</button></span></div>
+    <span class="row c"><span class="note">${n} caster${n===1?"":"s"} shown</span><button class="btn" type="button" data-act="addCaster"${n>=8?" disabled":""}>${ico("plus")}Add caster</button><button class="btn sm" type="button" data-act="resetCasterPos">Reset positions</button></span></div>
     <div class="cols" style="--n:2">${Array.from({length:n},(_,i)=>`<div class="box"><div class="row c" style="justify-content:space-between"><b>Caster ${i+1}</b>${n>1?`<button class="btn icon" type="button" data-act="rmCaster" data-arg="${i}" aria-label="Remove caster ${i+1}">${ico("trash")}</button>`:""}</div>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.role`,"Role or title (optional)","Caster")}</div>`).join("")}</div></div>`;
 }
 /* ---------- Minecraft and Riftbound ---------- */
@@ -591,7 +592,7 @@ const clockBtns=p=>`<span class="row c"><b class="mono" data-clk="${p}">0:00</b>
 const mcForm=()=>({host:$("#mcHost").value,port:$("#mcPort").value,password:$("#mcPass").value,logPath:$("#mcLog").value});
 Object.assign(VIEWS,{
 outputs(e){
-  const row=(label,url)=>`<div class="row c nowrap"><span class="note" style="width:200px;flex:none">${esc(label)}</span><input class="mono" readonly value="${esc(url)}"><button class="btn icon" type="button" data-act="copyText" data-arg="${esc(url)}" aria-label="Copy ${esc(label)}">${ico("copy")}</button></div>`;
+  const row=(label,url)=>`<div class="row c nowrap"><span class="note" style="width:200px;flex:none">${esc(label)}</span><input class="mono olink" readonly value="${esc(url)}"><button class="btn icon" type="button" data-act="copyText" data-arg="${esc(url)}" aria-label="Copy ${esc(label)}">${ico("copy")}</button></div>`;
   const others=DB.events.filter(x=>x!==e);
   return`<div class="sec"><div><h2>Overlay links for ${esc(e.name)}</h2><p class="sub">Every event has its own links and all of them are live at once, so there is nothing to set on air. Add one as a 1920 × 1080 browser source in OBS or vMix, with "Shutdown source when not visible" switched off.</p></div>
     ${row("Follows the HUD Editor",overlayUrl("auto",e))}
@@ -745,7 +746,7 @@ val(e){
   const v=e.val,t=+v.target||10,sc=e.live.score,done=sc[0]>=t||sc[1]>=t;
   return`<div class="halves"><div class="sec" style="gap:24px">
     <div class="sec"><div class="sechead"><div><h2>2v2 Skirmish</h2><p class="sub">First team to ${t} rounds wins. Add each round as it ends and everything on stream follows. There is no live data feed for this mode: score it here, or let Screen OCR read the observer's screen.</p></div>${done?`<span class="pill ok">${esc(sideName(e,sc[0]>=t?0:1))} win</span>`:""}</div>
-      <div class="cols">${[0,1].map(s=>`<div class="box"><b>${esc(sideName(e,s))}</b><div class="row c" style="justify-content:space-between"><span class="mono" style="font-size:44px" data-mirror="live.score.${s}">${sc[s]}</span><button class="btn primary" type="button" data-act="valRound" data-arg="${s}">+ Round</button></div></div>`).join("")}</div>
+      <div class="cols">${[0,1].map(s=>`<div class="box"><b>${esc(sideName(e,s))}</b><div class="row c" style="justify-content:space-between"><span class="mono" style="font-size:44px" data-mirror="live.score.${s}">${sc[s]}</span><button class="btn primary" type="button" data-act="valRound" data-arg="${s}">${ico("plus")}Round</button></div></div>`).join("")}</div>
       <div class="row c"><button class="btn" type="button" data-act="valUndo">Undo last round</button><button class="btn danger" type="button" data-act="valReset">New match</button></div>
       <div class="cols" style="--n:4">${F.num("val.target","Rounds to win",'min="1" max="30" data-rerender')}${F.text("live.gameSeries","Label on stream","2V2 SKIRMISH")}${F.sel("live.left","Left team",teamOpts(e))}${F.sel("live.right","Right team",teamOpts(e))}</div>
       <div class="cols" style="--n:4">${F.sel("val.squad","Players a side",[2,3,4,5].map(n=>[n,n+" players"]),"data-num data-rerender")}</div>
@@ -778,7 +779,7 @@ dbd(e){
       <p class="note">Each team has five players: a killer and four survivors in turn. Add them on Players &amp; Teams.</p></div>
     <div class="sec"><div class="sechead"><h2>Read the trial screen</h2></div><div id="gameOcrBox">${gameOcrHtml(e)}</div></div>
   </div><div class="sec">${stage("ingame")}</div></div>
-  <div class="sec"><div class="sechead"><h2>Trials</h2><button class="btn" type="button" data-act="dbdAdd">+ Add trial</button></div>
+  <div class="sec"><div class="sechead"><h2>Trials</h2><button class="btn" type="button" data-act="dbdAdd">${ico("plus")}Add trial</button></div>
       <div class="tw"><table class="grid"><thead><tr><th style="width:44px">#</th><th>Killer</th><th>Kills</th><th>Escapes</th><th>Generators</th><th>${esc(sideName(e,0))}</th><th>${esc(sideName(e,1))}</th><th style="width:44px"></th></tr></thead><tbody>
       ${d.trials.map((t,i)=>`<tr><td>${i+1}</td><td>${F.sel(`dbd.trials.${i}.killer`,"",[[0,sideName(e,0)],[1,sideName(e,1)]],"data-num data-rerender")}</td><td>${F.num(`dbd.trials.${i}.kills`,"",'min="0" max="4" data-rerender')}</td><td>${F.num(`dbd.trials.${i}.escapes`,"",'min="0" max="4" data-rerender')}</td><td>${F.num(`dbd.trials.${i}.gens`,"",'min="0" max="5" data-rerender')}</td><td class="mono">${sc.trials[i].pts[0]}</td><td class="mono">${sc.trials[i].pts[1]}</td><td><button class="btn icon" type="button" data-act="dbdDel" data-arg="${i}" aria-label="Delete trial ${i+1}">${ico("trash")}</button></td></tr>`).join("")||`<tr><td colspan="8" class="note">No trials yet. Add the first one.</td></tr>`}
       </tbody></table></div></div>`;
@@ -791,7 +792,7 @@ fn(e){
       <div><b style="font-size:13px">Placement tiers</b>
         <div class="tw" style="margin-top:8px"><table class="grid"><thead><tr><th>Placed up to</th><th>Points</th><th style="width:44px"></th></tr></thead><tbody>
         ${f.placePts.map((t,i)=>`<tr><td>${F.num(`fn.placePts.${i}.to`,"",'min="1" max="100" data-rerender')}</td><td>${F.num(`fn.placePts.${i}.pts`,"",'min="0" data-rerender')}</td><td><button class="btn icon" type="button" data-act="fnTierDel" data-arg="${i}" aria-label="Remove tier">${ico("trash")}</button></td></tr>`).join("")}
-        </tbody></table></div><button class="btn sm" type="button" data-act="fnTierAdd" style="margin-top:8px">+ Add tier</button></div></div>
+        </tbody></table></div><button class="btn sm" type="button" data-act="fnTierAdd" style="margin-top:8px">${ico("plus")}Add tier</button></div></div>
     ${(()=>{const F=SaintsHUD.fnLive(e),L=F.L,all=[];e.teams.forEach(t=>F.named(t).forEach((p,i)=>all.push({t,p,i})));const nm=p=>esc(p.alias||String(p.ign).replace(/#[^#]*$/,""));
       const inp=(path,val,x)=>`<input type="number" data-fnl="${path}" value="${esc(val==null?"":val)}" ${x} style="width:56px">`,sh=F.show,chk=(k,t)=>`<label class="chk"><input type="checkbox" data-fnshow="${k}"${sh[k]===false?"":" checked"}>${t}</label>`;
       return`<div class="sec"><div class="sechead"><div><h2>Live game</h2><p class="sub">Run the game being played: add each elimination and the overlay updates players and teams left (the number jumps when it drops), the killfeed, the spectated player and the live leaderboard. Game ${Math.min(F.game,F.games)} of ${F.games}.</p></div><div class="row c"><button class="btn" type="button" data-act="fnSaveElims">Save elims as a match</button><button class="btn danger" type="button" data-act="fnNewGame">New game</button></div></div>
@@ -808,7 +809,7 @@ fn(e){
     ${stage("ingame")}
   </div></div>
   <div class="sec">
-    <div class="sechead"><div><h2>Matches</h2><p class="sub">Placement is 1 for the winner. Leave a team at 0 if it did not play.</p></div><span class="row c"><button class="btn" type="button" data-act="fnAdd">+ Add match</button><button class="btn" type="button" data-act="fnDel"${f.matches.length?"":" disabled"}>Remove last</button></span></div>
+    <div class="sechead"><div><h2>Matches</h2><p class="sub">Placement is 1 for the winner. Leave a team at 0 if it did not play.</p></div><span class="row c"><button class="btn" type="button" data-act="fnAdd">${ico("plus")}Add match</button><button class="btn" type="button" data-act="fnDel"${f.matches.length?"":" disabled"}>Remove last</button></span></div>
     <div class="tw"><table class="grid"><thead><tr><th>Team</th>${f.matches.map((m,j)=>`<th colspan="2" style="text-align:center">Match ${j+1}</th>`).join("")}</tr>
       <tr><th></th>${f.matches.map(()=>`<th>Place</th><th>Elims</th>`).join("")}</tr></thead><tbody>
       ${e.teams.map((t,i)=>`<tr><td>${esc(t.name)}</td>${f.matches.map((m,j)=>`<td>${F.num(`fn.matches.${j}.place.${i}`,"",'min="0" max="100" data-rerender')}</td><td>${F.num(`fn.matches.${j}.elims.${i}`,"",'min="0" max="60" data-rerender')}</td>`).join("")}</tr>`).join("")}
@@ -909,7 +910,7 @@ function bbJudgesPanel(e,names){
   <div class="sec"><div class="sechead"><div><h2>Chat poll</h2><p class="sub">Ask chat to choose, for example the next theme. Options are voted with <b>!1</b>, <b>!2</b>… The poll shows on the Build Battle overlay.</p></div></div>
     ${F.text("mc.poll.question","Question","Which theme next?")}
     <div class="cols" style="--n:2">${pl.options.map((o,i)=>F.text(`mc.poll.options.${i}`,`Option !${i+1}`,"")).join("")}</div>
-    <div class="row c" style="flex-wrap:wrap"><button class="btn sm" type="button" data-act="pollOpt" data-arg="add"${pl.options.length>=6?" disabled":""}>+ Option</button><button class="btn sm" type="button" data-act="pollOpt" data-arg="del"${pl.options.length<=2?" disabled":""}>− Option</button>
+    <div class="row c" style="flex-wrap:wrap"><button class="btn sm" type="button" data-act="pollOpt" data-arg="add"${pl.options.length>=6?" disabled":""}>${ico("plus")}Option</button><button class="btn sm" type="button" data-act="pollOpt" data-arg="del"${pl.options.length<=2?" disabled":""}>− Option</button>
       <button class="btn${pl.open?" primary":""}" type="button" data-act="pollVote" data-arg="${pl.open?"close":"open"}">${pl.open?"Close poll":"Open poll"}</button>
       <button class="btn" type="button" data-act="pollShow" aria-pressed="${!!pl.show}">${pl.show?"Hide on screen":"Show on screen"}</button><button class="btn sm" type="button" data-act="pollClear">Clear votes</button>
       <span class="note">${pl.total} vote${pl.total===1?"":"s"}${pl.options.map((o,i)=>o?` · !${i+1} ${esc(o)}: ${pl.counts[i]||0}`:"").join("")}</span></div></div>`;

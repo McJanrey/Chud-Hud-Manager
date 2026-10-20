@@ -240,3 +240,16 @@ table.grid td input:not(:hover):not(:focus),table.grid td select:not(:hover):not
 @media (max-width:1200px){.vrun{grid-template-columns:1fr}}
 .vsetup{gap:20px}.vsetup .fld>span{min-height:18px}.vsetup .vbar{display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start}.vsetup .vbar .fld{gap:8px}.vsetup .vbar .pill{height:38px;display:inline-flex;align-items:center;padding:0 14px}
 .vrun>.sec{gap:20px}.vrow .vs .sd{gap:8px}.vrow .vs{gap:24px}
+/* spacing pass: one size for every section title (plain or beside a button), ad rows on one baseline */
+:where(.app .sec) h2,.app .sechead h2{font-size:20px;font-weight:650;line-height:1.25}
+.sechead{align-items:flex-start}.sechead>div>p.sub,.sec>div>h2+p.sub{margin-top:4px}
+.adrow{align-items:end}.adrow .chk{margin-bottom:0;height:40px;display:inline-flex;align-items:center}.adrow>span.row{height:40px;align-items:center}
+/* bracket editor: later rounds sit centred between the matches that feed them */
+.bround{align-self:stretch}.bround .bmatches{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:12px}
+/* bare fields outside the form helpers (kill picker, player panels, links) get the same look as every other field */
+:where(.app .main) :is(input:not([type=checkbox]):not([type=color]):not([type=file]):not([type=range]):not([type=radio]),select):where(:not(.fld *):not(.lhead *):not(.seg *)){height:36px;padding:0 10px;border-radius:var(--r-md);border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);font:inherit;font-size:13px}
+:where(.app .main) select:where(:not(.fld *)){padding-right:28px}
+.olink{flex:1;min-width:0;height:36px}
+/* cards inside a card: no extra side indent */
+.halves>.sec>.sec .sec{padding-left:0;padding-right:0;padding-bottom:0}
+.seg{flex-wrap:wrap}.seg>button{white-space:nowrap}
