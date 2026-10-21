@@ -480,7 +480,7 @@
       return `<div class="lc${ch < 58 ? " tight" : ""}" data-k="lsc${i}" style="top:${165 + i * (ch + GAP)}px;height:${ch}px;width:${341 - 12 * i}px;--f:${Math.min(31, Math.round(ch * 0.38))}px"><b data-fit>${esc(String(x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${ch < 58 || !sub ? "" : `<small data-fit>${esc(sub.toUpperCase())}</small>`}</div>`; }).join("");
     const ads = adList(ev).length ? adRot(ev, "", false) : logoBox(ev, sponsorsOf(ev));
     let h = o.bg ? `<div class="bp-bg"></div>` : "";
-    h += `<div class="lsch" data-k="lsch"><div class="vid"></div><em class="up">UPCOMING</em>${cards || `<div class="lc" style="top:165px;height:82px;width:341px"><small>NOTHING SCHEDULED</small></div>`}<div class="adb">${ads}</div>
+    h += `<div class="lsch" data-k="lsch"><div class="vid"></div><em class="up">UPCOMING</em>${cards || `<div class="lc" style="top:165px;height:82px;width:341px"><small>NOTHING SCHEDULED</small></div>`}<div class="adb">${ads}</div><em class="act" data-k="lsact">ACTIVITIES</em>
       ${o.match ? `<div class="bar"><b class="ev" data-fit>${esc(String(ev.tournament.name || ev.name || "").toUpperCase())}</b><i class="dv"></i><div class="nx"><b data-fit>${esc(String(ev.game).toUpperCase())}</b><b class="un">UP NEXT</b></div></div>` : ""}
       ${o.ticker ? bpTicker(ev) : ""}</div>`;
     return { html: h, cams: [] };

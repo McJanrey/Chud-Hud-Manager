@@ -18,6 +18,7 @@ const VARIANTS = {
     bg: "#0d0614",
     // the caster nameplate is MJ's own artwork (brand/lotd/nameplate.png, text removed) with the name and role set over it in its lettering
     css: `@font-face{font-family:"Montserrat";font-weight:800;font-display:swap;src:url(/fonts/montserrat-latin-800.woff2) format("woff2")}
+@font-face{font-family:"Nosifer";font-weight:400;font-display:swap;src:url(/fonts/nosifer-latin.woff2) format("woff2")}
 .np{width:380px;height:54px}.np .sh{display:none}
 .np .bd{position:absolute;inset:0;display:block;padding:0;border:0;box-shadow:none;clip-path:none;background:url(/brand/lotd/nameplate.png) 0 0/100% 100% no-repeat}
 .np b,.np small{position:absolute;left:28.3%;font:800 15.5px/1 "Montserrat",sans-serif;letter-spacing:.01em;color:#f89048}
