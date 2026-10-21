@@ -15,6 +15,8 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the whole history, so the release notes can list what changed since the last tag
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -41,6 +43,7 @@ jobs:
           node test/draft-test.js
           node test/packaging-test.js
           node test/ads-test.js
+          node test/notes-test.js
       # Release builds only run with a code from the owner, but only once the license service is set up (app/license-config.json exists),
       # so a release made before that can never lock anyone out. The flag is written into this build only, not committed.
       - name: Turn licensing on
@@ -64,5 +67,16 @@ jobs:
       # Chud Hud WWL (Winter Wonder-LAN, the winter edition) likewise, with its own update file
       - name: Build and publish Chud Hud WWL
         run: npx electron-builder --config electron-builder.wwl.js --win nsis --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # What's new: one line per change since the previous release, shown in the app's update pop-up (it reads the release body)
+      - name: Release notes
+        shell: bash
+        run: |
+          git fetch --tags --force
+          V=$(node -p "require('./package.json').version")
+          node tools/release-notes.js "$V" > release-notes.md
+          cat release-notes.md
+          gh release edit "v$V" --repo "${{ github.repository }}" --notes-file release-notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

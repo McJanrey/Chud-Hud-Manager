@@ -383,6 +383,8 @@ On top of that the server refuses requests that a web page on another site could
 1. Bump `version` in `app/package.json` and push to `main`.
 2. In GitHub, **Actions → Release → Run workflow**. It runs the tests, builds the Windows installer and publishes release `v<version>` with `latest.yml`, which installed copies read. (Pushing a matching `v*` tag does the same.)
 
+The release also gets its **what's new** text automatically: `app/tools/release-notes.js` lists the commit subjects since the previous release (one short line each, without version bumps, and without naming other products or people), and the workflow writes that into the release body. The app's update pop-up shows it. So write commit subjects as something a user can read: the part before the first colon becomes the line.
+
 ### Files
 
 ```
