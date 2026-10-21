@@ -70,14 +70,23 @@ jobs:
         run: npx electron-builder --config electron-builder.wwl.js --win nsis --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # What's new: one line per change since the previous release, shown in the app's update pop-up (it reads the release body)
-      - name: Release notes
+      # Every build above uploads into a hidden draft release. Only when all three installers and their update files are there does the
+      # release go public, with its what's new text (one line per change since the previous release, shown in the app's update pop-up).
+      # So an installed copy never sees a half-finished release (a missing lotd.yml or wwl.yml) while the later builds are still running.
+      - name: Publish the release
         shell: bash
         run: |
           git fetch --tags --force
           V=$(node -p "require('./package.json').version")
           node tools/release-notes.js "$V" > release-notes.md
           cat release-notes.md
-          gh release edit "v$V" --repo "${{ github.repository }}" --notes-file release-notes.md
+          REPO="${{ github.repository }}"
+          ID=$(gh api "repos/$REPO/releases?per_page=30" --jq "[.[] | select(.tag_name == \"v$V\")][0].id")
+          test -n "$ID" && test "$ID" != "null" || { echo "No release v$V found to publish"; exit 1; }
+          NAMES=$(gh api "repos/$REPO/releases/$ID/assets" --jq ".[].name")
+          for f in latest.yml lotd.yml wwl.yml; do
+            echo "$NAMES" | grep -qx "$f" || { echo "$f is missing from the release, not publishing it"; exit 1; }
+          done
+          gh api -X PATCH "repos/$REPO/releases/$ID" -F draft=false -f make_latest=true -f body="$(cat release-notes.md)" --jq '.html_url'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

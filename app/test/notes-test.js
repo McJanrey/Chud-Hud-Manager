@@ -23,6 +23,14 @@ check("version order is numeric (0.3.10 is after 0.3.9)", R.cmp("v0.3.10", "v0.3
 check("the previous tag is the one just below, ignoring odd tags", R.previousTag("0.3.23", ["v0.3.9", "v0.3.10", "v0.3.22", "v0.3.23", "v0.3.24", "nightly", "v0.3.22-beta"]) === "v0.3.22");
 check("the first release has no previous tag", R.previousTag("0.1.0", ["v0.1.0"]) === "");
 
+// releases go public only when complete: builds upload into a draft, and one last step publishes it once all three update files are there
+const wf = require("fs").readFileSync(path.join(__dirname, "..", "..", ".github", "workflows", "release.yml"), "utf8");
+const pubI = wf.indexOf("name: Publish the release"), lastBuildI = wf.lastIndexOf("electron-builder --config electron-builder.wwl.js");
+check("every edition builds into a draft release", require("../package.json").build.publish[0].releaseType === "draft" && require("../electron-builder.lotd.js").publish[0].releaseType === "draft" && require("../electron-builder.wwl.js").publish[0].releaseType === "draft");
+check("a last step publishes the release, after the final build", pubI > lastBuildI && lastBuildI > 0 && /draft=false/.test(wf.slice(pubI)));
+check("it refuses to publish unless latest.yml, lotd.yml and wwl.yml are all there", /for f in latest.yml lotd.yml wwl.yml/.test(wf.slice(pubI)) && /not publishing/.test(wf.slice(pubI)));
+check("the what's new text goes out with it", /release-notes.js/.test(wf.slice(pubI)) && /body=/.test(wf.slice(pubI)));
+
 const bad = (() => { try { execFileSync(process.execPath, [path.join(__dirname, "..", "tools", "release-notes.js"), "not-a-version"], { stdio: "pipe" }); return false; } catch (e) { return e.status === 2; } })();
 check("the script refuses a bad version", bad);
 
