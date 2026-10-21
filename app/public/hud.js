@@ -227,7 +227,7 @@
       const t = ev.talent.find(x => x.id === s.talent), social = t && t.socials && t.socials[0] && t.socials[0].h ? t.socials[0].p + "/" + t.socials[0].h : "";
       const { x, y } = casterSpot(i, n); // fixed spots, one size: nothing is dragged or resized
       const sub = [s.role || (t && t.role) || "", social].filter(Boolean).join(" | ");
-      html += `<div class="np" data-i="${i}" style="left:${x}px;top:${y}px"><i class="sh"></i><div class="bd"><b>${esc(t ? t.name : "Caster " + (i + 1))}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div></div>`;
+      html += `<div class="np" data-i="${i}" style="left:${x}px;top:${y}px"><i class="sh"></i><div class="bd"><b data-fit>${esc(t ? t.name : "Caster " + (i + 1))}</b>${sub ? `<small data-fit>${esc(sub)}</small>` : ""}</div></div>`;
       const seatUrl = s.url || ownCam(ev, "seat" + i);
       if (seatUrl) cams.push({ key: "seat" + i + seatUrl, url: seatUrl, x: x + (NP.w - 256) / 2, y: Math.max(0, y - 150), w: 256, h: 144 });
     });
@@ -467,7 +467,24 @@
     if (o.ticker) h += bpTicker(ev);
     return { html: h, cams: [] };
   };
+  /* LOTD's Schedule, laid out on MJ's 1920 x 1080 wireframe: the video segment on the left (a frame), UPCOMING with two activity cards that
+     step in, the ad rotation under them, a wide bar with the event name, the game and UP NEXT, and the ticker. Same ticks as the standard
+     Schedule: Background, Match Text (the bar) and Bottom Announcement (the ticker). Long names shrink to fit their boxes. */
+  function lotdSchedule(m) {
+    const ev = m.ev, o = so(ev, "schedule"), open = x => x.sa === "" || x.sb === "";
+    const list = ev.schedule.filter(open).concat(ev.schedule.filter(x => !open(x)));
+    const nm = (x, side) => { const t = sideTeam(ev, side ? x.right : x.left); return t ? (t.name || t.tag || "TBD") : "TBD"; };
+    const cards = list.slice(0, 2).map((x, i) => { const teams = x.left || x.right ? `${nm(x, 0)} VS ${nm(x, 1)}` : "";
+      return `<div class="lc c${i}" data-k="lsc${i}"><b data-fit>${esc(String(x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b><small data-fit>${esc([x.time, teams].filter(Boolean).join(" | ").toUpperCase())}</small></div>`; }).join("");
+    const ads = adList(ev).length ? adRot(ev, "", false) : logoBox(ev, sponsorsOf(ev));
+    let h = o.bg ? `<div class="bp-bg"></div>` : "";
+    h += `<div class="lsch" data-k="lsch"><div class="vid"></div><em class="up">UPCOMING</em>${cards || `<div class="lc c0"><small>NOTHING SCHEDULED</small></div>`}<div class="adb">${ads}</div>
+      ${o.match ? `<div class="bar"><b class="ev" data-fit>${esc(String(ev.tournament.name || ev.name || "").toUpperCase())}</b><i class="dv"></i><div class="nx"><b data-fit>${esc(String(ev.game).toUpperCase())}</b><b class="un">UP NEXT</b></div></div>` : ""}
+      ${o.ticker ? bpTicker(ev) : ""}</div>`;
+    return { html: h, cams: [] };
+  }
   S.schedule = (m) => {
+    if (EDITION === "lotd") return lotdSchedule(m);
     const ev = m.ev, o = so(ev, "schedule"), [L, R] = m.sides, mt = bpMatch(ev);
     const cards = ev.schedule.slice(0, 3).map((x, i) => { const a = sideTeam(ev, x.left), b = sideTeam(ev, x.right), done = x.sa !== "" && x.sb !== "";
       return `<div class="card" data-k="sc${i}"><b>${esc(String(x.label || "MATCH " + (i + 1)).toUpperCase())}</b><em>${esc(String(ev.game).toUpperCase())}</em>
@@ -1412,6 +1429,16 @@
     if (!["corner", "banner"].includes(a.mode) || s === "ads") return "";
     return adList(ev).length ? `<div class="ad-box ad-${a.mode}" data-k="adb-${a.mode}">${adRot(ev, "", false)}</div>` : "";
   }
+  /* Text that must fit a fixed box (caster names and roles): shrinks the line a half pixel at a time until it fits, down to 55% of its
+     size; only then does it fall back to the "..." cut. The box never changes size. Re-run on every draw, because a patch resets the size. */
+  function fitText(root) {
+    root.querySelectorAll("[data-fit]").forEach(el => {
+      el.style.fontSize = "";
+      if (el.scrollWidth <= el.clientWidth + 1) return;
+      const base = parseFloat(getComputedStyle(el).fontSize) || 16; let sz = base;
+      while (el.scrollWidth > el.clientWidth + 1 && sz > base * 0.55) { sz -= 0.5; el.style.fontSize = sz + "px"; }
+    });
+  }
   function render(hudEl, ev, game, scene, ctx) {
     CTX = ctx || {};
     if (!hudEl.firstChild) hudEl.innerHTML = `<div class="lay"></div><div class="cams"></div>`;
@@ -1424,6 +1451,7 @@
     if (lay.dataset.scene !== s) { lay.dataset.scene = s; lay.className = "lay"; lay.textContent = ""; lay.__html = null; lay.__seen = false; }
     FX.on = !(typeof location !== "undefined" && /[?&]anim=off\b/.test(location.search));
     if (lay.__html !== out.html) { const tpl = document.createElement("div"); tpl.innerHTML = out.html; patchKids(lay, tpl); lay.__html = out.html; fxFlush(hudEl); }
+    fitText(hudEl);
     syncCams(hudEl.lastChild, out.cams);
     return m;
   }
