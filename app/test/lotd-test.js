@@ -38,6 +38,13 @@ check("the ad box is 40% opaque", /background:rgba\(\d+,\d+,\d+,\.4\)/.test(rule
 check("the bar is 50% opaque orange", /background:rgba\(217,131,70,\.5\)/.test(rule(".lsch .bar")), rule(".lsch .bar"));
 check("the ticker is 50% opaque and sits where Draft 2 puts it (y 648, full width)", /background:rgba\(\d+,\d+,\d+,\.5\)/.test(rule(".lsch .bp-tk")) && /top:648px/.test(rule(".lsch .bp-tk")), rule(".lsch .bp-tk"));
 
+// Draft 3: green cards with a lavender border, a black ad box, a full-width black ticker, bright red GAME over a smaller UP NEXT
+check("the cards are green at 40% with a lavender border", /background:rgba\(0,190,97,\.4\)/.test(rule(".lsch .lc")) && /border:2px solid rgba\(192,192,255,\.4\)/.test(rule(".lsch .lc")), rule(".lsch .lc"));
+check("the ad box is black at 40% and as big as Draft 3's (342.7 x 138 at 865.3, 376)", /background:rgba\(0,0,0,\.4\)/.test(rule(".lsch .adb")) && /left:865\.3px/.test(rule(".lsch .adb")) && /top:376px/.test(rule(".lsch .adb")) && /width:342\.7px/.test(rule(".lsch .adb")) && /height:138px/.test(rule(".lsch .adb")), rule(".lsch .adb"));
+check("the ticker is black at 50% and runs edge to edge", /background:rgba\(0,0,0,\.5\)/.test(rule(".lsch .bp-tk")) && /left:0;right:0/.test(rule(".lsch .bp-tk")), rule(".lsch .bp-tk"));
+const fsz = sel => parseFloat((/font-size:([\d.]+)px/.exec(rule(sel)) || [0, 0])[1]);
+check("the game is bright red and bigger than UP NEXT", /color:#ff3131/.test(rule(".lsch .bar .nx b:first-child")) && fsz(".lsch .bar .nx b:first-child") > fsz(".lsch .bar .nx .un") && fsz(".lsch .bar .nx .un") > 0);
+check("the ticker's separators are white", /\.lsch \.bp-tk i\{[^}]*background:#fff/.test(css));
 // the ad rotation fades: the shown slide fades in even when its element is brand new, and every slide keeps its transition
 check("the ad rotation fades (transition on every slide, animation on the shown one)", /\.rot \.ri\{[^}]*transition:opacity var\(--rt,800ms\)/.test(css) && /\.rot-fade \.ri\.on[^{]*\{animation:rotIn var\(--rt,800ms\)/.test(css) && /@keyframes rotIn\{from\{opacity:0\}to\{opacity:1\}\}/.test(css));
 check("only the Cut style has no fade", /\.rot-cut \.ri\{transition:none\}/.test(css) && !/\.rot-cut \.ri\.on[^{]*\{animation/.test(css));

@@ -475,12 +475,12 @@
     const list = ev.schedule.filter(open).concat(ev.schedule.filter(x => !open(x)));
     const nm = (x, side) => { const t = sideTeam(ev, side ? x.right : x.left); return t ? (t.name || t.tag || "TBD") : "TBD"; };
     // however many activities there are, up to five: cards keep the wireframe's 82 px until the stack (165 to 365) is full, then share it
-    const shown = list.slice(0, 5), n = shown.length, GAP = 7, ch = Math.max(30, Math.min(82, Math.floor((200 - (n - 1) * GAP) / Math.max(1, n))));
+    const shown = list.slice(0, 5), n = shown.length, GAP = 7, ch = Math.max(30, Math.min(82.7, Math.floor((200 - (n - 1) * GAP) / Math.max(1, n))));
     const cards = shown.map((x, i) => { const teams = x.left || x.right ? `${nm(x, 0)} VS ${nm(x, 1)}` : "", sub = [x.time, teams].filter(Boolean).join(" | ");
-      return `<div class="lc${ch < 58 ? " tight" : ""}" data-k="lsc${i}" style="top:${165 + i * (ch + GAP)}px;height:${ch}px;width:${341 - 12 * i}px;--f:${Math.min(31, Math.round(ch * 0.38))}px"><b data-fit>${esc(String(x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${ch < 58 || !sub ? "" : `<small data-fit>${esc(sub.toUpperCase())}</small>`}</div>`; }).join("");
+      return `<div class="lc${ch < 58 ? " tight" : ""}" data-k="lsc${i}" style="top:${(164.7 + i * (ch + GAP)).toFixed(1)}px;height:${ch}px;width:${342 - 12.4 * i}px;--f:${Math.min(33, Math.round(ch * 0.4))}px"><b data-fit>${esc(String(x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${ch < 58 || !sub ? "" : `<small data-fit>${esc(sub.toUpperCase())}</small>`}</div>`; }).join("");
     const ads = adList(ev).length ? adRot(ev, "", false) : logoBox(ev, sponsorsOf(ev));
     let h = o.bg ? `<div class="bp-bg"></div>` : "";
-    h += `<div class="lsch" data-k="lsch"><div class="vid"></div><em class="up">UPCOMING</em>${cards || `<div class="lc" style="top:165px;height:82px;width:341px"><small>NOTHING SCHEDULED</small></div>`}<div class="adb">${ads}</div><em class="act" data-k="lsact">ACTIVITIES</em>
+    h += `<div class="lsch" data-k="lsch"><div class="vid"></div><em class="up">UPCOMING</em>${cards || `<div class="lc" style="top:164.7px;height:82.7px;width:342px"><small>NOTHING SCHEDULED</small></div>`}<div class="adb">${ads}</div><em class="act" data-k="lsact">ACTIVITIES</em>
       ${o.match ? `<div class="bar"><b class="ev" data-fit>${esc(String(ev.tournament.name || ev.name || "").toUpperCase())}</b><i class="dv"></i><div class="nx"><b data-fit>${esc(String(ev.game).toUpperCase())}</b><b class="un">UP NEXT</b></div></div>` : ""}
       ${o.ticker ? bpTicker(ev, true) : ""}</div>`;
     return { html: h, cams: [] };
