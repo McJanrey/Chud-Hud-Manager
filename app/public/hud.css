@@ -916,9 +916,8 @@
 .lsch{position:absolute;inset:0;font-family:"Montserrat","Inter",sans-serif;font-weight:800;text-transform:uppercase}
 .lsch .vid{position:absolute;left:75px;top:95px;width:767px;height:417px;border:2px solid #f89048}
 .lsch .up{position:absolute;left:868px;top:92px;font:800 23px/1 "Montserrat",sans-serif;letter-spacing:.02em;color:#f89048;font-style:normal}
-.lsch .lc{position:absolute;left:866px;width:341px;height:82px;box-sizing:border-box;padding:11px 16px 0 22px;background:#28272c;border-left:6px solid #f89048;color:#f89048}
-.lsch .lc.c0{top:165px}.lsch .lc.c1{top:254px;width:328px}
-.lsch .lc b{display:block;font-size:31px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lsch .lc{position:absolute;left:866px;box-sizing:border-box;padding:11px 16px 0 22px;background:#28272c;border-left:6px solid #f89048;color:#f89048}
+.lsch .lc b{display:block;font-size:var(--f,31px);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lsch .lc small{display:block;margin-top:3px;font-size:11px;line-height:1.2;font-weight:700;color:#fff;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lsch .adb{position:absolute;left:871px;top:382px;width:331px;height:126px;background:#28272c;border:1.5px solid #f89048;box-sizing:border-box;padding:8px}
 .lsch .adb .rot{width:100%;height:100%}
@@ -932,3 +931,4 @@
 .lsch .bp-tk{left:12px;right:12px;bottom:auto;top:648px;height:63px;background:#28272c;border:0}
 .lsch .bp-tk span{font:800 44px/1 "Montserrat",sans-serif;letter-spacing:.22em;color:#fff;padding:0 30px}
 .lsch .bp-tk i{width:3px;height:30px;background:#f89048}
+.lsch .lc.tight{display:flex;align-items:center;padding-top:0}.lsch .lc.tight b{width:100%}
