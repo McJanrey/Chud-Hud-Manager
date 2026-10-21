@@ -207,14 +207,18 @@
      preview (seat.x and seat.y on the 1280x720 stage). How many show is the kit's seat count. A seat with a camera link also gets the
      camera above its plate. */
   /* Where caster nameplates sit (1280 x 720 stage), taken from MJ's 1920 x 1080 desk reference: the plates stand on the dark front of the
-     desk (about y 940 to 1040 at 1080p), centred under each caster. Two casters are at the reference's x 460 and x 1360. One caster is
-     centred. Three or four share the desk evenly. Five to eight use two rows, the upper row first. Plates are 296 wide. */
-  const NP_W = 296, NP_ROW_Y = 623, NP_ROW_GAP = 96;
-  const npRow = (m, k) => (m === 1 ? 492 : m === 2 ? [159, 759][k] : Math.round(27 + k * 930 / (m - 1)));
+     desk (about y 940 to 1040 at 1080p), centred under each caster. Two casters are at the reference's x 460 and x 1360, one caster is
+     centred, and more share the desk evenly; when a row can't hold them (four plates for the standard 296 px plate, three for LOTD's
+     380 px one) they go in rows, the upper row first. Every plate is one size. LOTD has its own plate artwork, so its size differs. */
+  const EDITION = typeof document !== "undefined" && document.documentElement ? document.documentElement.getAttribute("data-variant") || "" : "";
+  const NP = EDITION === "lotd" ? { w: 380, y: 636, gap: 83 } : { w: 296, y: 623, gap: 96 };
+  const NP_CAP = Math.floor(1240 / (NP.w + 10)); // plates a row can hold, with room between them
+  const npRowX = (m, k) => (m === 1 ? 640 - NP.w / 2 : m === 2 ? [307, 907][k] - NP.w / 2 : Math.round(27 + k * (1280 - NP.w - 54) / (m - 1)));
   function casterSpot(i, n) {
-    if (n <= 4) return { x: npRow(n, i), y: NP_ROW_Y };
-    const top = Math.ceil(n / 2);
-    return i < top ? { x: npRow(top, i), y: NP_ROW_Y - NP_ROW_GAP } : { x: npRow(n - top, i - top), y: NP_ROW_Y };
+    const rows = Math.ceil(n / NP_CAP), base = Math.floor(n / rows), extra = n % rows; // the upper rows take the extra plate
+    let r = 0, first = 0;
+    for (; r < rows; r++) { const c = base + (r < extra ? 1 : 0); if (i < first + c) return { x: Math.round(npRowX(c, i - first)), y: NP.y - (rows - 1 - r) * NP.gap }; first += c; }
+    return { x: 0, y: NP.y };
   }
   S.casters = (m) => {
     const ev = m.ev, kit = (CTX.kits || {})[ev.kit], n = Math.max(1, Math.min(8, Math.round(+(kit && kit.seats) || { solo: 1, duo: 2, trio: 3 }[ev.camera.layout] || 2)));
@@ -225,7 +229,7 @@
       const sub = [s.role || (t && t.role) || "", social].filter(Boolean).join(" | ");
       html += `<div class="np" data-i="${i}" style="left:${x}px;top:${y}px"><i class="sh"></i><div class="bd"><b>${esc(t ? t.name : "Caster " + (i + 1))}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div></div>`;
       const seatUrl = s.url || ownCam(ev, "seat" + i);
-      if (seatUrl) cams.push({ key: "seat" + i + seatUrl, url: seatUrl, x: x + (NP_W - 256) / 2, y: Math.max(0, y - 150), w: 256, h: 144 });
+      if (seatUrl) cams.push({ key: "seat" + i + seatUrl, url: seatUrl, x: x + (NP.w - 256) / 2, y: Math.max(0, y - 150), w: 256, h: 144 });
     });
     return { html, cams };
   };
