@@ -583,8 +583,8 @@ function hgEditor(e){
 /* ---------- caster nameplates ---------- */
 function castersPanel(e){
   const n=kitSeats(e),opts=[["","Open seat"],...e.talent.map(t=>[t.id,`${t.name} · ${t.role}`])];
-  return`<div class="sec"><div class="sechead"><div><h2>Caster nameplates</h2><p class="sub">Drag a nameplate in the preview to put it anywhere. The number of casters belongs to the ${esc(e.kit)} kit, so every event using it shares the count.</p></div>
-    <span class="row c"><span class="note">${n} caster${n===1?"":"s"} shown</span><button class="btn" type="button" data-act="addCaster"${n>=8?" disabled":""}>${ico("plus")}Add caster</button><button class="btn sm" type="button" data-act="resetCasterPos">Reset positions</button></span></div>
+  return`<div class="sec"><div class="sechead"><div><h2>Caster nameplates</h2><p class="sub">Nameplates sit in a fixed row along the bottom, all one size. The number of casters belongs to the ${esc(e.kit)} kit, so every event using it shares the count.</p></div>
+    <span class="row c"><span class="note">${n} caster${n===1?"":"s"} shown</span><button class="btn" type="button" data-act="addCaster"${n>=8?" disabled":""}>${ico("plus")}Add caster</button></span></div>
     <div class="cols" style="--n:2">${Array.from({length:n},(_,i)=>`<div class="box"><div class="row c" style="justify-content:space-between"><b>Caster ${i+1}</b>${n>1?`<button class="btn icon" type="button" data-act="rmCaster" data-arg="${i}" aria-label="Remove caster ${i+1}">${ico("trash")}</button>`:""}</div>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.role`,"Role or title (optional)","Caster")}</div>`).join("")}</div></div>`;
 }
 /* ---------- Minecraft and Riftbound ---------- */
@@ -919,7 +919,7 @@ function bbJudgesPanel(e,names){
       <span class="note">${pl.total} vote${pl.total===1?"":"s"}${pl.options.map((o,i)=>o?` · !${i+1} ${esc(o)}: ${pl.counts[i]||0}`:"").join("")}</span></div></div>`;
 }
 /* The broadcast-pack scenes (lower third, schedule, stats, lineup, bracket, starting soon, title): each has its own ticks, like the reference. */
-const SC_LABEL={map:"Map Name",bg:"Background",ticker:"Bottom Announcement",match:"Match Text",top:"Top Bar",banner:"Tournament Banner",stats:"Individual Stats",team:"Team Name",lineup:"Team Lineup",border:"Border",count:"Countdown",sponsors:"Sponsors"};
+const SC_LABEL={logos:"Team Logos",title:"Heading",map:"Map Name",bg:"Background",ticker:"Bottom Announcement",match:"Match Text",top:"Top Bar",banner:"Tournament Banner",stats:"Individual Stats",team:"Team Name",lineup:"Team Lineup",border:"Border",count:"Countdown",sponsors:"Sponsors"};
 /* Round history for the buy-round board: the "+" round goes to the left team, a click flips a round to the right team, and a
    click on the last round when the right team has it clears it. */
 function valRounds(e){
@@ -1173,7 +1173,6 @@ document.addEventListener("click",async ev0=>{
     case "addCaster":{const n=Math.min(8,kitSeats(e)+1);DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:n};put(`settings.kits.${e.kit}`,{seats:n},false);break}
     case "rmCaster":{const n=Math.max(1,kitSeats(e)-1),seats=e.camera.seats.slice();seats.splice(+arg,1);seats.push({talent:"",url:"",role:""});
       DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:n};put("camera.seats",seats);put(`settings.kits.${e.kit}`,{seats:n},false);break}
-    case "resetCasterPos":put("camera.seats",e.camera.seats.map(s=>{const c=Object.assign({},s);delete c.x;delete c.y;return c}));break;
     case "kitSeats":{DB.settings.kits=DB.settings.kits||{};DB.settings.kits[e.kit]={seats:+arg};put(`settings.kits.${e.kit}`,{seats:+arg},false);break;}
     case "timer":{const t=Object.assign({},e.timer);
       if(arg==="start"){if(t.endsAt){t.remaining=Math.max(0,Math.round((t.endsAt-Date.now())/1000));t.endsAt=0}else t.endsAt=Date.now()+t.remaining*1000}
@@ -1411,15 +1410,6 @@ document.addEventListener("keydown",k=>{
 document.addEventListener("click",ev0=>{
   const el=ev0.target.closest("[data-stage] [data-el]"),e=ev();if(!el||!e||ui.view!=="hud"||e.game!=="Minecraft")return;
   HGEL=el.dataset.el;render();
-});
-/* drag a caster nameplate anywhere on the preview */
-document.addEventListener("pointerdown",ev0=>{
-  const np=ev0.target.closest(".np"),st=np&&np.closest("[data-stage]"),e=ev();if(!np||!st||!e)return;
-  const i=+np.dataset.i,k=st.clientWidth/1280,x0=parseFloat(np.style.left),y0=parseFloat(np.style.top),sx=ev0.clientX,sy=ev0.clientY;
-  DRAG=true;np.setPointerCapture(ev0.pointerId);ev0.preventDefault();
-  const move=m=>{const x=Math.max(0,Math.min(1280-np.offsetWidth,Math.round(x0+(m.clientX-sx)/k))),y=Math.max(0,Math.min(720-np.offsetHeight,Math.round(y0+(m.clientY-sy)/k)));np.style.left=x+"px";np.style.top=y+"px";np.dataset.x=x;np.dataset.y=y};
-  const up=()=>{np.removeEventListener("pointermove",move);np.removeEventListener("pointerup",up);DRAG=false;if(np.dataset.x!=null){put(`camera.seats.${i}.x`,+np.dataset.x);put(`camera.seats.${i}.y`,+np.dataset.y)}};
-  np.addEventListener("pointermove",move);np.addEventListener("pointerup",up);
 });
 document.addEventListener("pointerdown",ev0=>{
   const box=ev0.target.closest("#ocrBoxes");if(!box)return;

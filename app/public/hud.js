@@ -211,7 +211,7 @@
     const cams = []; let html = "";
     ev.camera.seats.slice(0, n).forEach((s, i) => {
       const t = ev.talent.find(x => x.id === s.talent), social = t && t.socials && t.socials[0] && t.socials[0].h ? t.socials[0].p + "/" + t.socials[0].h : "";
-      const x = s.x != null ? s.x : 150 + (i % 4) * 250, y = s.y != null ? s.y : 560 + Math.floor(i / 4) * 80;
+      const x = 38 + (i % 4) * 306, y = 560 + Math.floor(i / 4) * 80; // fixed row, four a line: nothing is dragged or resized
       const sub = [s.role || (t && t.role) || "", social].filter(Boolean).join(" | ");
       html += `<div class="np" data-i="${i}" style="left:${x}px;top:${y}px"><i class="sh"></i><div class="bd"><b>${esc(t ? t.name : "Caster " + (i + 1))}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div></div>`;
       const seatUrl = s.url || ownCam(ev, "seat" + i);
@@ -379,10 +379,10 @@
       return `<div class="mt">${tr(x.a, x.sa, d && a > b)}${tr(x.b, x.sb, d && b > a)}</div>`; }).join("")}</div></div>`).join("")}</div></div>`, cams: [] };
   };
   S.rankings = (m) => {
-    const ev = m.ev, rows = ev.standings.slice().sort((a, b) => b.w - a.w || a.l - b.l || b.gd - a.gd).slice(0, 10);
-    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(ev.tournament.name || "")}</div><div class="h-title" style="font-size:90px">STANDINGS</div>
-    <table class="h-table" style="width:820px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>W</th><th>L</th><th>${gdLabel(ev.game)}</th></tr></thead><tbody>
-    ${rows.map((r, i) => { const t = sideTeam(ev, r.team); return `<tr class="${i === 0 ? "top" : ""}"><td class="num">${i + 1}</td><td class="tm" style="text-align:left">${lg(t)}${esc(t ? t.name : "TBD")}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.gd > 0 ? "+" : ""}${r.gd}</td></tr>`; }).join("")}</tbody></table></div>`, cams: [] };
+    const ev = m.ev, o = so(ev, "rankings"), rows = ev.standings.slice().sort((a, b) => b.w - a.w || a.l - b.l || b.gd - a.gd).slice(0, 10);
+    const head = o.title ? `<div class="h-eyebrow">${esc(ev.tournament.name || "")}</div><div class="h-title" style="font-size:90px">STANDINGS</div>` : "";
+    const body = rows.map((r, i) => { const t = sideTeam(ev, r.team); return `<tr class="${i === 0 ? "top" : ""}"><td class="num">${i + 1}</td><td class="tm"><div class="tmi">${o.logos ? lg(t) : ""}${esc(t ? t.name : "TBD")}</div></td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.gd > 0 ? "+" : ""}${r.gd}</td></tr>`; }).join("");
+    return { html: `<div class="h-full${o.bg ? "" : " nobg"}">${head}<table class="h-table" style="width:820px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>W</th><th>L</th><th>${gdLabel(ev.game)}</th></tr></thead><tbody>${body}</tbody></table></div>${o.banner ? bpBanner(ev) : ""}${o.ticker ? bpTicker(ev) : ""}`, cams: [] };
   };
   S.timer = (m) => {
     const t = m.ev.timer, rem = t.endsAt ? Math.max(0, Math.round((t.endsAt - Date.now()) / 1000)) : t.remaining;
@@ -402,6 +402,7 @@
     bracket: { bg: true, logo: true },
     starting: { bg: false, border: true, count: true, logo: true, sponsors: true, img: "" },
     title: { bg: false, border: true, logo: true, sponsors: true, img: "" },
+    rankings: { bg: true, title: true, logos: true, banner: false, ticker: false },
     agents: { bg: false, map: true, lineup: true },
   };
   const so = (ev, sc) => Object.assign({}, SC_DEF[sc], ((ev.hud || {}).sc || {})[sc]);
