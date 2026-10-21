@@ -205,10 +205,16 @@ if (!DB.settings.draft) DB.settings.draft = { delay: 0, lockfile: "" }; // champ
 // Chud Hud LOTD (Lan of the Dead) starts with its own three games, put at the front once. Everything else stays available.
 if (V.id === "lotd" && !DB.settings.lotdEvents) {
   DB.settings.lotdEvents = true;
-  const mk = (game, name, series) => { const ev = freshEvent(game, name); ev.tournament.name = "LAN OF THE DEAD"; ev.live.seriesTitle = series; return ev; };
+  const mk = (game, name, series) => { const ev = freshEvent(game, name); ev.tournament.name = "LAN OF THE DEAD 2026"; ev.live.seriesTitle = series; return ev; };
   const dbd = mk("Dead by Daylight", "DBD - TRIALS", "LAN OF THE DEAD"), fn = mk("Fortnite", "FN - DUOS", "LAN OF THE DEAD"), vl = mk("Valorant", "VAL - 2V2 SKIRMISH", "LAN OF THE DEAD");
   dbd.live.gameSeries = "TRIALS"; fn.live.gameSeries = "DUOS"; vl.live.gameSeries = "2V2 SKIRMISH";
   DB.events.unshift(vl, fn, dbd);
+  setImmediate(save);
+}
+// the Schedule design names the event "LAN OF THE DEAD 2026": events still carrying the old default name get the year once (a name you typed is never touched)
+if (V.id === "lotd" && !DB.settings.lotdYear) {
+  DB.settings.lotdYear = true;
+  DB.events.forEach(e => { if (e.tournament && e.tournament.name === "LAN OF THE DEAD") e.tournament.name = "LAN OF THE DEAD 2026"; });
   setImmediate(save);
 }
 // Ready-made events for Minecraft (Hunger Games and Build Battle) and Riftbound, added once to a saved workspace that has none.

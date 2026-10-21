@@ -62,6 +62,7 @@ function put(path,value,eventScoped=true){
 /* Unsaved changes. Typing in a field only changes this screen (the previews show it); nothing reaches the overlay until Save
    Changes. Buttons (scores, timers, scene switches) still act at once, because they are live controls. */
 const PENDING=new Map(); // "event id|path" -> { ev, path, value, area }
+const LIVE_FIELDS=new Set(["hud.scene"]); // fields that switch what is on air; picking one never waits for Save Changes
 function stageEdit(path,value){
   const e=ev();if(!e)return;
   setL(e,path,value);
@@ -1285,6 +1286,7 @@ document.addEventListener("input",ev0=>{
   const p=el.dataset.bind;if(!p||!e)return;
   let v=el.type==="checkbox"?el.checked:el.dataset.num!==undefined?(parseInt(el.value)||0):el.value;
   if(el.dataset.upper!==undefined)v=String(v).toUpperCase();
+  if(LIVE_FIELDS.has(p)){put(p,v);updateStages();mirrors();return} // a live control (like the scene buttons): it acts at once, with no Save Changes
   stageEdit(p,v);updateStages();mirrors();
 });
 document.addEventListener("change",ev0=>{

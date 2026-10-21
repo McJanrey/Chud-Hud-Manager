@@ -422,8 +422,8 @@
   const so = (ev, sc) => Object.assign({}, SC_DEF[sc], ((ev.hud || {}).sc || {})[sc]);
   const bpClock = () => { try { return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).toUpperCase(); } catch { return ""; } };
   const tickerMsgs = ev => String((ev.lowerThird || {}).ticker || "").split(/\n|\|/).map(s => s.trim()).filter(Boolean);
-  function bpTicker(ev) {
-    const msgs = tickerMsgs(ev); if (!msgs.length) return "";
+  function bpTicker(ev, fallback) { // fallback: with no typed announcement, scroll the event name and the sponsors instead of nothing
+    const msgs = tickerMsgs(ev).length || !fallback ? tickerMsgs(ev) : [ev.tournament.name || ev.name].concat(sponsorsOf(ev).map(x => x.name)).filter(Boolean); if (!msgs.length) return "";
     const one = msgs.map(x => `<span>${esc(x.toUpperCase())}</span><i></i>`).join(""), reps = Math.max(2, Math.ceil(12 / msgs.length));
     const group = one.repeat(reps), secs = Math.max(18, Math.round(msgs.join(" ").length * reps * 0.22));
     return `<div class="bp-tk" data-k="bp-tk"><div class="rl" style="animation-duration:${secs}s"><div class="g">${group}</div><div class="g">${group}</div></div></div>`;
@@ -482,7 +482,7 @@
     let h = o.bg ? `<div class="bp-bg"></div>` : "";
     h += `<div class="lsch" data-k="lsch"><div class="vid"></div><em class="up">UPCOMING</em>${cards || `<div class="lc" style="top:165px;height:82px;width:341px"><small>NOTHING SCHEDULED</small></div>`}<div class="adb">${ads}</div><em class="act" data-k="lsact">ACTIVITIES</em>
       ${o.match ? `<div class="bar"><b class="ev" data-fit>${esc(String(ev.tournament.name || ev.name || "").toUpperCase())}</b><i class="dv"></i><div class="nx"><b data-fit>${esc(String(ev.game).toUpperCase())}</b><b class="un">UP NEXT</b></div></div>` : ""}
-      ${o.ticker ? bpTicker(ev) : ""}</div>`;
+      ${o.ticker ? bpTicker(ev, true) : ""}</div>`;
     return { html: h, cams: [] };
   }
   S.schedule = (m) => {
@@ -1464,7 +1464,7 @@
     const W = 1280, H = 720; c.width = W; c.height = H; const g = c.getContext("2d");
     const vignette = a => { const v = g.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .72); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${a})`); g.fillStyle = v; g.fillRect(0, 0, W, H); };
     if (kind === "none") { g.fillStyle = "#000"; g.fillRect(0, 0, W, H); return; }
-    if (kind === "checker") { for (let y = 0; y < H; y += 40) for (let x = 0; x < W; x += 40) { g.fillStyle = ((x + y) / 40) % 2 ? "#2b2c31" : "#202126"; g.fillRect(x, y, 40, 40); } return; }
+    if (kind === "checker") { for (let y = 0; y < H; y += 40) for (let x = 0; x < W; x += 40) { g.fillStyle = ((x + y) / 40) % 2 ? "#7a7b84" : "#62636b"; g.fillRect(x, y, 40, 40); } return; }
     if (kind === "image" && imageUrl) {
       g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
       const im = new Image();

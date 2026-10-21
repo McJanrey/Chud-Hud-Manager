@@ -288,6 +288,8 @@ A Halloween edition of the same app, built from the same code. It installs next 
 
 LOTD opens with VALORANT 2v2 Skirmish, Fortnite duos and Dead by Daylight events ready at the front of My Events. The look is orange (#e1873d), black, purple (#8250f0), green (#65d589) and white: the control room and launcher get a dark purple theme with a cobweb, drifting fog and an occasional bat, and the overlay's greens and gold become purple-black panels with pumpkin orange. The decorations are never on the overlay, so nothing flies across your stream. Every release builds both installers.
 
+The LOTD **Schedule** follows its design ("Schedule Draft 2"): the bar reads the event name with its year (`LAN OF THE DEAD 2026`, set in the event's tournament name), the cards, ad box, bar and ticker have the design's own transparency so a video or background shows through, and the ticker always runs: it scrolls what you type under **Bottom announcement**, or the event name and sponsors when nothing is typed. The ad rotation cross-fades between ads.
+
 From source: `npm run start:lotd`, `npm run dist:lotd`. To change the logo, run `powershell -File app\tools\make-icons.ps1 -Source <image.png> -Edition lotd`: it rewrites the in-app logo and the window, installer and exe icons.
 
 ## Stream Deck and Companion
