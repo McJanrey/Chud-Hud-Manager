@@ -211,7 +211,7 @@
      centred, and more share the desk evenly; when a row can't hold them (four plates for the standard 296 px plate, three for LOTD's
      380 px one) they go in rows, the upper row first. Every plate is one size. LOTD has its own plate artwork, so its size differs. */
   const EDITION = typeof document !== "undefined" && document.documentElement ? document.documentElement.getAttribute("data-variant") || "" : "";
-  const NP = EDITION === "lotd" ? { w: 380, y: 636, gap: 83 } : { w: 296, y: 623, gap: 96 };
+  const NP = EDITION === "lotd" ? { w: 380, y: 639, gap: 80 } : { w: 296, y: 623, gap: 96 };
   const NP_CAP = Math.floor(1240 / (NP.w + 10)); // plates a row can hold, with room between them
   const npRowX = (m, k) => (m === 1 ? 640 - NP.w / 2 : m === 2 ? [307, 907][k] - NP.w / 2 : Math.round(27 + k * (1280 - NP.w - 54) / (m - 1)));
   function casterSpot(i, n) {
