@@ -28,12 +28,20 @@ check("both lines scroll on the overlay, in capitals", (h => /<span>DOORS AT SIX
 check("the server keeps the speed in range", /tickerSpeed: 60 \}, ev\.lowerThird\); ev\.lowerThird\.tickerSpeed = Math\.max\(10, Math\.min\(200/.test(server));
 
 // the panels
-check("the Bottom Announcement and Match Text ticks open panels from their names (the checkbox stays separate)", /const TKP_TICKS=new Set\(\["ticker","match"\]\)/.test(html) && /class="tklbl\$\{ui\.tkp===k\?" on":""\}" data-act="tkPanel"/.test(html) && /<input type="checkbox" id="\$\{fid\(p\)\}" data-bind="\$\{p\}"/.test(html));
+check("the Bottom Announcement and Match Text ticks open panels from their names (the checkbox stays separate)", /const tkHas=\(sc,k\)=>k==="ticker"\|\|k==="match"/.test(html) && /class="tklbl\$\{ui\.tkp===k\?" on":""\}" data-act="tkPanel"/.test(html) && /<input type="checkbox" id="\$\{fid\(p\)\}" data-bind="\$\{p\}"/.test(html));
 check("the announcement panel has a reset arrow, Speed (10 to 200) and Line 1 and Line 2", /aria-label="Bottom Announcement"/.test(html) && /data-act="tkReset" data-arg="ticker"/.test(html) && /type="range" class="tkrange" min="10" max="200"/.test(html) && /data-tkline="1"/.test(html) && /data-tkline="2"/.test(html));
 check("the match text panel has Title and Subtitle with the defaults as hints", /aria-label="Match Text"/.test(html) && /data-tktext="title"/.test(html) && /data-tktext="subtitle"/.test(html) && /placeholder="\$\{esc\(e\.tournament\.name\|\|e\.game\|\|""\)\}"/.test(html));
 check("typing and dragging in a panel reach the overlay at once (no Save Changes)", /if\(el\.dataset\.tkline\|\|el\.dataset\.tkspeed!==undefined\|\|el\.dataset\.tktext\)\{tkEdit\(el\);return\}/.test(html) && /put\("lowerThird",L\);updateStages\(\)/.test(html));
 check("Escape closes the panel and the tick name toggles it", /k\.key==="Escape"&&ui\.tkp/.test(html) && /case "tkPanel":ui\.tkp=ui\.tkp===arg\?"":arg/.test(html));
 check("the old Lower Third page no longer has its own announcement box (one place to edit)", !/F\.text\("lowerThird\.ticker"/.test(html) && !/F\.text\("lowerThird\.title"/.test(html) && /<b>HUD Editor<\/b>: pick a scene and click/.test(html));
+
+// the other ticks have panels too
+const sc = (scene, o, f) => HUD.sceneHtml(ev(e => { e.hud.scene = scene; e.hud.sc = { [scene]: o }; f && f(e); }), null, scene);
+check("every tick with something to type or pick opens a panel, and its fields act at once", ["bg", "top", "banner", "team", "title", "count", "logo", "stats"].every(k => html.includes(k + ':{t:"')) && /const LIVE_SC=/.test(html));
+check("the Background colour shows on the overlay and a bad colour is ignored", /class="bp-bg" style="background:#112233"/.test(sc("statsteam", { bg: true, bgColor: "#112233" })) && !/style="background:red/.test(sc("statsteam", { bg: true, bgColor: "red;x" })));
+check("Top Bar text replaces the series title", />MY SERIES</.test(sc("statsteam", { top: true, topText: "my series" })));
+check("the Countdown label can be typed", />WE ARE BACK</.test(sc("starting", { count: true, countLabel: "we are back" }, e => { e.timer = { remaining: 60, endsAt: 0, label: "" }; })));
+check("the Heading can be typed on the standings board", />my table</.test(sc("rankings", { title: true, titleText: "my table" }, e => { e.standings = []; })));
 
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nTICKER TEST PASS");
 process.exit(failures ? 1 : 0);

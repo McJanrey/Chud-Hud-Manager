@@ -56,7 +56,7 @@ check("the shown slide changes with the clock", a0.match(/class="ri on" data-k="
 // the dashboard preview's "Transparent" backdrop is a checkerboard you can see, and picking a scene never waits for Save Changes
 const grey = /fillStyle = \(\(x \+ y\) \/ 40\) % 2 \? "#([0-9a-f]{6})" : "#([0-9a-f]{6})"/i.exec(js);
 check("the Transparent preview backdrop is a visible checkerboard (not two near-black greys)", !!grey && grey.slice(1).every(c => parseInt(c.slice(0, 2), 16) > 0x50), grey && grey.slice(1).join());
-check("switching the scene applies at once (no Save Changes)", /const LIVE_FIELDS=new Set\(\["hud\.scene"\]\)/.test(html) && /if\(LIVE_FIELDS\.has\(p\)\)\{put\(p,v\)/.test(html));
+check("switching the scene applies at once (no Save Changes)", /const LIVE_FIELDS=new Set\(\["hud\.scene"\]\)/.test(html) && /if\(LIVE_FIELDS\.has\(p\)\|\|LIVE_SC\.test\(p\)\)\{put\(p,v\)/.test(html));
 
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nLOTD TEST PASS");
 process.exit(failures ? 1 : 0);

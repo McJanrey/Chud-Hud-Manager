@@ -62,6 +62,7 @@ function put(path,value,eventScoped=true){
 /* Unsaved changes. Typing in a field only changes this screen (the previews show it); nothing reaches the overlay until Save
    Changes. Buttons (scores, timers, scene switches) still act at once, because they are live controls. */
 const PENDING=new Map(); // "event id|path" -> { ev, path, value, area }
+const LIVE_SC=/^hud\.sc\.\w+\.(bgColor|topText|bannerImg|teamText|titleText|countLabel|img|statLabels\.\d)$/; // the tick panels' fields act at once too
 const LIVE_FIELDS=new Set(["hud.scene"]); // fields that switch what is on air; picking one never waits for Save Changes
 function stageEdit(path,value){
   const e=ev();if(!e)return;
@@ -929,15 +930,28 @@ function valRounds(e){
 }
 /* Tick panels, as in the reference HUD Editor: click the name of a tick that has settings (the checkbox still switches it on or off) and a small
    panel opens over the preview with those settings. What is typed or dragged reaches the overlay at once; the reset arrow puts it back. */
-const TKP_TICKS=new Set(["ticker","match"]);
+const TKP_FIELDS={
+  bg:{t:"Background",f:[["bgColor","Colour","color"]]},
+  top:{t:"Top Bar",f:[["topText","Text","text"]]},
+  banner:{t:"Tournament Banner",f:[["bannerImg","Image","img"]]},
+  team:{t:"Team Name",f:[["teamText","Name","text"]]},
+  title:{t:"Heading",f:[["titleText","Text","text"]]},
+  count:{t:"Countdown",f:[["countLabel","Label","text"]]},
+  logo:{t:"Logo",f:[["img","Image","img"]],only:["bracket"]},
+  stats:{t:"Individual Stats",f:[["statLabels.0","Row 1","text"],["statLabels.1","Row 2","text"],["statLabels.2","Row 3","text"],["statLabels.3","Row 4","text"]]},
+};
+const tkHas=(sc,k)=>k==="ticker"||k==="match"||!!(TKP_FIELDS[k]&&(!TKP_FIELDS[k].only||TKP_FIELDS[k].only.includes(sc)));
 function tkPanel(e){
-  const D=(SaintsHUD.SC_DEF||{})[e.hud.scene],k=ui.tkp;if(!k||!D||!(k in D)||!TKP_TICKS.has(k))return"";
+  const D=(SaintsHUD.SC_DEF||{})[e.hud.scene],k=ui.tkp;if(!k||!D||!(k in D)||!tkHas(e.hud.scene,k))return"";
   const L=e.lowerThird||{};
   if(k==="ticker"){const t=SaintsHUD.tickerLines(e),sp=SaintsHUD.tickerSpeed(e);
     return`<div class="tkp" role="dialog" aria-label="Bottom Announcement"><div class="tkh"><b>Bottom Announcement</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="ticker" title="Reset" aria-label="Reset the bottom announcement">${ico("reset")}</button></div>
       <div class="tkb"><div class="tkrow"><span>Speed</span><output id="tkSpeedV">${sp}</output></div><input type="range" class="tkrange" min="10" max="200" step="1" value="${sp}" data-tkspeed aria-label="Speed">
       <label class="tkf"><span>Line 1</span><input type="text" data-tkline="1" value="${esc(t.l1)}" maxlength="140" autocomplete="off"></label>
       <label class="tkf"><span>Line 2</span><input type="text" data-tkline="2" value="${esc(t.l2)}" maxlength="140" autocomplete="off"></label></div></div>`}
+  if(k!=="match"){const sc=e.hud.scene,Z=TKP_FIELDS[k];
+    return`<div class="tkp" role="dialog" aria-label="${Z.t}"><div class="tkh"><b>${Z.t}</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="${k}" title="Reset" aria-label="Reset ${Z.t}">${ico("reset")}</button></div>
+      <div class="tkb">${Z.f.map(([f,l,ty])=>{const p=`hud.sc.${sc}.${f}`,v=get(E,p)||"";return ty==="img"?`<div class="tkf"><span>${l}</span>${F.dz(p,l,"mini")}</div>`:ty==="color"?`<label class="tkf"><span>${l}</span><input type="color" data-bind="${p}" value="${/^#[0-9a-f]{6}$/i.test(v)?v:"#000000"}"></label>`:`<label class="tkf"><span>${l}</span><input type="text" data-bind="${p}" value="${esc(v)}" maxlength="80" autocomplete="off"></label>`}).join("")}</div></div>`}
   const g=e.live||{};
   return`<div class="tkp" role="dialog" aria-label="Match Text"><div class="tkh"><b>Match Text</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="match" title="Reset" aria-label="Reset the match text">${ico("reset")}</button></div>
     <div class="tkb"><label class="tkf"><span>Title</span><input type="text" data-tktext="title" value="${esc(L.title||"")}" placeholder="${esc(e.tournament.name||e.game||"")}" maxlength="80" autocomplete="off"></label>
@@ -953,7 +967,7 @@ function tkEdit(el){
 function scControls(e,sc){
   const D=(SaintsHUD.SC_DEF||{})[sc];if(!D||!e.hud.sc||!e.hud.sc[sc])return"";
   const ticks=Object.keys(D).filter(k=>typeof D[k]==="boolean").map(k=>{const lab=k==="logo"?(sc==="bracket"?"Tournament Logo":"Logo"):SC_LABEL[k]||k,p=`hud.sc.${sc}.${k}`;
-    return TKP_TICKS.has(k)?`<span class="chk tkchk"><input type="checkbox" id="${fid(p)}" data-bind="${p}"${get(E,p)?" checked":""} aria-label="${lab} on or off"><button type="button" class="tklbl${ui.tkp===k?" on":""}" data-act="tkPanel" data-arg="${k}" aria-expanded="${ui.tkp===k}" title="Click to edit">${lab}</button></span>`:F.chk(p,lab)}).join("");
+    return tkHas(sc,k)?`<span class="chk tkchk"><input type="checkbox" id="${fid(p)}" data-bind="${p}"${get(E,p)?" checked":""} aria-label="${lab} on or off"><button type="button" class="tklbl${ui.tkp===k?" on":""}" data-act="tkPanel" data-arg="${k}" aria-expanded="${ui.tkp===k}" title="Click to edit">${lab}</button></span>`:F.chk(p,lab)}).join("");
   const T=id=>e.teams.find(t=>t.id===id),pl=[...(T(e.live.left)||{players:[]}).players,...(T(e.live.right)||{players:[]}).players].filter(p=>p.ign||p.alias);
   const extra=sc==="statsplayer"?`<div style="width:240px">${F.sel("hud.sc.statsplayer.pid","",[["","Player: spotlight or MVP"],...pl.map(p=>[p.id,p.alias||p.ign])])}</div>`
     :sc==="lineup"?`<div style="width:240px">${F.sel("hud.sc.lineup.side","",[[0,"Team: "+((T(e.live.left)||{}).name||"left")],[1,"Team: "+((T(e.live.right)||{}).name||"right")]],"data-num")}</div>`
@@ -1278,7 +1292,7 @@ document.addEventListener("click",async ev0=>{
       put("val.feed",F);put("val.dead",D);put("val.p",P);updateStages();render();break}
     case "valSpec":put("val.spec",arg||"");updateStages();render();break;
     case "tkPanel":ui.tkp=ui.tkp===arg?"":arg;render();break;
-    case "tkReset":{const L=Object.assign({},e.lowerThird||{});if(arg==="ticker"){L.line1="";L.line2="";L.lineMore=[];L.ticker="";L.tickerSpeed=60}else{L.title="";L.subtitle=""}put("lowerThird",L);render();break}
+    case "tkReset":{if(arg!=="ticker"&&arg!=="match"){const sc=e.hud.scene;for(const[f]of (TKP_FIELDS[arg]||{f:[]}).f)await put(`hud.sc.${sc}.${f}`,"");render();break}const L=Object.assign({},e.lowerThird||{});if(arg==="ticker"){L.line1="";L.line2="";L.lineMore=[];L.ticker="";L.tickerSpeed=60}else{L.title="";L.subtitle=""}put("lowerThird",L);render();break}
     case "valAllAlive":put("val.dead",{});put("val.aliveUsed",false);break;
     case "dbdAdd":{const t=e.dbd.trials,last=t[t.length-1];put("dbd.trials",[...t,{killer:last?1-last.killer:0,kills:0,escapes:0,gens:0}]);break}
     case "dbdFromOcr":{const v=gameOcr();if(!v)break;const r=dbdRead(v);put("dbd.trials",[...e.dbd.trials,{killer:+arg,kills:r.kills,escapes:r.escapes,gens:r.gens}]);toast("Trial added from the screen.");break}
@@ -1314,7 +1328,7 @@ document.addEventListener("input",ev0=>{
   const p=el.dataset.bind;if(!p||!e)return;
   let v=el.type==="checkbox"?el.checked:el.dataset.num!==undefined?(parseInt(el.value)||0):el.value;
   if(el.dataset.upper!==undefined)v=String(v).toUpperCase();
-  if(LIVE_FIELDS.has(p)){put(p,v);updateStages();mirrors();return} // a live control (like the scene buttons): it acts at once, with no Save Changes
+  if(LIVE_FIELDS.has(p)||LIVE_SC.test(p)){put(p,v);updateStages();mirrors();return} // a live control (like the scene buttons): it acts at once, with no Save Changes
   stageEdit(p,v);updateStages();mirrors();
 });
 document.addEventListener("change",ev0=>{

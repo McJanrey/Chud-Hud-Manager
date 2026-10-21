@@ -394,9 +394,9 @@
   };
   S.rankings = (m) => {
     const ev = m.ev, o = so(ev, "rankings"), rows = ev.standings.slice().sort((a, b) => b.w - a.w || a.l - b.l || b.gd - a.gd).slice(0, 10);
-    const head = o.title ? `<div class="h-eyebrow">${esc(ev.tournament.name || "")}</div><div class="h-title" style="font-size:90px">STANDINGS</div>` : "";
+    const head = o.title ? `<div class="h-eyebrow">${esc(ev.tournament.name || "")}</div><div class="h-title" style="font-size:90px">${esc(o.titleText || "STANDINGS")}</div>` : "";
     const body = rows.map((r, i) => { const t = sideTeam(ev, r.team); return `<tr class="${i === 0 ? "top" : ""}"><td class="num">${i + 1}</td><td class="tm"><div class="tmi">${o.logos ? lg(t) : ""}${esc(t ? t.name : "TBD")}</div></td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.gd > 0 ? "+" : ""}${r.gd}</td></tr>`; }).join("");
-    return { html: `<div class="h-full${o.bg ? "" : " nobg"}">${head}<table class="h-table" style="width:820px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>W</th><th>L</th><th>${gdLabel(ev.game)}</th></tr></thead><tbody>${body}</tbody></table></div>${o.banner ? bpBanner(ev) : ""}${o.ticker ? bpTicker(ev) : ""}`, cams: [] };
+    return { html: `<div class="h-full${o.bg ? "" : " nobg"}">${head}<table class="h-table" style="width:820px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>W</th><th>L</th><th>${gdLabel(ev.game)}</th></tr></thead><tbody>${body}</tbody></table></div>${o.banner ? bpBanner(ev, o) : ""}${o.ticker ? bpTicker(ev) : ""}`, cams: [] };
   };
   S.timer = (m) => {
     const t = m.ev.timer, rem = t.endsAt ? Math.max(0, Math.round((t.endsAt - Date.now()) / 1000)) : t.remaining;
@@ -433,9 +433,11 @@
     const group = one.repeat(reps), secs = Math.round(Math.max(18, msgs.join(" ").length * reps * 0.22) * 60 / tickerSpeed(ev)); // speed 60 is the long-standing pace; 200 is over three times faster
     return `<div class="bp-tk" data-k="bp-tk"><div class="rl" style="animation-duration:${secs}s"><div class="g">${group}</div><div class="g">${group}</div></div></div>`;
   }
+  const hexOk = c => /^#[0-9a-f]{3,8}$/i.test(String(c || ""));
+  const bpBg = o => o.bg ? `<div class="bp-bg"${hexOk(o.bgColor) ? ` style="background:${o.bgColor}"` : ""}></div>` : "";
   const bpSeries = ev => esc(String(ev.live.seriesTitle || ev.tournament.name || ev.name || "").toUpperCase());
-  const bpTop = ev => `<div class="bp-top" data-k="bp-top"><b>${bpSeries(ev)}</b><i></i></div>`;
-  const bpBanner = ev => `<div class="bp-ban" data-k="bp-ban"><svg viewBox="0 0 136 250" preserveAspectRatio="none" aria-hidden="true"><polygon points="1.5,0 134.5,0 134.5,206 68,248 1.5,206" fill="#02140c" stroke="#FDC82F" stroke-width="2.5"/></svg><img src="${esc(tourLogo(ev))}" alt=""></div>`;
+  const bpTop = (ev, o) => `<div class="bp-top" data-k="bp-top"><b>${o && o.topText ? esc(String(o.topText).toUpperCase()) : bpSeries(ev)}</b><i></i></div>`;
+  const bpBanner = (ev, o) => `<div class="bp-ban" data-k="bp-ban"><svg viewBox="0 0 136 250" preserveAspectRatio="none" aria-hidden="true"><polygon points="1.5,0 134.5,0 134.5,206 68,248 1.5,206" fill="#02140c" stroke="#FDC82F" stroke-width="2.5"/></svg><img src="${esc((o && o.bannerImg) || tourLogo(ev))}" alt=""></div>`;
   const bpMatch = ev => { const l = ev.lowerThird || {}, t = l.title || ev.tournament.name || ev.game, s = l.subtitle || ev.live.roundTitle || ev.live.gameSeries || "";
     return { t: esc(String(t).toUpperCase()), s: esc(String(s).toUpperCase()) }; };
   const sponsorsOf = ev => (ev.tournament.sponsors || []).filter(x => x && (x.logo || x.name));
@@ -484,7 +486,7 @@
     const cards = shown.map((x, i) => { const teams = x.left || x.right ? `${nm(x, 0)} VS ${nm(x, 1)}` : "", sub = [x.time, teams].filter(Boolean).join(" | ");
       return `<div class="lc${ch < 58 ? " tight" : ""}" data-k="lsc${i}" style="top:${(164.7 + i * (ch + GAP)).toFixed(1)}px;height:${ch}px;width:${342 - 12.4 * i}px;--f:${Math.min(33, Math.round(ch * 0.4))}px"><b data-fit>${esc(String(x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${ch < 58 || !sub ? "" : `<small data-fit>${esc(sub.toUpperCase())}</small>`}</div>`; }).join("");
     const ads = adList(ev).length ? adRot(ev, "", false) : logoBox(ev, sponsorsOf(ev));
-    let h = o.bg ? `<div class="bp-bg"></div>` : "";
+    let h = bpBg(o);
     h += `<div class="lsch" data-k="lsch"><div class="vid"></div><em class="up">UPCOMING</em>${cards || `<div class="lc" style="top:164.7px;height:82.7px;width:342px"><small>NOTHING SCHEDULED</small></div>`}<div class="adb">${ads}</div><em class="act" data-k="lsact">ACTIVITIES</em>
       ${o.match ? `<div class="bar"><b class="ev" data-fit>${esc(String(ev.tournament.name || ev.name || "").toUpperCase())}</b><i class="dv"></i><div class="nx"><b data-fit>${esc(String(ev.game).toUpperCase())}</b><b class="un">UP NEXT</b></div></div>` : ""}
       ${o.ticker ? bpTicker(ev, true) : ""}</div>`;
@@ -496,7 +498,7 @@
     const cards = ev.schedule.slice(0, 3).map((x, i) => { const a = sideTeam(ev, x.left), b = sideTeam(ev, x.right), done = x.sa !== "" && x.sb !== "";
       return `<div class="card" data-k="sc${i}"><b>${esc(String(x.label || "MATCH " + (i + 1)).toUpperCase())}</b><em>${esc(String(ev.game).toUpperCase())}</em>
         <small>${esc((a ? a.name : "TBD").toUpperCase())} VS. ${esc((b ? b.name : "TBD").toUpperCase())}${done ? ` · ${esc(x.sa)}-${esc(x.sb)}` : ""}</small><small class="tm">${esc(String(x.time || "").toUpperCase())}</small></div>`; }).join("");
-    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}<div class="bp-frame" data-k="bp-frame"></div>
+    let h = `${bpBg(o)}<div class="bp-frame" data-k="bp-frame"></div>
       <div class="bp-sch" data-k="bp-sch"><em>UPCOMING</em><b>SCHEDULE</b>${cards || `<div class="card"><small>NO MATCHES SCHEDULED</small></div>`}</div>${bpSponsor(ev, "big")}
       <div class="bp-bar" data-k="bp-bar"><div class="ck"><b class="num">${esc(bpClock())}</b><small>LOCAL TIME</small></div>
         <div class="sb">${L && R && !["mc", "rb", "fn"].includes(m.kind) ? `${lg(L)}<b class="tg">${tagOf(L, 0, m.kind)}</b><b class="num sc">${+m.series[0] || 0}</b><i></i><b class="num sc">${+m.series[1] || 0}</b><b class="tg">${tagOf(R, 1, m.kind)}</b>${lg(R)}` : ""}</div>
@@ -508,7 +510,7 @@
     const ev = m.ev, o = so(ev, "statsteam"), [L, R] = m.sides, mt = bpMatch(ev), cols = bpCols(m);
     const table = s => `<div class="tb ${s ? "r" : "l"}" style="--c:${esc(m.colors[s])}"><div class="thd"><span></span><span></span>${cols.map(([, n]) => `<span class="${n.length > 8 ? "sm" : ""}">${n}</span>`).join("")}</div>
       ${bpPlayers(m, s).slice(0, 5).map((p, i) => `<div class="rw" data-k="p${s}${i}">${pic(p, "pf")}<b class="nm">${esc(noTag(p.display).toUpperCase())}</b>${cols.map(([k]) => `<b class="num">${esc(stv(ev, p, k))}</b>`).join("")}</div>`).join("")}</div>`;
-    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}
+    let h = `${bpBg(o)}${o.top ? bpTop(ev, o) : ""}
       <div class="bp-st" data-k="bp-st">${o.match ? `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>` : ""}
         <div class="sbar"><div class="h l" style="--c:${esc(m.colors[0])}">${lg(L)}<b class="tg">${tagOf(L, 0, m.kind)}</b><b class="num">${+m.score[0] || 0}</b></div><div class="h r" style="--c:${esc(m.colors[1])}"><b class="num">${+m.score[1] || 0}</b><b class="tg">${tagOf(R, 1, m.kind)}</b>${lg(R)}</div></div>
         <div class="tbs">${table(0)}${table(1)}</div></div>`;
@@ -518,14 +520,14 @@
   S.statsplayer = (m) => {
     const ev = m.ev, o = so(ev, "statsplayer"), all = [...bpPlayers(m, 0), ...bpPlayers(m, 1)];
     const p = (o.pid && all.find(x => x.pid === o.pid)) || all.find(x => x === m.focus) || all.find(x => x === m.mvp) || all[0];
-    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}`;
+    let h = `${bpBg(o)}${o.top ? bpTop(ev, o) : ""}`;
     if (p) {
       const t = p.team, rows = m.kind === "rl" ? [["GOALS", stv(ev, p, "goals")], ["ASSISTS", stv(ev, p, "assists")], ["SAVES", stv(ev, p, "saves")], ["SCORE", stv(ev, p, "score")]]
         : m.kind === "lol" ? [["K/D/A", `${stv(ev, p, "kills")} / ${stv(ev, p, "deaths")} / ${stv(ev, p, "assists")}`], ["CS", stv(ev, p, "cs")], ["LEVEL", stv(ev, p, "level")], ["VISION", stv(ev, p, "ward")]]
         : [["K/D/A", `${stv(ev, p, "kills")} / ${stv(ev, p, "deaths")} / ${stv(ev, p, "assists")}`], ["PERFORMANCE SCORE", stv(ev, p, "score")], ["FIRST KILLS", stv(ev, p, "fk")], ["MULTI KILLS", stv(ev, p, "mk")]];
       const photo = p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH;
-      h += `<div class="bp-ind" data-k="bp-ind-${esc(p.pid || p.display)}">${o.team && t ? `<span class="vt">${esc(t.name.toUpperCase())}</span>` : ""}<div class="ph">${photo}</div><b class="pn">${esc(noTag(p.display).toUpperCase())}</b>
-        ${o.stats ? `<div class="rows">${rows.map(([n, v], i) => `<div class="r" data-k="r${i}"><span>${n}</span><b class="num">${esc(v)}</b></div>`).join("")}</div>` : ""}</div>`;
+      h += `<div class="bp-ind" data-k="bp-ind-${esc(p.pid || p.display)}">${o.team && (t || o.teamText) ? `<span class="vt">${esc(String(o.teamText || t.name).toUpperCase())}</span>` : ""}<div class="ph">${photo}</div><b class="pn">${esc(noTag(p.display).toUpperCase())}</b>
+        ${o.stats ? `<div class="rows">${rows.map(([n, v], i) => `<div class="r" data-k="r${i}"><span>${esc((o.statLabels || {})[i] || n)}</span><b class="num">${esc(v)}</b></div>`).join("")}</div>` : ""}</div>`;
     }
     if (o.ticker) h += bpTicker(ev);
     return { html: h, cams: [] };
@@ -533,7 +535,7 @@
   const flag = cc => /^[a-z]{2}$/i.test(String(cc || "")) ? `<img class="fl" src="https://flagcdn.com/w40/${String(cc).toLowerCase()}.png" alt="" onerror="this.remove()">` : "";
   S.lineup = (m) => {
     const ev = m.ev, o = so(ev, "lineup"), s = +o.side ? 1 : 0, t = m.sides[s], ps = (t ? t.players : []).filter(p => p.ign || p.alias).slice(0, 5);
-    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}${o.banner ? bpBanner(ev) : ""}`;
+    let h = `${bpBg(o)}${o.top ? bpTop(ev, o) : ""}${o.banner ? bpBanner(ev) : ""}`;
     if (o.lineup) h += `<div class="bp-lu" data-k="bp-lu${s}" style="--n:${Math.max(1, ps.length)}"><div class="ppl">${ps.map((p, i) => `<div class="pp" data-k="pp${i}">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH}</div>`).join("")}</div>
       <div class="nms">${ps.map((p, i) => `<div class="nm" data-k="nm${i}">${flag(p.country)}<b>${esc(String(p.alias || p.ign).toUpperCase())}</b></div>`).join("") || `<div class="nm"><b>${esc(t ? t.name.toUpperCase() : "PICK A TEAM")}</b></div>`}</div></div>`;
     return { html: h, cams: [] };
@@ -545,7 +547,7 @@
     R.forEach((r, ri) => { ys[ri] = r.matches.map((_, j) => { const prev = ys[ri - 1]; if (prev && prev[2 * j] != null && prev[2 * j + 1] != null) return (prev[2 * j] + prev[2 * j + 1]) / 2;
       const n = r.matches.length, step = (BOT - TOP) / n; return TOP + step * (j + .5); }); });
     const row = (id, sc, seed, win) => { const t = sideTeam(ev, id); return `<div class="tr${win ? " w" : ""}">${seed ? `<i>${seed}</i>` : ""}<span>${esc(t ? (t.tag || t.name).toUpperCase() : "TBD")}</span><b class="num">${esc(sc)}</b></div>`; };
-    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}<div class="bp-cn tl"></div><div class="bp-cn tr"></div><div class="bp-cn bl"></div><div class="bp-cn br"></div>
+    let h = `${bpBg(o)}<div class="bp-cn tl"></div><div class="bp-cn tr"></div><div class="bp-cn bl"></div><div class="bp-cn br"></div>
       <div class="bp-hd">${esc(String(ev.tournament.name || "TOURNAMENT").toUpperCase())}</div><div class="bp-ft">${esc(String(ev.live.seriesTitle || ev.tournament.format || "").toUpperCase())}</div>
       <div class="bp-bt">${(R[0] ? R[0].matches.length * 2 : 0)} COMPETITOR BRACKET</div>`;
     let seed = 0;
@@ -561,15 +563,15 @@
     if (R.length) { const last = R.length - 1, y = ys[last][0], x0 = X0 + last * DX + W, fm = R[last].matches[0], a = +fm.sa, b = +fm.sb, d = fm.sa !== "" && fm.sb !== "";
       const champ = d ? sideTeam(ev, a > b ? fm.a : fm.b) : null;
       h += `<i class="bp-ln" style="left:${x0}px;top:${y}px;width:36px;height:2px"></i><div class="bp-win" style="left:${x0 + 36}px;top:${y - 30}px"><span>${champ ? esc((champ.name || "").toUpperCase()) : ""}</span></div>`; }
-    if (o.logo) h += `<div class="bp-tl"><img src="${esc(tourLogo(ev))}" alt=""></div>`;
+    if (o.logo) h += `<div class="bp-tl"><img src="${esc(o.img || tourLogo(ev))}" alt=""></div>`;
     return { html: h, cams: [] };
   };
-  const bpFrame = (o, ev) => `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.border ? `<i class="bp-gl t"></i><i class="bp-gl b"></i>` : ""}${o.sponsors ? bpSponsorRun(ev) : ""}`;
+  const bpFrame = (o, ev) => `${bpBg(o)}${o.border ? `<i class="bp-gl t"></i><i class="bp-gl b"></i>` : ""}${o.sponsors ? bpSponsorRun(ev) : ""}`;
   S.starting = (m) => {
     const ev = m.ev, o = so(ev, "starting"), t = ev.timer, rem = t.endsAt ? Math.max(0, Math.round((t.endsAt - Date.now()) / 1000)) : t.remaining;
     let h = bpFrame(o, ev);
     if (o.logo) h += `<div class="bp-slogo" data-k="bp-slogo"><img src="${esc(o.img || tourLogo(ev))}" alt=""></div>`;
-    if (o.count) h += `<div class="bp-cd" data-k="bp-cd"><small>${esc(String(t.label && t.label !== "BACK SOON" ? t.label : "STREAM STARTING IN").toUpperCase())}</small><b class="num">${fmt(rem)}</b></div>`;
+    if (o.count) h += `<div class="bp-cd" data-k="bp-cd"><small>${esc(String(o.countLabel || (t.label && t.label !== "BACK SOON" ? t.label : "STREAM STARTING IN")).toUpperCase())}</small><b class="num">${fmt(rem)}</b></div>`;
     return { html: h, cams: [] };
   };
   S.title = (m) => {
@@ -1109,7 +1111,7 @@
     const mp = A.map ? `<div class="ac mp" data-k="ag-map-${A.map.map}">${artImg(`/val-map/${A.map.map}/listviewicontall.png`, "art")}${o.map ? `<b class="mn">${esc(String(A.map.name || "").toUpperCase())}</b>` : ""}</div>`
       : `<div class="ac mp" data-k="ag-map-none"></div>`;
     const cards = Array.from({ length: n }, (_, i) => card(0, i)).join("") + mp + Array.from({ length: n }, (_, i) => card(1, i)).join("");
-    return { html: `${o.bg ? `<div class="bp-bg"></div>` : ""}<div class="v3-ags" data-k="v3-ags" style="--k:${2 * n + 1}">${end(0)}${mid}${end(1)}${o.lineup ? `<div class="ag-row">${cards}</div>` : ""}</div>`, cams: [] };
+    return { html: `${bpBg(o)}<div class="v3-ags" data-k="v3-ags" style="--k:${2 * n + 1}">${end(0)}${mid}${end(1)}${o.lineup ? `<div class="ag-row">${cards}</div>` : ""}</div>`, cams: [] };
   };
 
   S.dbdingame = (m) => {
