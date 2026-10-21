@@ -583,7 +583,7 @@ function hgEditor(e){
 /* ---------- caster nameplates ---------- */
 function castersPanel(e){
   const n=kitSeats(e),opts=[["","Open seat"],...e.talent.map(t=>[t.id,`${t.name} · ${t.role}`])];
-  return`<div class="sec"><div class="sechead"><div><h2>Caster nameplates</h2><p class="sub">Nameplates sit in a fixed row along the bottom, all one size. The number of casters belongs to the ${esc(e.kit)} kit, so every event using it shares the count.</p></div>
+  return`<div class="sec"><div class="sechead"><div><h2>Caster nameplates</h2><p class="sub">Nameplates sit on the desk, centred under each caster, all one size; more casters spread out evenly. The number of casters belongs to the ${esc(e.kit)} kit, so every event using it shares the count.</p></div>
     <span class="row c"><span class="note">${n} caster${n===1?"":"s"} shown</span><button class="btn" type="button" data-act="addCaster"${n>=8?" disabled":""}>${ico("plus")}Add caster</button></span></div>
     <div class="cols" style="--n:2">${Array.from({length:n},(_,i)=>`<div class="box"><div class="row c" style="justify-content:space-between"><b>Caster ${i+1}</b>${n>1?`<button class="btn icon" type="button" data-act="rmCaster" data-arg="${i}" aria-label="Remove caster ${i+1}">${ico("trash")}</button>`:""}</div>${F.sel(`camera.seats.${i}.talent`,"Talent",opts)}${F.text(`camera.seats.${i}.role`,"Role or title (optional)","Caster")}</div>`).join("")}</div></div>`;
 }

@@ -206,16 +206,26 @@
   /* Caster nameplates: small slanted plates that sit over the broadcast. Each one has a position that is dragged in the HUD Editor
      preview (seat.x and seat.y on the 1280x720 stage). How many show is the kit's seat count. A seat with a camera link also gets the
      camera above its plate. */
+  /* Where caster nameplates sit (1280 x 720 stage), taken from MJ's 1920 x 1080 desk reference: the plates stand on the dark front of the
+     desk (about y 940 to 1040 at 1080p), centred under each caster. Two casters are at the reference's x 460 and x 1360. One caster is
+     centred. Three or four share the desk evenly. Five to eight use two rows, the upper row first. Plates are 296 wide. */
+  const NP_W = 296, NP_ROW_Y = 623, NP_ROW_GAP = 96;
+  const npRow = (m, k) => (m === 1 ? 492 : m === 2 ? [159, 759][k] : Math.round(27 + k * 930 / (m - 1)));
+  function casterSpot(i, n) {
+    if (n <= 4) return { x: npRow(n, i), y: NP_ROW_Y };
+    const top = Math.ceil(n / 2);
+    return i < top ? { x: npRow(top, i), y: NP_ROW_Y - NP_ROW_GAP } : { x: npRow(n - top, i - top), y: NP_ROW_Y };
+  }
   S.casters = (m) => {
     const ev = m.ev, kit = (CTX.kits || {})[ev.kit], n = Math.max(1, Math.min(8, Math.round(+(kit && kit.seats) || { solo: 1, duo: 2, trio: 3 }[ev.camera.layout] || 2)));
     const cams = []; let html = "";
     ev.camera.seats.slice(0, n).forEach((s, i) => {
       const t = ev.talent.find(x => x.id === s.talent), social = t && t.socials && t.socials[0] && t.socials[0].h ? t.socials[0].p + "/" + t.socials[0].h : "";
-      const x = 38 + (i % 4) * 306, y = 560 + Math.floor(i / 4) * 80; // fixed row, four a line: nothing is dragged or resized
+      const { x, y } = casterSpot(i, n); // fixed spots, one size: nothing is dragged or resized
       const sub = [s.role || (t && t.role) || "", social].filter(Boolean).join(" | ");
       html += `<div class="np" data-i="${i}" style="left:${x}px;top:${y}px"><i class="sh"></i><div class="bd"><b>${esc(t ? t.name : "Caster " + (i + 1))}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div></div>`;
       const seatUrl = s.url || ownCam(ev, "seat" + i);
-      if (seatUrl) cams.push({ key: "seat" + i + seatUrl, url: seatUrl, x, y: Math.max(0, y - 150), w: 256, h: 144 });
+      if (seatUrl) cams.push({ key: "seat" + i + seatUrl, url: seatUrl, x: x + (NP_W - 256) / 2, y: Math.max(0, y - 150), w: 256, h: 144 });
     });
     return { html, cams };
   };
