@@ -422,10 +422,15 @@
   const so = (ev, sc) => Object.assign({}, SC_DEF[sc], ((ev.hud || {}).sc || {})[sc]);
   const bpClock = () => { try { return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).toUpperCase(); } catch { return ""; } };
   const tickerMsgs = ev => String((ev.lowerThird || {}).ticker || "").split(/\n|\|/).map(s => s.trim()).filter(Boolean);
+  // the announcement is two lines (Line 1, Line 2) and a speed; `ticker` keeps them joined as "a | b" so every scene and older events read it the same way
+  const tickerSpeed = ev => Math.max(10, Math.min(200, Math.round(+((ev.lowerThird || {}).tickerSpeed)) || 60));
+  const tickerLines = ev => { const l = ev.lowerThird || {}, base = tickerMsgs(ev);
+    return l.line1 !== undefined || l.line2 !== undefined ? { l1: String(l.line1 || ""), l2: String(l.line2 || ""), more: Array.isArray(l.lineMore) ? l.lineMore.map(String) : [] } : { l1: base[0] || "", l2: base[1] || "", more: base.slice(2) }; };
+  const tickerJoin = (l1, l2, more) => [l1, l2].concat(more || []).map(x => String(x || "").replace(/\s*\|\s*/g, " ").trim()).filter(Boolean).join(" | ");
   function bpTicker(ev, fallback) { // fallback: with no typed announcement, scroll the event name and the sponsors instead of nothing
     const msgs = tickerMsgs(ev).length || !fallback ? tickerMsgs(ev) : [ev.tournament.name || ev.name].concat(sponsorsOf(ev).map(x => x.name)).filter(Boolean); if (!msgs.length) return "";
     const one = msgs.map(x => `<span>${esc(x.toUpperCase())}</span><i></i>`).join(""), reps = Math.max(2, Math.ceil(12 / msgs.length));
-    const group = one.repeat(reps), secs = Math.max(18, Math.round(msgs.join(" ").length * reps * 0.22));
+    const group = one.repeat(reps), secs = Math.round(Math.max(18, msgs.join(" ").length * reps * 0.22) * 60 / tickerSpeed(ev)); // speed 60 is the long-standing pace; 200 is over three times faster
     return `<div class="bp-tk" data-k="bp-tk"><div class="rl" style="animation-duration:${secs}s"><div class="g">${group}</div><div class="g">${group}</div></div></div>`;
   }
   const bpSeries = ev => esc(String(ev.live.seriesTitle || ev.tournament.name || ev.name || "").toUpperCase());
@@ -1509,7 +1514,7 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
+  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

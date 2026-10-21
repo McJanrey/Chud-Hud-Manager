@@ -376,7 +376,7 @@ hud(e){
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)&&e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}
   ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${e.game==="Valorant"?F.chk("hud.show.boost","Players Alive")+F.chk("hud.show.feed","Game Events")+F.chk("hud.show.score","Score Line")+F.chk("hud.show.sponsor","Sponsors")+F.chk("hud.show.stats","Team Stats (Buy and Timeout board)")+F.chk("hud.show.maps","Series Maps"):""}${F.chk("hud.show.playerCam","Player webcams")}</div>${inGame&&e.game==="Valorant"&&(e.val||{}).state!=="main"&&(e.val||{}).state?valRounds(e):""}${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
   ${scControls(e,h.scene)}
-  <div class="hudprev">${stage()}${HGCARD}</div>
+  <div class="hudprev">${stage()}${HGCARD}${tkPanel(e)}</div>
   ${["statsteam","statsplayer"].includes(h.scene)&&!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?statsEditor(e):""}
   ${inGame&&e.game==="League of Legends"?lolSettings(e):""}
   ${hg}
@@ -519,8 +519,8 @@ ads(e){
 },
 graphics(e){
   const t=e.timer,rem=t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining;
-  return`<div class="halves"><div class="sec"><div class="sec"><h2>Lower third</h2>${F.text("lowerThird.label","Clock label (under the time)","LOCAL TIME")}${F.text("lowerThird.title","Match title (empty: the tournament name)","VALORANT GC")}${F.text("lowerThird.subtitle","Match subline (empty: the round title)","GROUP STAGE A - ROUND 3")}
-    ${F.text("lowerThird.ticker","Bottom announcement: messages separated by |","THANKS FOR WATCHING | AURORA SERIES IS BACK!")}<p class="note">The bottom announcement scrolls along the bottom of the lower third, schedule and stats scenes. Turn it on or off per scene in the HUD Editor.</p>
+  return`<div class="halves"><div class="sec"><div class="sec"><h2>Lower third</h2>${F.text("lowerThird.label","Clock label (under the time)","LOCAL TIME")}
+    <p class="note">The bottom announcement (speed and two lines) and the match text (title and subtitle) are in the <b>HUD Editor</b>: pick a scene and click <b>Bottom Announcement</b> or <b>Match Text</b> above the preview.</p>
     <div class="row"><button class="btn" type="button" data-act="scene" data-arg="lowerthird">Show lower third</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button></div></div></div>
     <div class="sec">${stage("lowerthird")}</div></div>
   <div class="halves"><div class="sec"><div class="sec"><h2>Timer</h2>${F.text("timer.label","Label","BACK SOON")}
@@ -927,9 +927,33 @@ function valRounds(e){
   const V=e.val||{},r=V.rounds||[],t=Math.max(1,Math.round(+V.target)||10),sq=Math.max(2,Math.round(+V.squad)||2),n=Math.min(60,Math.max(sq===2?2*t-1:2*t-2,r.length+1)),T=s=>{const id=s?e.live.right:e.live.left,x=e.teams.find(q=>q.id===id);return x&&(x.tag||x.name)||(s?"Right":"Left")};
   return`<div class="fld"><span>Round history (${esc(T(0))} / ${esc(T(1))})</span><div class="row c" style="gap:4px;flex-wrap:wrap">${Array.from({length:Math.min(n,r.length+1)},(_,i)=>`<button class="btn sm" type="button" data-act="valRoundEd" data-arg="${i}" title="Round ${i+1}" style="min-width:44px">${i+1}${i<r.length?`: ${esc(T(r[i]))}`:" +"}</button>`).join("")}</div></div>`;
 }
+/* Tick panels, as in the reference HUD Editor: click the name of a tick that has settings (the checkbox still switches it on or off) and a small
+   panel opens over the preview with those settings. What is typed or dragged reaches the overlay at once; the reset arrow puts it back. */
+const TKP_TICKS=new Set(["ticker","match"]);
+function tkPanel(e){
+  const D=(SaintsHUD.SC_DEF||{})[e.hud.scene],k=ui.tkp;if(!k||!D||!(k in D)||!TKP_TICKS.has(k))return"";
+  const L=e.lowerThird||{};
+  if(k==="ticker"){const t=SaintsHUD.tickerLines(e),sp=SaintsHUD.tickerSpeed(e);
+    return`<div class="tkp" role="dialog" aria-label="Bottom Announcement"><div class="tkh"><b>Bottom Announcement</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="ticker" title="Reset" aria-label="Reset the bottom announcement">${ico("reset")}</button></div>
+      <div class="tkb"><div class="tkrow"><span>Speed</span><output id="tkSpeedV">${sp}</output></div><input type="range" class="tkrange" min="10" max="200" step="1" value="${sp}" data-tkspeed aria-label="Speed">
+      <label class="tkf"><span>Line 1</span><input type="text" data-tkline="1" value="${esc(t.l1)}" maxlength="140" autocomplete="off"></label>
+      <label class="tkf"><span>Line 2</span><input type="text" data-tkline="2" value="${esc(t.l2)}" maxlength="140" autocomplete="off"></label></div></div>`}
+  const g=e.live||{};
+  return`<div class="tkp" role="dialog" aria-label="Match Text"><div class="tkh"><b>Match Text</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="match" title="Reset" aria-label="Reset the match text">${ico("reset")}</button></div>
+    <div class="tkb"><label class="tkf"><span>Title</span><input type="text" data-tktext="title" value="${esc(L.title||"")}" placeholder="${esc(e.tournament.name||e.game||"")}" maxlength="80" autocomplete="off"></label>
+    <label class="tkf"><span>Subtitle</span><input type="text" data-tktext="subtitle" value="${esc(L.subtitle||"")}" placeholder="${esc(g.roundTitle||g.gameSeries||"")}" maxlength="80" autocomplete="off"></label></div></div>`;
+}
+function tkEdit(el){
+  const e=ev();if(!e)return;const L=Object.assign({},e.lowerThird||{});
+  if(el.dataset.tkspeed!==undefined){const v=Math.max(10,Math.min(200,Math.round(+el.value)||60));L.tickerSpeed=v;const o=$("#tkSpeedV");if(o)o.textContent=v}
+  else if(el.dataset.tkline){const t=SaintsHUD.tickerLines(e),a=el.dataset.tkline==="1"?el.value:t.l1,b=el.dataset.tkline==="2"?el.value:t.l2;L.line1=a;L.line2=b;L.lineMore=t.more;L.ticker=SaintsHUD.tickerJoin(a,b,t.more)}
+  else if(el.dataset.tktext)L[el.dataset.tktext]=el.value;
+  put("lowerThird",L);updateStages();
+}
 function scControls(e,sc){
   const D=(SaintsHUD.SC_DEF||{})[sc];if(!D||!e.hud.sc||!e.hud.sc[sc])return"";
-  const ticks=Object.keys(D).filter(k=>typeof D[k]==="boolean").map(k=>F.chk(`hud.sc.${sc}.${k}`,k==="logo"?(sc==="bracket"?"Tournament Logo":"Logo"):SC_LABEL[k]||k)).join("");
+  const ticks=Object.keys(D).filter(k=>typeof D[k]==="boolean").map(k=>{const lab=k==="logo"?(sc==="bracket"?"Tournament Logo":"Logo"):SC_LABEL[k]||k,p=`hud.sc.${sc}.${k}`;
+    return TKP_TICKS.has(k)?`<span class="chk tkchk"><input type="checkbox" id="${fid(p)}" data-bind="${p}"${get(E,p)?" checked":""} aria-label="${lab} on or off"><button type="button" class="tklbl${ui.tkp===k?" on":""}" data-act="tkPanel" data-arg="${k}" aria-expanded="${ui.tkp===k}" title="Click to edit">${lab}</button></span>`:F.chk(p,lab)}).join("");
   const T=id=>e.teams.find(t=>t.id===id),pl=[...(T(e.live.left)||{players:[]}).players,...(T(e.live.right)||{players:[]}).players].filter(p=>p.ign||p.alias);
   const extra=sc==="statsplayer"?`<div style="width:240px">${F.sel("hud.sc.statsplayer.pid","",[["","Player: spotlight or MVP"],...pl.map(p=>[p.id,p.alias||p.ign])])}</div>`
     :sc==="lineup"?`<div style="width:240px">${F.sel("hud.sc.lineup.side","",[[0,"Team: "+((T(e.live.left)||{}).name||"left")],[1,"Team: "+((T(e.live.right)||{}).name||"right")]],"data-num")}</div>`
@@ -1253,6 +1277,8 @@ document.addEventListener("click",async ev0=>{
     case "valKillUndo":{const F=(e.val.feed||[]).slice(),x=F.pop();if(!x)break;const D=Object.assign({},e.val.dead||{});delete D[x.vid];const P=Object.assign({},e.val.p||{});if(P[x.kid])P[x.kid]=Object.assign({},P[x.kid],{kills:Math.max(0,(+P[x.kid].kills||0)-1)});
       put("val.feed",F);put("val.dead",D);put("val.p",P);updateStages();render();break}
     case "valSpec":put("val.spec",arg||"");updateStages();render();break;
+    case "tkPanel":ui.tkp=ui.tkp===arg?"":arg;render();break;
+    case "tkReset":{const L=Object.assign({},e.lowerThird||{});if(arg==="ticker"){L.line1="";L.line2="";L.lineMore=[];L.ticker="";L.tickerSpeed=60}else{L.title="";L.subtitle=""}put("lowerThird",L);render();break}
     case "valAllAlive":put("val.dead",{});put("val.aliveUsed",false);break;
     case "dbdAdd":{const t=e.dbd.trials,last=t[t.length-1];put("dbd.trials",[...t,{killer:last?1-last.killer:0,kills:0,escapes:0,gens:0}]);break}
     case "dbdFromOcr":{const v=gameOcr();if(!v)break;const r=dbdRead(v);put("dbd.trials",[...e.dbd.trials,{killer:+arg,kills:r.kills,escapes:r.escapes,gens:r.gens}]);toast("Trial added from the screen.");break}
@@ -1269,6 +1295,7 @@ document.addEventListener("click",async ev0=>{
   }
   render();
 });
+document.addEventListener("keydown",k=>{if(k.key==="Escape"&&ui.tkp&&ui.view==="hud"){ui.tkp="";render()}});
 document.addEventListener("input",ev0=>{
   const el=ev0.target,e=ev();
   if(el.id==="evq"){ui.evq=el.value;$("#evgrid").innerHTML=evCards();return}
@@ -1283,6 +1310,7 @@ document.addEventListener("input",ev0=>{
   if(el.id==="draftLock"){put("settings.draft.lockfile",el.value.trim(),false);return}
   if(el.id==="rbLimit"){put("rb.limitMinutes",Math.max(0,+el.value||0));return}
   if(el.id==="timerMin"){const s=Math.max(0,Math.round((+el.value||0)*60));put("timer",Object.assign({},e.timer,{seconds:s,remaining:e.timer.endsAt?e.timer.remaining:s}));return}
+  if(el.dataset.tkline||el.dataset.tkspeed!==undefined||el.dataset.tktext){tkEdit(el);return}
   const p=el.dataset.bind;if(!p||!e)return;
   let v=el.type==="checkbox"?el.checked:el.dataset.num!==undefined?(parseInt(el.value)||0):el.value;
   if(el.dataset.upper!==undefined)v=String(v).toUpperCase();

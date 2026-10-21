@@ -313,3 +313,19 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 /* a team that hasn't been filled in yet */
 .ph{color:var(--text-3)}
 .ml.noimg svg{width:55%;height:55%;color:#fff;stroke:#fff}
+
+/* HUD Editor tick panels (Bottom Announcement, Match Text): a small card over the preview, like the reference editor */
+.hudprev{position:relative}
+.tkchk{display:inline-flex;align-items:center;gap:8px}
+.tklbl{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline dotted color-mix(in srgb,currentColor 45%,transparent);text-underline-offset:4px}
+.tklbl:hover,.tklbl.on{color:var(--accent)}
+.tkp{position:absolute;left:57%;top:26%;width:min(300px,34%);min-width:250px;z-index:6;background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-3);overflow:hidden}
+.tkh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+.tkh b{font-size:16px;font-weight:600}
+.tkb{display:flex;flex-direction:column;gap:6px;padding:16px}
+.tkrow{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-2)}
+.tkrow output{min-width:34px;padding:2px 8px;border-radius:var(--r-sm);background:var(--surface-3);color:var(--text);font-size:12px;text-align:center}
+.tkrange{width:100%;margin:6px 0 10px;accent-color:var(--accent);cursor:pointer}
+.tkf{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-3);margin-top:6px}
+.tkf input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2);color:var(--text);font:inherit;font-size:14px}
+.tkf input:focus{outline:2px solid var(--accent);outline-offset:0}

@@ -387,6 +387,8 @@ On top of that the server refuses requests that a web page on another site could
 
 The release also gets its **what's new** text automatically: `app/tools/release-notes.js` lists the commit subjects since the previous release (one short line each, without version bumps, and without naming other products or people), and the workflow writes that into the release body. The app's update pop-up shows it. So write commit subjects as something a user can read: the part before the first colon becomes the line.
 
+**Bottom Announcement and Match Text.** In the **HUD Editor**, the ticks that have settings open a small panel over the preview when you click their name (the checkbox still turns them on or off). **Bottom Announcement** has a **Speed** slider (10 to 200; 60 is the usual pace), **Line 1** and **Line 2**, which scroll one after the other, and a reset arrow. **Match Text** has **Title** and **Subtitle** (empty: the tournament name and the round or game series). Changes reach the overlay as you type, and Esc closes the panel. Picking a scene in the scene dropdown also applies at once.
+
 ### Files
 
 ```
