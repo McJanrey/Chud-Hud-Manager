@@ -410,8 +410,8 @@
   const SC_DEF = {
     lowerthird: { ticker: true, match: true },
     schedule: { bg: true, ticker: true, match: true },
-    statsteam: { bg: false, ticker: true, match: true, top: true, banner: true },
-    statsplayer: { bg: false, ticker: true, top: true, banner: true, stats: true, team: true, pid: "" },
+    statsteam: { bg: false, ticker: true, match: true, top: true },
+    statsplayer: { bg: false, ticker: true, top: true, stats: true, team: true, pid: "" },
     lineup: { bg: true, top: true, banner: true, lineup: true, side: 0 },
     bracket: { bg: true, logo: true },
     starting: { bg: false, border: true, count: true, logo: true, sponsors: true, img: "" },
@@ -508,7 +508,7 @@
     const ev = m.ev, o = so(ev, "statsteam"), [L, R] = m.sides, mt = bpMatch(ev), cols = bpCols(m);
     const table = s => `<div class="tb ${s ? "r" : "l"}" style="--c:${esc(m.colors[s])}"><div class="thd"><span></span><span></span>${cols.map(([, n]) => `<span class="${n.length > 8 ? "sm" : ""}">${n}</span>`).join("")}</div>
       ${bpPlayers(m, s).slice(0, 5).map((p, i) => `<div class="rw" data-k="p${s}${i}">${pic(p, "pf")}<b class="nm">${esc(noTag(p.display).toUpperCase())}</b>${cols.map(([k]) => `<b class="num">${esc(stv(ev, p, k))}</b>`).join("")}</div>`).join("")}</div>`;
-    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}${o.banner ? bpBanner(ev) : ""}
+    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}
       <div class="bp-st" data-k="bp-st">${o.match ? `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>` : ""}
         <div class="sbar"><div class="h l" style="--c:${esc(m.colors[0])}">${lg(L)}<b class="tg">${tagOf(L, 0, m.kind)}</b><b class="num">${+m.score[0] || 0}</b></div><div class="h r" style="--c:${esc(m.colors[1])}"><b class="num">${+m.score[1] || 0}</b><b class="tg">${tagOf(R, 1, m.kind)}</b>${lg(R)}</div></div>
         <div class="tbs">${table(0)}${table(1)}</div></div>`;
@@ -518,7 +518,7 @@
   S.statsplayer = (m) => {
     const ev = m.ev, o = so(ev, "statsplayer"), all = [...bpPlayers(m, 0), ...bpPlayers(m, 1)];
     const p = (o.pid && all.find(x => x.pid === o.pid)) || all.find(x => x === m.focus) || all.find(x => x === m.mvp) || all[0];
-    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}${o.banner ? bpBanner(ev) : ""}`;
+    let h = `${o.bg ? `<div class="bp-bg"></div>` : ""}${o.top ? bpTop(ev) : ""}`;
     if (p) {
       const t = p.team, rows = m.kind === "rl" ? [["GOALS", stv(ev, p, "goals")], ["ASSISTS", stv(ev, p, "assists")], ["SAVES", stv(ev, p, "saves")], ["SCORE", stv(ev, p, "score")]]
         : m.kind === "lol" ? [["K/D/A", `${stv(ev, p, "kills")} / ${stv(ev, p, "deaths")} / ${stv(ev, p, "assists")}`], ["CS", stv(ev, p, "cs")], ["LEVEL", stv(ev, p, "level")], ["VISION", stv(ev, p, "ward")]]

@@ -787,9 +787,9 @@
 .bp-bar .sb .sc{font:600 74px/1 "Teko",sans-serif;color:#fff;margin:6px 26px 0}.bp-bar .sb i{width:2px;height:40px;background:var(--gold,#FDC82F)}
 .bp-bar .mt{width:385px;padding-left:28px;display:flex;flex-direction:column}
 /* team stats */
-.bp-st{position:absolute;left:74px;top:110px;width:960px}
+.bp-st{position:absolute;left:74px;top:116.7px;width:960px} /* sized from the 1920 x 1080 reference: the score bar is 961 wide, the two tables run on to x 1207 (stage), 533 each */
 .bp-st .mt{display:flex;flex-direction:column;margin-bottom:18px}.bp-st .mt b{font-size:40px}.bp-st .mt small{font-size:17px}
-.bp-st .sbar{display:flex;height:105px}
+.bp-st .sbar{display:flex;height:105px;width:1133px} /* as wide as the two tables below it */
 .bp-st .sbar .h{flex:1;display:flex;align-items:center;background:#050a07;position:relative;border-bottom:3px solid var(--c)}
 .bp-st .sbar .h::after{content:"";position:absolute;bottom:-17px;width:104px;height:14px;background:var(--c)}
 .bp-st .sbar .l::after{left:0}.bp-st .sbar .r::after{right:0}
@@ -797,22 +797,22 @@
 .bp-st .sbar .lgbox{width:104px;height:105px;padding:20px;background:#0a0f0c}
 .bp-st .sbar .tg{font:600 66px/1 "Teko",sans-serif;color:#fff;flex:1;padding:8px 32px 0}.bp-st .sbar .r .tg{text-align:right}
 .bp-st .sbar b.num{font:600 66px/1 "Teko",sans-serif;color:#fff;padding:8px 52px 0}
-.bp-st .tbs{display:flex;gap:66px;margin-top:40px}
+.bp-st .tbs{display:flex;gap:67px;margin-top:38px;width:1133px}
 .bp-st .tb{flex:1}
-.bp-st .thd,.bp-st .rw{display:grid;grid-template-columns:44px 1fr 72px 72px 72px 86px;align-items:center}
+.bp-st .thd,.bp-st .rw{display:grid;grid-template-columns:70px 1fr 80px 80px 80px 80px;align-items:center}
 .bp-st .thd{border-bottom:3px solid var(--c);padding-bottom:2px}
 .bp-st .thd span{font:600 17px/1 "Teko",sans-serif;color:#fff;text-align:center;letter-spacing:.02em}.bp-st .thd span.sm{font-size:10px;line-height:1.1}
-.bp-st .rw{height:45px;background:#0c120f}.bp-st .rw:nth-child(odd){background:#121815}
-.bp-st .rw .pf{width:34px;height:34px;margin-left:10px;overflow:hidden}.bp-st .rw .pf img{width:100%;height:100%;object-fit:cover}
-.bp-st .rw .nm{font:600 24px/1 "Teko",sans-serif;color:#fff;padding:5px 0 0 14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bp-st .rw{height:48px;background:#0c120f}.bp-st .rw:nth-child(odd){background:#121815}
+.bp-st .rw .pf{width:34px;height:34px;margin-left:25px;overflow:hidden}.bp-st .rw .pf img{width:100%;height:100%;object-fit:cover}
+.bp-st .rw .nm{font:600 24px/1 "Teko",sans-serif;color:#fff;padding:5px 0 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bp-st .rw b.num{font:600 24px/1 "Teko",sans-serif;color:#fff;text-align:center;padding-top:5px}
 /* individual */
 .bp-ind{position:absolute;inset:0}
-.bp-ind .vt{position:absolute;left:68px;top:250px;height:300px;writing-mode:vertical-rl;transform:rotate(180deg);font:600 20px/1 "Teko",sans-serif;letter-spacing:.42em;color:#6f746f;text-align:center}
-.bp-ind .ph{position:absolute;left:120px;top:198px;width:390px;height:390px;border:1.5px solid #8a6f22;background:#141a16;overflow:hidden}
+.bp-ind .vt{position:absolute;left:68px;top:210px;height:300px;writing-mode:vertical-rl;transform:rotate(180deg);font:600 20px/1 "Teko",sans-serif;letter-spacing:.42em;color:#6f746f;text-align:center}
+.bp-ind .ph{position:absolute;left:120px;top:158px;width:390px;height:390px;border:1.5px solid #8a6f22;background:#141a16;overflow:hidden}
 .bp-ind .ph img{width:100%;height:100%;object-fit:cover}
-.bp-ind .pn{position:absolute;left:120px;top:608px;width:390px;text-align:center;font:600 28px/1 "Teko",sans-serif;letter-spacing:.2em;color:#8f938f}
-.bp-ind .rows{position:absolute;left:566px;top:198px;width:585px;height:390px;border-left:12px solid #8a6f22;display:flex;flex-direction:column;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.01))}
+.bp-ind .pn{position:absolute;left:120px;top:568px;width:390px;text-align:center;font:600 28px/1 "Teko",sans-serif;letter-spacing:.2em;color:#8f938f}
+.bp-ind .rows{position:absolute;left:566px;top:158px;width:646px;height:390px;border-left:12px solid #8a6f22;display:flex;flex-direction:column;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.01))}
 .bp-ind .r{flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 32px 0 50px;border-bottom:2px solid #8a6f22}.bp-ind .r:last-child{border-bottom:0}
 .bp-ind .r span{font:600 27px/1 "Teko",sans-serif;letter-spacing:.2em;color:#8f938f;padding-top:5px}
 .bp-ind .r b{font:600 58px/1 "Teko",sans-serif;color:#a3a7a3;letter-spacing:.04em;padding-top:8px}

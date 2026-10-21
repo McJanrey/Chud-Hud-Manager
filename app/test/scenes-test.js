@@ -304,6 +304,10 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     const nm = HUD.nameMatch;
     check("a misread character still matches", nm("Jazii", "Jaz1i") && nm("SaintJordan", "SaintJord4n") && nm("valyn", "G2 valyn"));
     check("different names never match, and short names must be exact", !nm("Player1", "Player2") && !nm("abc", "abd") && !nm("Jazii", "Pzy") && nm("Pzy", "pzy"));
+    // Stats Page Team is sized from the 1920 x 1080 reference: score bar 961 wide, the two tables 533 each (800 at 1080p) on to x 1207, rows 48 (72 at 1080p)
+    { const css = require("fs").readFileSync(require("path").join(__dirname, "..", "public", "hud.css"), "utf8"), rule = sel => (css.match(new RegExp(sel.replace(/[.*+?^${}()|[]\]/g, "\$&") + "\{[^}]*\}") ) || [""])[0];
+      check("Stats Page Team: the tables are 533 wide each, 67 apart, and run past the score bar like the reference", /width:1133px/.test(rule(".bp-st .tbs")) && /gap:67px/.test(rule(".bp-st .tbs")), rule(".bp-st .tbs"));
+      check("Stats Page Team: rows are 48 tall (72 at 1080p) with an 80 wide column per stat", /.bp-st .rw{height:48px/.test(css) && /grid-template-columns:70px 1fr 80px 80px 80px 80px/.test(css)); }
   } catch (e) { check("test ran", false, e.stack || e.message); }
   srv.kill(); try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* temp folder */ }
   console.log(failures ? `\n${failures} CHECK(S) FAILED (${drawn} scenes drawn)` : `\nSCENES TEST PASS (${drawn} scenes drawn)`);
