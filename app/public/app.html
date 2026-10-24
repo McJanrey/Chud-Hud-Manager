@@ -374,8 +374,6 @@ hud(e){
     ${inGame&&e.game==="Valorant"?(()=>{const V=e.val||{},vs=V.state||"main",to=V.to||{};return`<div class="fld" style="flex:none"><span>HUD State</span><div class="seg">${[["main","Main"],["buy","Buy"],["timeout","Timeout"]].map(([k,l])=>`<button type="button" data-act="valState" data-arg="${k}" aria-pressed="${vs===k}">${l}</button>`).join("")}</div></div>
       ${vs==="timeout"?`<div class="fld" style="flex:none"><span>Timeout</span><div class="row c nowrap" style="gap:8px"><div class="seg">${[0,1].map(s=>{const t=s?T1:T0;return`<button type="button" data-act="valToSide" data-arg="${s}" aria-pressed="${(+to.side||0)===s}">${esc((t&&(t.tag||t.name))||(s?"Right":"Left"))}</button>`}).join("")}</div><div class="seg">${[["","No side"],["atk","Attackers"],["def","Defenders"]].map(([k,l])=>`<button type="button" data-act="valToRole" data-arg="${k}" aria-pressed="${(to.role||"")===k}">${l}</button>`).join("")}</div><button class="btn" type="button" data-act="valToStart">Restart ${Math.round(+to.secs||60)}s</button></div></div>`:""}`})():""}
     <span class="grow"></span>
-    ${inGame?`<div class="fld" style="flex:none"><span>Preview background</span><div class="seg">${[["game","Game"],["image","My screenshot"],["checker","Transparent"],["none","Black"]].map(([k,l])=>`<button type="button" data-act="hudBg" data-arg="${k}" aria-pressed="${(h.bg==="pitch"?"game":h.bg)===k}">${l}</button>`).join("")}</div></div>`:""}
-    ${inGame&&h.bg==="image"?`<div class="fld" style="flex:0 1 220px"><span>Screenshot (1920 × 1080 works best)</span><div class="dz mini" style="width:100%;min-height:42px;flex-direction:row">${h.bgImage?`<img src="${esc(h.bgImage)}" alt="" style="max-height:34px">`:ico("up")}<span>${h.bgImage?"Replace":"Upload"}</span><input type="file" accept="image/*" id="f-hud-bgImage" data-upload="hud.bgImage" aria-label="Upload a screenshot for the preview background"></div></div>`:""}
   </div>
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (one big camera per team)":"Player webcams (3 a team)")}${e.game==="League of Legends"?F.chk("hud.show.focus","Focus panel")+F.chk("hud.show.sponsor","Sponsor box")+F.chk("hud.show.minimap","Minimap frame"):""}${F.chk("hud.autoBoard","Team stats on podium")}</div>`:""}
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)&&e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}
@@ -849,7 +847,7 @@ function updateStages(redraw){
   if(DRAG)return;
   const e=ev();if(!e)return;
   $$("[data-stage]").forEach(st=>{const c=st.querySelector("canvas"),h=st.querySelector(".hud");if(!h)return;
-    const kind=e.hud.bg==="pitch"?"game":e.hud.bg,key=[kind,e.game,e.hud.bgImage].join("|");
+    const kind="none",key=[kind,e.game,e.hud.bgImage].join("|");
     if((redraw||c.dataset.bg!==key)&&!(kind==="game"&&LIVEBG.ok)){SaintsHUD.drawBg(c,kind,e.game,e.hud.bgImage);c.dataset.bg=key}
     SaintsHUD.render(h,e,G(),st.dataset.stage,{icons:Object.assign({},DB.settings&&DB.settings.iconsOfficial,DB.settings&&DB.settings.icons),kits:DB.settings&&DB.settings.kits,sel:ui.view==="hud"?HGEL:null,draft:DRAFT});h.style.transform=`scale(${st.clientWidth/1280})`});
 }
@@ -857,7 +855,7 @@ function updateStages(redraw){
 const LIVEBG={ok:false,busy:false};
 async function liveBgTick(){
   if(LIVEBG.busy||document.hidden)return;
-  const e=ev(),kind=e&&(e.hud.bg==="pitch"?"game":e.hud.bg),cvs=$$("[data-stage] canvas");
+  const e=ev(),kind=e&&"none",cvs=$$("[data-stage] canvas");
   if(!e||kind!=="game"||!cvs.length){LIVEBG.ok=false;return}
   LIVEBG.busy=true;
   try{
