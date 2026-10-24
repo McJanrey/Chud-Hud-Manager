@@ -51,5 +51,7 @@ check("a misread letter is allowed in names of 5 letters or more, never in short
 check("the overlay looks for name cameras (rooms named '<event>.n-<name>') and the server issues their links", /byNameCam/.test(fs.readFileSync(path.join(__dirname, "..", "public", "hud.js"), "utf8")) && /"\/api\/cam\/name"/.test(server));
 check("the player in the action shows K/D/A on the name band", /<em>\$\{\+p\.kills \|\| 0\}/.test(fs.readFileSync(path.join(__dirname, "..", "public", "hud.js"), "utf8")));
 
+check("the sidebar follows BLOB's order: Overview and HUD Editor, Event setup, Live game with Camera feed right after Live Game", html.includes('link("overview")+link("hud")') && html.includes('grp("Event setup",["teams","tournament","talent"])') && html.includes('grp("Live game",["live","camera",'));
+
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nTICKER TEST PASS");
 process.exit(failures ? 1 : 0);

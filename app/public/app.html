@@ -241,9 +241,11 @@ function railStatus(){const sb=$("#srvbanner");if(sb)sb.hidden=online;const el=$
 function rail(e){
   const link=v=>`<a class="nl${ui.view===v?" on":""}" href="#" data-act="nav" data-arg="${v}"${ui.view===v?' aria-current="page"':""} title="${META[v][0]}">${ico(META[v][1])}<span class="t">${META[v][0]}</span></a>`;
   const grp=(t,vs)=>`<div class="navgroup">${t}</div>${vs.map(link).join("")}`;
-  const nav=e?grp("Event setup",["overview","teams","tournament","talent"])
-    +grp("Live game",["live",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),...(e.game==="Valorant"?["veto"]:[]),"ocr"])
-    +grp("Broadcast",["hud","camera","graphics","ads","schedule","bracket","standings","outputs"])
+  // the same order as BLOB's sidebar: Overview and HUD Editor on top, then Event setup, then Live game (Live Game, Camera feed, the game's own page, Map Veto); the pages BLOB has no twin for sit last
+  const nav=e?link("overview")+link("hud")
+    +grp("Event setup",["teams","tournament","talent"])
+    +grp("Live game",["live","camera",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),...(e.game==="Valorant"?["veto"]:[]),"ocr"])
+    +grp("Broadcast",["graphics","ads","schedule","bracket","standings","outputs"])
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
   const crest="/brand/chud-hud.png"; // fixed: the app logo cannot be changed
   return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
