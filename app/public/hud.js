@@ -490,10 +490,11 @@
 
   S.lowerthird = (m) => {
     const ev = m.ev, o = so(ev, "lowerthird"), [L, R] = m.sides, mt = bpMatch(ev), lbl = esc(String((ev.lowerThird || {}).label || "LOCAL TIME").toUpperCase());
-    let h = `<div class="bp-l3" data-k="bp-l3"><div class="ck"><b class="num">${esc(bpClock())}</b><small>${lbl}</small></div><i class="sl"></i>`;
+    const hasSp = sponsorsOf(ev).length > 0, fit = (str, w) => Math.max(18, Math.min(34, Math.floor(w / (String(str).length * 0.6))));
+    let h = `<div class="bp-l3${hasSp ? "" : " nosp"}" data-k="bp-l3"><div class="ck"><b class="num">${esc(bpClock())}</b><small>${lbl}</small></div><i class="sl"></i>`;
     if (o.match) h += `<div class="scb">${lg(L)}<b class="num">${+m.series[0] || 0}</b><i></i><b class="num">${+m.series[1] || 0}</b>${lg(R)}</div><i class="sl"></i>`;
-    h += `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>${bpSponsor(ev)}</div>`;
-    if (o.ticker) h += bpTicker(ev);
+    h += `<div class="mt"><b style="font-size:${fit(mt.t, hasSp ? 345 : 660)}px">${mt.t}</b><small>${mt.s}</small></div>${hasSp ? bpSponsor(ev) : ""}</div>`;
+    if (o.ticker) h += bpTicker(ev, true);
     return { html: h, cams: [] };
   };
   /* LOTD's Schedule, laid out on MJ's 1920 x 1080 wireframe: the video segment on the left (a frame), UPCOMING with two activity cards that
@@ -525,7 +526,7 @@
       <div class="bp-bar" data-k="bp-bar"><div class="ck"><b class="num">${esc(bpClock())}</b><small>LOCAL TIME</small></div>
         <div class="sb">${L && R && !["mc", "rb", "fn"].includes(m.kind) ? `${lg(L)}<b class="tg">${tagOf(L, 0, m.kind)}</b><b class="num sc">${+m.series[0] || 0}</b><i></i><b class="num sc">${+m.series[1] || 0}</b><b class="tg">${tagOf(R, 1, m.kind)}</b>${lg(R)}` : ""}</div>
         ${o.match ? `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>` : ""}</div>`;
-    if (o.ticker) h += bpTicker(ev);
+    if (o.ticker) h += bpTicker(ev, true);
     return { html: h, cams: [] };
   };
   S.statsteam = (m) => {
@@ -536,7 +537,7 @@
       <div class="bp-st" data-k="bp-st">${o.match ? `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>` : ""}
         <div class="sbar"><div class="h l" style="--c:${esc(m.colors[0])}">${lg(L)}<b class="tg">${tagOf(L, 0, m.kind)}</b><b class="num">${+m.score[0] || 0}</b></div><div class="h r" style="--c:${esc(m.colors[1])}"><b class="num">${+m.score[1] || 0}</b><b class="tg">${tagOf(R, 1, m.kind)}</b>${lg(R)}</div></div>
         <div class="tbs">${table(0)}${table(1)}</div></div>`;
-    if (o.ticker) h += bpTicker(ev);
+    if (o.ticker) h += bpTicker(ev, true);
     return { html: h, cams: [] };
   };
   S.statsplayer = (m) => {
@@ -552,7 +553,7 @@
       h += `<div class="bp-ind" data-k="bp-ind-${esc(p.pid || p.display)}">${o.team && (t || o.teamText) ? `<span class="vt">${esc(String(o.teamText || t.name).toUpperCase())}</span>` : ""}<div class="ph">${photo}</div><b class="pn">${esc(noTag(p.display).toUpperCase())}</b>
         ${o.stats ? `<div class="rows">${rows.map(([n, v], i) => [n, v, i]).filter(x => (o.rows || {})[x[2]] !== false).map(([n, v, i]) => `<div class="r" data-k="r${i}"><span>${esc((o.statLabels || {})[i] || n)}</span><b class="num">${esc(v)}</b></div>`).join("")}</div>` : ""}</div>`;
     }
-    if (o.ticker) h += bpTicker(ev);
+    if (o.ticker) h += bpTicker(ev, true);
     return { html: h, cams: [] };
   };
   const flag = cc => /^[a-z]{2}$/i.test(String(cc || "")) ? `<img class="fl" src="https://flagcdn.com/w40/${String(cc).toLowerCase()}.png" alt="" onerror="this.remove()">` : "";
