@@ -375,3 +375,4 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 .tkord{display:flex;flex-direction:column;gap:6px}.tkor{display:flex;align-items:center;gap:10px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
 .tkor i{font-style:normal;font-size:11px;opacity:.7;width:16px}.tkor b{flex:1;font-weight:500;font-size:13px}
 .tkhms{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.tkhms input{width:54px;text-align:center}.tkhms i{font-style:normal}
+.tkseg{flex-wrap:nowrap;max-width:100%}.tkseg button{white-space:nowrap;padding-left:9px;padding-right:9px;font-size:12px}
