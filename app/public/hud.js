@@ -447,7 +447,8 @@
     return `<div class="bp-tk" data-k="bp-tk"><div class="rl" style="animation-duration:${secs}s"><div class="g">${group}</div><div class="g">${group}</div></div></div>`;
   }
   const hexOk = c => /^#[0-9a-f]{3,8}$/i.test(String(c || ""));
-  const bpBg = o => o.bg ? `<div class="bp-bg"${hexOk(o.bgColor) ? ` style="background:${o.bgColor}"` : ""}></div>` : "";
+  // the Background tick is the app's background loop (a picked colour replaces it)
+  const bpBg = o => o.bg ? (hexOk(o.bgColor) ? `<div class="bp-bg" style="background:${o.bgColor}"></div>` : `<div class="bp-bg"><video src="/brand/bg-loop.webm" autoplay muted loop playsinline disablepictureinpicture></video></div>`) : "";
   const bpSeries = ev => esc(String(ev.live.seriesTitle || ev.tournament.name || ev.name || "").toUpperCase());
   const bpTop = (ev, o) => `<div class="bp-top" data-k="bp-top"><b>${o && o.topText ? esc(String(o.topText).toUpperCase()) : bpSeries(ev)}</b><i></i></div>`;
   const bpBanner = (ev, o) => `<div class="bp-ban" data-k="bp-ban"><svg viewBox="0 0 136 250" preserveAspectRatio="none" aria-hidden="true"><polygon points="1.5,0 134.5,0 134.5,206 68,248 1.5,206" fill="#02140c" stroke="#FDC82F" stroke-width="2.5"/></svg><img src="${esc((o && o.bannerImg) || tourLogo(ev))}" alt=""></div>`;
