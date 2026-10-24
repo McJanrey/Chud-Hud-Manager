@@ -261,11 +261,12 @@ function rail(e){
 function topbar(e){
   const crumbs=e?`<a href="#" data-act="home">My Events</a><i>/</i><a href="#" data-act="nav" data-arg="overview">${esc(e.name)}</a><i>/</i><b>${META[ui.view][0]}</b>`:`<b>My Events</b>`;
   const act=e?`<button class="btn primary" type="button" data-act="copyLink" title="Copy this event's own overlay link for OBS">${ico("copy")}Copy overlay link</button>`:`<button class="btn primary" type="button" data-act="newEvent">${ico("plus")}New event</button>`;
-  return`<header class="top"><nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav><span class="grow"></span>${act}</header>`;
+  return`<header class="top"><nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav><span class="grow"></span>${e&&ui.view==="hud"?`<span class="pill ${PENDING.size?"warn":"ok"}" id="syncPill">${PENDING.size?"Unsaved changes":"Synced to overlay"}</span>`:""}${act}</header>`;
 }
 function pagehead(e){
   if(!e)return`<div class="pagehead"><h1>My Events</h1><p>Every broadcast you run, one workspace each. Open one to take control.</p></div>`;
-  const pill=ui.view==="hud"?`<span class="pill ${PENDING.size?"warn":"ok"}" id="syncPill">${PENDING.size?"Unsaved changes":"Synced to overlay"}</span>`:"";
+  if(ui.view==="hud")return""; // BLOB's HUD Editor has no title block: the page starts at Selected Scene
+  const pill="";
   return`<div class="pagehead row"><div><h1>${META[ui.view][0]}</h1><p>${PAGE_DESC[ui.view]||""}</p></div>${pill}</div>`;
 }
 function render(){

@@ -361,3 +361,8 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 .navfoot .navtog .car.up{margin-top:0}
 .nav .brand>div:last-child{min-width:0}.nav .brand b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}.nav .brand small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tkh{cursor:grab;touch-action:none;user-select:none}.tkh:active{cursor:grabbing}
+
+/* the HUD Editor page is laid out like BLOB's: no title block, the preview a rounded 16:9 frame at a fixed width under the ticks */
+.hudone .hudprev{max-width:1200px}
+.hudone .hudprev .stage{border-radius:26px;border-color:var(--line)}
+.hudone .stagewrap>.row .note{display:none}.hudone .stagewrap>.row{justify-content:flex-end!important}
