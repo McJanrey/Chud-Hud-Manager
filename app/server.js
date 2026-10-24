@@ -918,7 +918,14 @@ function fieldsOf(ev, query = {}, base = "") { return fieldsLib.build(DB, ev, ev
 function currentFields(query = {}, base = "") { return fieldsOf(eventById(query.event), query, base); }
 let lastCsv = "", lastJson = "";
 const lastOut = new Map();
-function atomicWrite(file, text) { const tmp = file + ".tmp"; fs.writeFile(tmp, text, err => { if (!err) fs.rename(tmp, file, () => {}); }); } // vMix never reads half a file
+// vMix never reads half a file, and a slow disk never gets two writes of one file at once: a newer text waits for the one in flight, and only the newest is kept
+const writing = new Map();
+function atomicWrite(file, text) {
+  const w = writing.get(file); if (w) { w.next = text; return; }
+  const st = { next: null }; writing.set(file, st);
+  const tmp = file + ".tmp", done = () => { writing.delete(file); if (st.next !== null) atomicWrite(file, st.next); };
+  fs.writeFile(tmp, text, err => { if (err) return done(); fs.rename(tmp, file, () => done()); });
+}
 setInterval(() => {
   for (const ev of DB.events) { // every event has its own three files in output/events/<event id>/
     try {
