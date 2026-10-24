@@ -569,6 +569,9 @@
 /* the player in the action: a bigger camera in the corner that cross-fades between players */
 .hud .cams iframe{transition:opacity .35s ease}
 .pc.act{height:21px;width:240px}
+.pc.act em{position:absolute;right:8px;top:3px;font:600 16px/18px "Teko",sans-serif;font-style:normal;letter-spacing:.04em;opacity:.9}
+.pc.act.r em{right:auto;left:8px}
+.pc.act.l span{padding-right:84px}.pc.act.r span{padding-left:84px}
 
 /* League champion select, laid out like the Worlds broadcast: bans and series bans, then ten tall cards with the teams in the middle */
 .dr-banbox{position:absolute;top:447px;width:240px;height:72px;background:rgba(5,24,17,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}

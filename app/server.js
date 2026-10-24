@@ -1285,6 +1285,12 @@ const server = http.createServer((req, res) => {
     if (p === "/camview") return sendFile(res, path.join(PUB, "camview.html"));
     if (p === "/api/cam/status") return json(res, 200, cams.status());
     if (p === "/api/cam/links") return json(res, 200, camLinks());
+    if (p === "/api/cam/name") { // a camera link that finds its player by name: GET ?event=<id>&name=<name>; the overlay matches the name to a roster player
+      const ev = DB.events.find(e => e.id === url.searchParams.get("event")), slug = String(url.searchParams.get("name") || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "").slice(0, 40);
+      if (!ev || !slug) return json(res, 400, { error: "Give an event and a name." });
+      const ip = lanIps()[0] || "localhost", room = ev.id + ".n-" + slug;
+      return json(res, 200, { room, url: `https://${ip}:${CAM_PORT}/cam?r=${encodeURIComponent(room)}&t=${cams.tokenFor(room)}`, local: `/cam?r=${encodeURIComponent(room)}` });
+    }
     if (p === "/api/chat/status") return json(res, 200, Object.assign(twitch.status(), { event: chat.event, mode: chat.mode, voters: Object.fromEntries([...chat.voters].map(([k, m]) => [k, m.size])) }));
     if (p === "/" || p === "/dashboard") return sendFile(res, path.join(PUB, "app.html"));
     if (p === "/overlay") return sendFile(res, path.join(PUB, "overlay.html"));

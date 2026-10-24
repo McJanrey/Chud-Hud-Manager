@@ -43,5 +43,13 @@ check("Top Bar text replaces the series title", />MY SERIES</.test(sc("statsteam
 check("the Countdown label can be typed", />WE ARE BACK</.test(sc("starting", { count: true, countLabel: "we are back" }, e => { e.timer = { remaining: 60, endsAt: 0, label: "" }; })));
 check("the Heading can be typed on the standings board", />my table</.test(sc("rankings", { title: true, titleText: "my table" }, e => { e.standings = []; })));
 
+// cameras found by name, and the K/D/A on the name band of the player in the action
+const nm = HUD.nameMatches;
+check("a camera name matches a player ignoring case, spaces and marks", nm("FABSO", "fabso") && nm("Jazii", "j a z i i") && nm("Zoë", "zoe"));
+check("a team tag in front of the name (up to 4 letters) still matches", nm("SCC Fabso", "Fabso") && nm("SCC-Fabso", "fabso") && !nm("Fabso", "Pzy"));
+check("a misread letter is allowed in names of 5 letters or more, never in short ones", nm("Shmook", "Shmoak") && !nm("Jaz", "Jax") && !nm("Pzy", "Pzx"));
+check("the overlay looks for name cameras (rooms named '<event>.n-<name>') and the server issues their links", /byNameCam/.test(fs.readFileSync(path.join(__dirname, "..", "public", "hud.js"), "utf8")) && /"\/api\/cam\/name"/.test(server));
+check("the player in the action shows K/D/A on the name band", /<em>\$\{\+p\.kills \|\| 0\}/.test(fs.readFileSync(path.join(__dirname, "..", "public", "hud.js"), "utf8")));
+
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nTICKER TEST PASS");
 process.exit(failures ? 1 : 0);

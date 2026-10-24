@@ -36,6 +36,17 @@
     }).catch(() => {});
     poll(); setInterval(poll, 2000);
   }
+  /* A camera page can also be opened by name ("<event>.n-<name>"): it belongs to whichever player's name matches, ignoring case, spaces and
+     marks, a team tag in front (up to 4 letters), and a misread letter or two in names of 5 letters or more. */
+  const nameKey = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
+  const editDist = (a, b) => { let p = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) { const q = [i]; for (let j = 1; j <= b.length; j++) q[j] = Math.min(p[j] + 1, q[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = q; }
+    return p[b.length]; };
+  const nameMatches = (a, b) => { a = nameKey(a); b = nameKey(b); if (!a || !b) return false; if (a === b) return true;
+    const [s, l] = a.length <= b.length ? [a, b] : [b, a];
+    if (l.length - s.length <= 4 && l.endsWith(s) && s.length >= 3) return true;           // "SCC" + "Fabso" is still Fabso
+    return s.length >= 5 && editDist(a, b) <= (l.length >= 9 ? 2 : 1); };
+  const byNameCam = (ev, p) => { const pre = ev.id + ".n-"; for (const k of Object.keys(camLive)) if (k.startsWith(pre) && (nameMatches(k.slice(pre.length), p.display) || nameMatches(k.slice(pre.length), p.alias) || nameMatches(k.slice(pre.length), p.ign))) return "/camview?r=" + encodeURIComponent(k); return ""; };
   const ownCam = (ev, key) => ev.camera && ev.camera.own !== false && camLive[ev.id + "." + key] ? "/camview?r=" + encodeURIComponent(ev.id + "." + key) : "";
 
   const SCENES = {
@@ -119,7 +130,7 @@
   const sideTeam = (ev, id) => ev.teams.find(t => t.id === id);
 
   /* ---------------- scenes: each returns { html, cams } ---------------- */
-  const camUrlOf = (ev, p) => (p && !p.camHide && (p.cam || (p.pid ? ownCam(ev, p.pid) : ""))) || ""; // camHide: hidden on the Camera feed page
+  const camUrlOf = (ev, p) => (p && !p.camHide && (p.cam || (p.pid ? ownCam(ev, p.pid) : "") || (ev.camera && ev.camera.own !== false ? byNameCam(ev, p) : ""))) || ""; // camHide: hidden on the Camera feed page
   /* Player webcams. "all": one slot per player down both edges (3 a side in Rocket League, 5 in League). "action": only the player
      in the action shows, big, in the bottom corner of their team's side, and every camera stays loaded so a switch is instant.
      A slot only shows when that player has a camera link or a live camera page. */
@@ -144,13 +155,15 @@
     if (m.focus && m.focus.side === s) { const i = list.indexOf(m.focus); if (i >= 0 && camUrlOf(m.ev, list[i])) return i; }
     return list.findIndex(p => camUrlOf(m.ev, p));
   }
+  // the name band of the player in the action also carries their K/D/A, in the games that count kills
+  const camKda = (m, p) => m.kind === "rl" || p.kills == null && p.deaths == null ? "" : `<em>${+p.kills || 0}/${+p.deaths || 0}/${+p.assists || 0}</em>`;
   function actionCams(m) {
     const w = 240, h = 135, y = 455, cams = []; let html = "";
     [0, 1].forEach(s => {
       const x = s ? 1280 - 8 - w : 8, act = actionIndex(m, s);
       m.players[s].forEach((p, i) => { const u = camUrlOf(m.ev, p); if (u) cams.push({ key: "ac-" + s + "-" + i + u, url: u, x, y, w, h, show: i === act }); });
       const p = act >= 0 ? m.players[s][act] : null;
-      if (p) html += `<div class="pc act ${s ? "r" : "l"}" data-k="ac-${s}" style="left:${x}px;top:${y + h}px;width:${w}px;--c:${esc(m.colors[s])}"><span>${esc(p.display)}</span></div>`;
+      if (p) html += `<div class="pc act ${s ? "r" : "l"}" data-k="ac-${s}" style="left:${x}px;top:${y + h}px;width:${w}px;--c:${esc(m.colors[s])}"><span>${esc(p.display)}</span>${camKda(m, p)}</div>`;
     });
     return { html, cams };
   }
@@ -1516,7 +1529,7 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
+  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();
