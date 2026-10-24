@@ -13,7 +13,7 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
   try {
     for (let i = 0; i < 60; i++) { try { if ((await fetch(base + "/api/state")).ok) break; } catch { /* not up yet */ } await new Promise(r => setTimeout(r, 250)); }
     const tpl = async g => (await fetch(`${base}/api/event-template?game=${encodeURIComponent(g)}`)).json();
-    const dbd = await tpl("Dead by Daylight"), fn = await tpl("Fortnite"), val = await tpl("Valorant");
+    const dbd = await tpl("Dead by Daylight"), fn = await tpl("Fortnite"), val = await tpl("Valorant 2v2 Skirmish");
     check("Dead by Daylight: two teams of five, scored by hand", dbd.teams.length === 2 && dbd.teams.every(t => t.players.length === 5) && dbd.dbd && Array.isArray(dbd.dbd.trials) && dbd.dbd.killPts === 1);
     check("Fortnite: eight duos, placement tiers and no matches yet", fn.teams.length === 8 && fn.teams.every(t => t.players.length === 2) && fn.fn.placePts.length >= 4 && fn.fn.matches.length === 0 && fn.fn.elimPts === 1);
     check("VALORANT 2v2 Skirmish: two players a side, first to 10", val.teams.length === 2 && val.teams.every(t => t.players.length === 2) && val.val.target === 10);
@@ -64,21 +64,20 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     await post("/api/set", { path: "events", value: (await (await fetch(base + "/api/state")).json()).db.events.concat([val]), by: "test" });
     await post("/api/set", { event: val.id, path: "val.squad", value: 4, by: "test" });
     let v2 = (await (await fetch(base + "/api/state")).json()).db.events.find(e => e.id === val.id);
-    check("a bigger squad seats the empty roster rows (4 a side, with agent fields) and keeps the players already there", v2.val.squad === 4 && v2.teams.every(t => t.players.length === 4 && t.players.every(p => p.agent !== undefined)) && v2.teams[0].players[0].ign === "Ann#EU1" && v2.teams[0].players[0].agent === AG, JSON.stringify(v2.teams.map(t => t.players.length)));
-    await post("/api/set", { event: val.id, path: "val.squad", value: 9, by: "test" });
-    v2 = (await (await fetch(base + "/api/state")).json()).db.events.find(e => e.id === val.id);
-    check("the squad is kept between 2 and 5", v2.val.squad === 5 && v2.teams.every(t => t.players.length === 5));
+    check("the 2v2 Skirmish keeps two players a side whatever squad is asked for, with agent fields, and keeps the players already there", v2.val.squad === 2 && v2.teams.every(t => t.players.length === 2 && t.players.every(p => p.agent !== undefined)) && v2.teams[0].players[0].ign === "Ann#EU1" && v2.teams[0].players[0].agent === AG, JSON.stringify(v2.teams.map(t => t.players.length)));
+    const reg = await tpl("Valorant");
+    check("regular VALORANT is its own game, five players a side", reg.game === "Valorant" && reg.val.squad === 5 && reg.teams.every(t => t.players.length === 5), reg.game + " " + reg.val.squad);
     // alive toggles: the data the Skirmish page writes, what the scene and vMix read, and the reset a + Round does
     const HUD = require("../public/hud.js"), id0 = v2.teams[0].players[0].id;
     await post("/api/set", { event: val.id, path: "val.dead", value: { [id0]: true }, by: "test" }); await post("/api/set", { event: val.id, path: "val.aliveUsed", value: true, by: "test" });
     v2 = (await (await fetch(base + "/api/state")).json()).db.events.find(e => e.id === val.id);
-    check("alive toggles are saved per player id", v2.val.dead[id0] === true && v2.val.aliveUsed === true && HUD.valInfo(HUD.model(v2, null)).left[0] === 4 && HUD.valInfo(HUD.model(v2, null)).left[1] === 5);
+    check("alive toggles are saved per player id", v2.val.dead[id0] === true && v2.val.aliveUsed === true && HUD.valInfo(HUD.model(v2, null)).left[0] === 1 && HUD.valInfo(HUD.model(v2, null)).left[1] === 2);
     const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAJ6xk2AAAAABJRU5ErkJggg==", "base64");
     fs.mkdirSync(path.join(dataDir, "val-agents"), { recursive: true });
     fs.writeFileSync(path.join(dataDir, "val-agents", `${AG}_displayicon.png`), PNG);
     fs.writeFileSync(path.join(dataDir, "val-agents", "agents.json"), JSON.stringify([{ uuid: AG, name: "Jett", role: "Duelist", roleId: "" }, { uuid: "5f8d3a7f-467b-97f3-062c-13acf203c006", name: "Breach", role: "Initiator", roleId: "" }]));
     const f1 = await (await fetch(`${base}/hud.json?event=${val.id}`)).json();
-    check("vMix fields: ROUND, ROUNDS TO WIN, PLAYERS LEFT, and name, agent and alive per player", f1.ROUND === 1 && f1["ROUNDS TO WIN"] === 10 && f1["PLAYERS LEFT LEFT"] === 4 && f1["PLAYERS LEFT RIGHT"] === 5 && f1["P1 NAME"] === "Ann" && f1["P1 ALIVE"] === 0 && f1["P6 NAME"] === "Bob" && f1["P6 ALIVE"] === 1 && f1["P2 NAME"] === "" && f1["P1 AGENT"] === "Jett", JSON.stringify(f1).slice(0, 400));
+    check("vMix fields: ROUND, ROUNDS TO WIN, PLAYERS LEFT, and name, agent and alive per player", f1.ROUND === 1 && f1["ROUNDS TO WIN"] === 10 && f1["PLAYERS LEFT LEFT"] === 1 && f1["PLAYERS LEFT RIGHT"] === 2 && f1["P1 NAME"] === "Ann" && f1["P1 ALIVE"] === 0 && f1["P6 NAME"] === "Bob" && f1["P6 ALIVE"] === 1 && f1["P2 NAME"] === "" && f1["P1 AGENT"] === "Jett", JSON.stringify(f1).slice(0, 400));
     const html = fs.readFileSync(path.join(__dirname, "..", "public", "app.html"), "utf8");
     check("+ Round and New match bring everyone back alive (the dashboard actions)", /case "valRound":[^\n]*put\("val\.dead",\{\}\);put\("val\.aliveUsed",false\)/.test(html) && /case "valReset":[^\n]*put\("val\.dead",\{\}\);put\("val\.aliveUsed",false\)/.test(html) && /case "valAllAlive":put\("val\.dead",\{\}\)/.test(html));
     // the agent route: nothing but a real uuid and an allowed picture kind; a cached picture is served from disk, an unknown one fails cleanly offline

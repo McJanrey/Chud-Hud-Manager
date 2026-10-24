@@ -13,7 +13,7 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "scenes-test-")), port = 7797, base = `http://127.0.0.1:${port}`;
   const srv = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], { env: Object.assign({}, process.env, { SAINTS_DATA: dataDir, PORT: String(port), ICON_BASE: "http://127.0.0.1:9/" }), stdio: "ignore" });
   await new Promise(r => setTimeout(r, 2500));
-  const GAMES = ["Rocket League", "League of Legends", "Overwatch 2", "Call of Duty", "Deadlock", "Fortnite", "Valorant", "Counter-Strike 2", "Minecraft", "Riftbound", "Dead by Daylight"];
+  const GAMES = ["Rocket League", "League of Legends", "Overwatch 2", "Call of Duty", "Deadlock", "Fortnite", "Valorant", "Valorant 2v2 Skirmish", "Counter-Strike 2", "Minecraft", "Riftbound", "Dead by Daylight"];
   const scenes = ["auto", ...Object.keys(HUD.SCENES)];
   const RL_WORDS = /\b(GOALS?|SAVES?|SHOTS?|DEMOS?|BOOST|GOAL DIFF|SUPERSONIC)\b/i;
   let drawn = 0;
@@ -25,7 +25,7 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
         const ev = JSON.parse(JSON.stringify(tpl)); if (mode) ev.mc.mode = mode;
         if (g === "Minecraft") ev.teams[0].players = ["Alice", "Bob", "Cara"].map((ign, i) => ({ id: "p" + i, ign, alias: "", country: "", avatar: "", cam: "" }));
         const kind = HUD.model(ev, null).kind;
-        const want = { "Rocket League": "rl", "League of Legends": "lol", "Minecraft": "mc", "Riftbound": "rb", "Dead by Daylight": "dbd", "Fortnite": "fn", "Valorant": "val" }[g] || "gen";
+        const want = { "Rocket League": "rl", "League of Legends": "lol", "Minecraft": "mc", "Riftbound": "rb", "Dead by Daylight": "dbd", "Fortnite": "fn", "Valorant": "val", "Valorant 2v2 Skirmish": "val" }[g] || "gen";
         check(`${label}: kind`, kind === want, `${kind} instead of ${want}`);
         for (const scene of scenes) {
           let html;
@@ -61,7 +61,7 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
     check("Dead by Daylight scores the killer per kill and the survivors per escape and generator", ds.trials[0].pts[0] === 6 && ds.trials[0].pts[1] === 7 && ds.trials[1].pts[1] === 4 && ds.trials[1].pts[0] === 9 && ds.total[0] === 15 && ds.total[1] === 11, JSON.stringify(ds));
     check("Dead by Daylight scorebug shows those points", /\b15\b/.test(text(HUD.sceneHtml(dbEv, null, "ingame"))) && /TRIAL 2/.test(text(HUD.sceneHtml(dbEv, null, "ingame"))));
 
-    const vEv = JSON.parse(JSON.stringify(await (await fetch(`${base}/api/event-template?game=Valorant`)).json()));
+    const vEv = JSON.parse(JSON.stringify(await (await fetch(`${base}/api/event-template?game=Valorant%202v2%20Skirmish`)).json()));
     check("VALORANT 2v2 Skirmish has two players a side and plays first to 10", vEv.teams.every(t => t.players.length === 2) && vEv.val.target === 10 && /ROUND 1\/19/.test(text(HUD.sceneHtml(vEv, null, "ingame"))));
 
     /* VALORANT in-game scene (phase C2): top bar, players-left tab, sponsor boxes, player panels */

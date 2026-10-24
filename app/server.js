@@ -106,8 +106,9 @@ function upgrade(ev) {
   { const t = ev.val.to && typeof ev.val.to === "object" ? ev.val.to : {}; ev.val.to = { side: +t.side === 1 ? 1 : 0, role: ["atk", "def"].includes(t.role) ? t.role : "", at: +t.at || 0, secs: Math.max(10, Math.min(300, Math.round(+t.secs) || 60)) }; }
   ev.val.rounds = (Array.isArray(ev.val.rounds) ? ev.val.rounds : []).filter(x => x === 0 || x === 1).slice(0, 60);
   { const w = ev.val.win && typeof ev.val.win === "object" ? ev.val.win : {}; ev.val.win = { side: +w.side === 1 ? 1 : 0, at: +w.at || 0 }; }
+  if (ev.game === "Valorant") ev.val.squad = 5; else if (ev.game === "Valorant 2v2 Skirmish") ev.val.squad = 2; // the 5v5 game and the 2v2 mode are separate games
   ev.val.veto = require("./public/hud.js").vetoFix(ev.val.veto, ev.val.squad); // map selection: format, pool and one step per map
-  if (ev.game === "Valorant") ev.teams.forEach(t => t.players.forEach(p => { if (p.agent === undefined) p.agent = ""; })); // the agent a player picks (a valorant-api.com uuid)
+  if (ev.game === "Valorant" || ev.game === "Valorant 2v2 Skirmish") ev.teams.forEach(t => t.players.forEach(p => { if (p.agent === undefined) p.agent = ""; })); // the agent a player picks (a valorant-api.com uuid)
   if (ev.rb) { const D = d.rb; ["legend", "champ", "bf", "hand", "deck", "cams"].forEach(k => { if (!Array.isArray(ev.rb[k]) || ev.rb[k].length !== 2) ev.rb[k] = JSON.parse(JSON.stringify(D[k])); });
     if (!ev.rb.sd || typeof ev.rb.sd !== "object") ev.rb.sd = JSON.parse(JSON.stringify(D.sd)); if (!ev.rb.feat || typeof ev.rb.feat !== "object") ev.rb.feat = { id: "", side: 1 }; if (ev.rb.first !== 1) ev.rb.first = 0; }
   ev.dbd = Object.assign({}, d.dbd, ev.dbd); ev.fn = Object.assign({}, d.fn, ev.fn); if (!ev.fn.live || typeof ev.fn.live !== "object" || Array.isArray(ev.fn.live)) ev.fn.live = {};
@@ -127,7 +128,7 @@ function upgrade(ev) {
   ev.teams.forEach(t => { if (t.tag === "SCC" && t.logos && (!t.logos[0] || t.logos[0] === "/brand/saints-emblem.png")) t.logos[0] = "/brand/chud-hud.png"; });
   return ev;
 }
-const SQUAD = { "League of Legends": 5, "Rocket League": 3, "Dead by Daylight": 5, "Fortnite": 2, "Valorant": 2 };
+const SQUAD = { "League of Legends": 5, "Rocket League": 3, "Dead by Daylight": 5, "Fortnite": 2, "Valorant": 5, "Valorant 2v2 Skirmish": 2 };
 const seatPlayers = (ev, n) => ev.teams.forEach(t => { while (t.players.length < n) t.players.push(Object.assign({ id: uid(), ign: "", alias: "", country: "", avatar: "", cam: "", stats: {} }, ev.game === "Valorant" ? { agent: "" } : {})); });
 function freshEvent(game, name = "New Event") {
   const ev = newEvent(name, game);
@@ -143,7 +144,7 @@ function freshEvent(game, name = "New Event") {
     ev.teams = Array.from({ length: 8 }, (_, i) => blankTeam("Duo " + (i + 1), "D" + (i + 1), cols[i]));
     Object.assign(ev.live, { left: ev.teams[0].id, right: ev.teams[1].id });
   }
-  if (SQUAD[game]) seatPlayers(ev, game === "Valorant" ? ev.val.squad : SQUAD[game]);
+  if (SQUAD[game]) seatPlayers(ev, SQUAD[game]);
   return upgrade(ev);
 }
 function seed() {
@@ -190,6 +191,8 @@ try { DB = JSON.parse(fs.readFileSync(DB_FILE, "utf8")); } catch { DB = null; }
 if (!DB || !Array.isArray(DB.events)) DB = seed();
 DB.settings = Object.assign({ source: "auto" }, DB.settings);
 if (!DB.settings.v) { DB.settings.v = 2; if (DB.settings.source === "demo") DB.settings.source = "auto"; } // the demo is no longer the default
+// VALORANT used to be one game with a team size (2v2 was the default). It is now two games, the 5v5 game and the 2v2 Skirmish: each saved event moves once to the one its team size says.
+if (!DB.settings.valSplit) { DB.settings.valSplit = true; DB.events.forEach(e => { if (e.game === "Valorant" && (Math.round(+(e.val && e.val.squad)) || 2) <= 2) e.game = "Valorant 2v2 Skirmish"; }); setImmediate(save); }
 DB.events.forEach(upgrade);
 if (DB.settings && DB.settings.brand) delete DB.settings.brand; // the app logo is fixed (see lockedPath); saved with the next change
 // The data source used to be one setting for the whole workspace (and only the on-air event used it). Now every event has its own:
@@ -206,7 +209,7 @@ if (!DB.settings.draft) DB.settings.draft = { delay: 0, lockfile: "" }; // champ
 if (V.id === "lotd" && !DB.settings.lotdEvents) {
   DB.settings.lotdEvents = true;
   const mk = (game, name, series) => { const ev = freshEvent(game, name); ev.tournament.name = "LAN OF THE DEAD 2026"; ev.live.seriesTitle = series; return ev; };
-  const dbd = mk("Dead by Daylight", "DBD - TRIALS", "LAN OF THE DEAD"), fn = mk("Fortnite", "FN - DUOS", "LAN OF THE DEAD"), vl = mk("Valorant", "VAL - 2V2 SKIRMISH", "LAN OF THE DEAD");
+  const dbd = mk("Dead by Daylight", "DBD - TRIALS", "LAN OF THE DEAD"), fn = mk("Fortnite", "FN - DUOS", "LAN OF THE DEAD"), vl = mk("Valorant 2v2 Skirmish", "VAL - 2V2 SKIRMISH", "LAN OF THE DEAD");
   dbd.live.gameSeries = "TRIALS"; fn.live.gameSeries = "DUOS"; vl.live.gameSeries = "2V2 SKIRMISH";
   DB.events.unshift(vl, fn, dbd);
   setImmediate(save);
@@ -668,7 +671,7 @@ setInterval(() => { for (const ev of DB.events) if (ev.source === "demo") inFeed
 
 // Part of each game's window title, used to find the game on screen for the live preview background.
 const GAME_WINDOWS = { "League of Legends": ["League of Legends (TM) Client"], "Rocket League": ["Rocket League"], "Minecraft": ["Minecraft"], "Overwatch 2": ["Overwatch"],
-  "Call of Duty": ["Call of Duty", "Warzone", "Black Ops", "Modern Warfare"], "Deadlock": ["Deadlock"], "Fortnite": ["Fortnite"], "Valorant": ["VALORANT"], "Dead by Daylight": ["DeadByDaylight", "Dead by Daylight"], "Counter-Strike 2": ["Counter-Strike 2"], "Riftbound": ["Riftbound"] };
+  "Call of Duty": ["Call of Duty", "Warzone", "Black Ops", "Modern Warfare"], "Deadlock": ["Deadlock"], "Fortnite": ["Fortnite"], "Valorant": ["VALORANT"], "Valorant 2v2 Skirmish": ["VALORANT"], "Dead by Daylight": ["DeadByDaylight", "Dead by Daylight"], "Counter-Strike 2": ["Counter-Strike 2"], "Riftbound": ["Riftbound"] };
 
 /* ------------------------------------------------ Data Dragon image cache */
 const DD_DIR = path.join(DATA, "ddragon-img");
@@ -685,6 +688,7 @@ const COVER_SRC = {
   "Rocket League": steamHero(252950), "Overwatch 2": steamHero(2357570), "Call of Duty": steamHero(1938090), "Deadlock": steamHero(1422450), "Counter-Strike 2": steamHero(730),
   "League of Legends": () => "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Jinx_0.jpg",
   "Valorant": () => "https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/fullportrait.png",
+  "Valorant 2v2 Skirmish": () => "https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/fullportrait.png",
   "Minecraft": async () => { const j = await getJson("https://launchercontent.mojang.com/v2/javaPatchNotes.json"), e = j.entries.find(x => x.type === "release" && x.image) || j.entries.find(x => x.image); return "https://launchercontent.mojang.com" + e.image.url; },
   "Fortnite": async () => { const j = await getJson("https://fortnite-api.com/v2/news/br"), m = (j.data.motds || []).find(x => x.image); return m.image; },
 };
@@ -1419,7 +1423,7 @@ const server = http.createServer((req, res) => {
             if (!target) return json(res, 404, { error: "event not found" });
             if (!body.event && lockedPath(body.path)) return json(res, 403, { error: "The app logo can't be changed." });
             setPath(target, body.path, body.value);
-            if (body.event && body.path === "val.squad") { target.val.squad = Math.max(2, Math.min(5, Math.round(+target.val.squad) || 2)); seatPlayers(target, target.val.squad); } // a bigger squad seats the empty roster rows
+            if (body.event && body.path === "val.squad") { target.val.squad = target.game === "Valorant" ? 5 : 2; seatPlayers(target, target.val.squad); } // a bigger squad seats the empty roster rows
             if (body.event && body.path === "game") { upgrade(target); if (SQUAD[target.game] && target.teams.every(t => !t.players.length)) seatPlayers(target, SQUAD[target.game]); } // switching game gives that game's own settings
             save(); broadcastDb(body.by || "api");
             applyFeeds(); // an event's game decides which feed it reads

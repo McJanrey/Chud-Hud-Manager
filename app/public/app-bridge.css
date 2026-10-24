@@ -360,3 +360,4 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 .navfoot .navtog .car{margin-top:0}
 .navfoot .navtog .car.up{margin-top:0}
 .nav .brand>div:last-child{min-width:0}.nav .brand b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}.nav .brand small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tkh{cursor:grab;touch-action:none;user-select:none}.tkh:active{cursor:grabbing}

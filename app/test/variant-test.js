@@ -59,13 +59,18 @@ const lotd = V.forId("lotd"), std = V.forId("");
     check("LOTD serves a recoloured overlay stylesheet", !/#fdc82f/i.test(L.hud.text));
     check("the standard server has no theme and its normal overlay colours", S.theme.text === "" && /#fdc82f/i.test(S.hud.text) && S.v.id === "");
     check("LOTD serves its own logo", !L.logo.equals(S.logo));
-    check("LOTD opens with Valorant, Fortnite and Dead by Daylight first", L.games.slice(0, 3).join() === "Valorant,Fortnite,Dead by Daylight", L.games.join());
+    check("LOTD opens with Valorant, Fortnite and Dead by Daylight first", L.games.slice(0, 3).join() === "Valorant 2v2 Skirmish,Fortnite,Dead by Daylight", L.games.join());
     check("WWL server reports itself, serves its theme, recoloured overlay and own logo", W.v.id === "wwl" && W.v.name === "Chud Hud WWL" && W.theme.text.includes("--accent:#57a5fc") && /#57a5fc/i.test(W.hud.text) && !/#fdc82f/i.test(W.hud.text) && !W.logo.equals(S.logo) && !W.logo.equals(L.logo) && W.app.text.includes("Chud Hud WWL") && !W.overlay.text.includes("theme.css"));
     check("LOTD names its own events with the year, as the Schedule design does", L.names.slice(0, 3).every(n => n === "LAN OF THE DEAD 2026") && !S.names.includes("LAN OF THE DEAD 2026"), L.names.join());
     // an install from before the year was added: the old default name gets the year once; a name that was typed is never touched
     const legacy = JSON.parse(JSON.stringify(L.db)); delete legacy.settings.lotdYear; legacy.events[0].tournament.name = "LAN OF THE DEAD"; legacy.events[1].tournament.name = "My own LAN"; legacy.events[2].tournament.name = "LAN OF THE DEAD";
     const O = await run("lotd", 7751, d => fs.writeFileSync(path.join(d, "db.json"), JSON.stringify(legacy)));
     check("an older LOTD install: the old default name gets the year once, a name that was typed is left alone", O.names[0] === "LAN OF THE DEAD 2026" && O.names[1] === "My own LAN" && O.names[2] === "LAN OF THE DEAD 2026", O.names.slice(0, 3).join());
+    // VALORANT used to be one game with a team size: an older workspace moves each event, once, to the game its team size says
+    const oldVal = JSON.parse(JSON.stringify(L.db)); delete oldVal.settings.valSplit;
+    oldVal.events[0].game = "Valorant"; oldVal.events[0].val.squad = 2; oldVal.events[1].game = "Valorant"; oldVal.events[1].val.squad = 5;
+    const VS = await run("lotd", 7751, d => fs.writeFileSync(path.join(d, "db.json"), JSON.stringify(oldVal)));
+    check("an older workspace splits VALORANT: a 2-a-side event becomes the 2v2 Skirmish, a 5-a-side one stays VALORANT", VS.games[0] === "Valorant 2v2 Skirmish" && VS.games[1] === "Valorant", VS.games.join());
     check("the standard app does not get the LOTD games", !S.games.includes("Dead by Daylight") && !S.games.includes("Fortnite"), S.games.join());
   } catch (e) { check("server run", false, String(e && e.stack || e)); }
   console.log(failures ? "\n" + failures + " CHECK(S) FAILED" : "\nVARIANT TEST PASS");

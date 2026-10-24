@@ -750,7 +750,7 @@
   /* ---------------- scenes for the games that are not Rocket League ----------------
      Every scene has to speak the game it is showing. The Rocket League versions (goals, saves, demos, boost) stay as they were; Minecraft,
      Riftbound and the screen-read games (kind "gen") get their own stats, lineup and starting-soon scenes, and a plain scorebug in game. */
-  const GD_LABEL = { "Rocket League": "GOAL DIFF", "League of Legends": "GAME DIFF", "Riftbound": "POINT DIFF", "Minecraft": "POINTS", "Dead by Daylight": "POINTS", "Fortnite": "POINTS", "Valorant": "ROUND DIFF" };
+  const GD_LABEL = { "Rocket League": "GOAL DIFF", "League of Legends": "GAME DIFF", "Riftbound": "POINT DIFF", "Minecraft": "POINTS", "Dead by Daylight": "POINTS", "Fortnite": "POINTS", "Valorant": "ROUND DIFF", "Valorant 2v2 Skirmish": "ROUND DIFF" };
   const gdLabel = g => GD_LABEL[g] || "DIFF";
   const lgBig = t => lg(t).replace('class="lgbox"', 'class="lgbox" style="width:76px;height:76px"');
   const noLive = g => String(g || "").toUpperCase();
@@ -839,7 +839,8 @@
   const GAMEDEF = {
     "Dead by Daylight": { kind: "dbd", squad: 5, gd: "POINTS" },
     "Fortnite": { kind: "fn", squad: 2, gd: "POINTS" },
-    "Valorant": { kind: "val", squad: 2, gd: "ROUND DIFF" },
+    "Valorant": { kind: "val", squad: 5, gd: "ROUND DIFF" },
+    "Valorant 2v2 Skirmish": { kind: "val", squad: 2, gd: "ROUND DIFF" },
   };
   /* Fortnite: points for a placement (the first tier whose "to" covers it) plus points per elimination, summed over matches. */
   function fnPoints(fn, place, elims) {

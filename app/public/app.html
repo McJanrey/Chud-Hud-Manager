@@ -26,11 +26,12 @@ const get=(o,p)=>String(p).split(".").reduce((a,k)=>a==null?a:a[k],o);
 const setL=(o,p,v)=>{const ks=String(p).split("."),make=String(p).startsWith("hud.sc.");const last=ks.pop();ks.reduce((a,k)=>{if(make&&a[k]==null)a[k]={};return a[k]},o)[last]=v}; // a scene's own settings are made on first use, as on the server
 const fid=p=>"f-"+String(p).replace(/\./g,"-");
 const CLIENT=uid();
-const GAMES=["Rocket League","League of Legends","Overwatch 2","Call of Duty","Deadlock","Fortnite","Valorant","Counter-Strike 2","Minecraft","Riftbound","Dead by Daylight"];
-const LIVE_FEED={"Rocket League":"Rocket League Stats API","League of Legends":"League Live Client Data API","Minecraft":"your Minecraft server (RCON and the server log), with Screen OCR as a back-up","Riftbound":"nothing: you score it by hand on the Riftbound page","Dead by Daylight":"nothing: you score each trial by hand on the Trials page","Fortnite":"nothing for a caster: you score it by hand on the Fortnite scoring page","Valorant":"nothing official: score it by hand on the Skirmish page, or let Screen OCR read the observer's screen"};
+const isVal=g=>g==="Valorant"||g==="Valorant 2v2 Skirmish"; // two separate games: the 5v5 game and the 2v2 Skirmish mode
+const GAMES=["Rocket League","League of Legends","Overwatch 2","Call of Duty","Deadlock","Fortnite","Valorant","Valorant 2v2 Skirmish","Counter-Strike 2","Minecraft","Riftbound","Dead by Daylight"];
+const LIVE_FEED={"Rocket League":"Rocket League Stats API","League of Legends":"League Live Client Data API","Minecraft":"your Minecraft server (RCON and the server log), with Screen OCR as a back-up","Riftbound":"nothing: you score it by hand on the Riftbound page","Dead by Daylight":"nothing: you score each trial by hand on the Trials page","Fortnite":"nothing for a caster: you score it by hand on the Fortnite scoring page","Valorant":"nothing official: score it by hand on the Valorant page, or let Screen OCR read the observer's screen"};
 const SRC_OPTS=g=>({"Rocket League":[["auto","Auto"],["ocr","Screen OCR"],["push","External"],["demo","Test match"]],"League of Legends":[["auto","Auto"],["ocr","Screen OCR"],["push","External"],["demo","Test match"]],
   "Minecraft":[["auto","Auto"],["ocr","Screen OCR"],["push","External"]],"Riftbound":[],"Dead by Daylight":[],"Fortnite":[]}[g]||[["auto","Auto"],["push","External"]]);
-const IGN_LABEL=g=>({"Rocket League":"Epic ID / IGN","League of Legends":"Riot ID (no #tag)","Minecraft":"Minecraft name","Fortnite":"Epic username","Valorant":"Riot ID (Name#TAG)","Dead by Daylight":"Steam / Epic name"}[g]||"In-game name");
+const IGN_LABEL=g=>({"Rocket League":"Epic ID / IGN","League of Legends":"Riot ID (no #tag)","Minecraft":"Minecraft name","Fortnite":"Epic username","Valorant":"Riot ID (Name#TAG)","Valorant 2v2 Skirmish":"Riot ID (Name#TAG)","Dead by Daylight":"Steam / Epic name"}[g]||"In-game name");
 const PLATFORMS=["X","Twitch","YouTube","Instagram","TikTok","Kick"];
 const COUNTRIES=[["","—"],["US","United States"],["CA","Canada"],["MX","Mexico"],["BR","Brazil"],["AR","Argentina"],["PE","Peru"],["CL","Chile"],["GB","United Kingdom"],["IE","Ireland"],["FR","France"],["DE","Germany"],["AT","Austria"],["CH","Switzerland"],["NL","Netherlands"],["BE","Belgium"],["ES","Spain"],["PT","Portugal"],["IT","Italy"],["PL","Poland"],["SE","Sweden"],["NO","Norway"],["DK","Denmark"],["FI","Finland"],["CZ","Czechia"],["TR","Turkey"],["SA","Saudi Arabia"],["AE","UAE"],["MA","Morocco"],["ZA","South Africa"],["JP","Japan"],["KR","South Korea"],["AU","Australia"],["NZ","New Zealand"],["IN","India"],["PH","Philippines"]];
 
@@ -228,7 +229,7 @@ try{PREF.theme=localStorage.getItem("saints-theme")==="light"?"light":"dark";PRE
 const savePref=()=>{try{localStorage.setItem("saints-theme",PREF.theme);localStorage.setItem("saints-rail",PREF.min?"min":"full")}catch(e){}};
 document.documentElement.dataset.theme=PREF.theme;
 const slug=g=>String(g).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-const GRAD={"Rocket League":"linear-gradient(135deg,#1f5bff,#0b1430 55%,#ff8a1a)","Valorant":"linear-gradient(135deg,#ff4655,#1a0f1c 60%,#3a2a60)","Counter-Strike 2":"linear-gradient(135deg,#d99a2b,#141414 60%,#3a4a5a)","League of Legends":"linear-gradient(135deg,#c8aa6e,#0a1428 60%,#0397ab)","Minecraft":"linear-gradient(135deg,#4aa02c,#17301F)","Riftbound":"linear-gradient(135deg,#1d8a4a,#08110d)"};
+const GRAD={"Rocket League":"linear-gradient(135deg,#1f5bff,#0b1430 55%,#ff8a1a)","Valorant":"linear-gradient(135deg,#ff4655,#1a0f1c 60%,#3a2a60)","Valorant 2v2 Skirmish":"linear-gradient(135deg,#ff4655,#1a0f1c 60%,#3a2a60)","Counter-Strike 2":"linear-gradient(135deg,#d99a2b,#141414 60%,#3a4a5a)","League of Legends":"linear-gradient(135deg,#c8aa6e,#0a1428 60%,#0397ab)","Minecraft":"linear-gradient(135deg,#4aa02c,#17301F)","Riftbound":"linear-gradient(135deg,#1d8a4a,#08110d)"};
 // The cover is the event's own upload, else the game's official key art (downloaded by the app, see /covers), over the game's gradient.
 const gameCover=g=>`url('/covers/${slug(g)}'),${GRAD[g]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`;
 const coverCss=e=>(e.cover?`url('${e.cover}'),${GRAD[e.game]||"linear-gradient(135deg,#17301F,#0A0F0C)"}`:gameCover(e.game));
@@ -247,7 +248,7 @@ function rail(e){
   // the same order as BLOB's sidebar: Overview and HUD Editor on top, then Event setup, then Live game (Live Game, Camera feed, the game's own page, Map Veto); the pages BLOB has no twin for sit last
   const nav=e?link("overview")+link("hud")
     +grp("Event setup",["teams","tournament","talent"])
-    +grp("Live game",["live","camera","ocr",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),...(e.game==="Valorant"?["veto"]:[])])
+    +grp("Live game",["live","camera","ocr",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),...(isVal(e.game)?["veto"]:[])])
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
   const crest="/brand/chud-hud.png"; // fixed: the app logo cannot be changed
   return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>${e?META[ui.view][0]:"My Events"}</small></div></div>
@@ -299,7 +300,7 @@ function home(){
 
 /* ---------- overlays: the new-event dialog and the command palette ---------- */
 let OVL=null,PAL=[]; // OVL: { type: "new" | "palette", ... }
-const NEWGAMES=["Rocket League","League of Legends","Minecraft","Riftbound","Dead by Daylight","Valorant","Overwatch 2","Call of Duty","Deadlock","Fortnite","Counter-Strike 2"];
+const NEWGAMES=["Rocket League","League of Legends","Minecraft","Riftbound","Dead by Daylight","Valorant","Valorant 2v2 Skirmish","Overwatch 2","Call of Duty","Deadlock","Fortnite","Counter-Strike 2"];
 function closeOverlay(){OVL=null;$("#ovl").innerHTML=""}
 function openNew(){OVL={type:"new",game:"Rocket League",name:"",tried:false,busy:false};drawOverlay();setTimeout(()=>{const i=$("#neName");i&&i.focus()},30)}
 function openPalette(){OVL={type:"palette",q:"",i:0};drawOverlay();setTimeout(()=>{const i=$("#palQ");i&&i.focus()},30)}
@@ -365,19 +366,19 @@ hud(e){
   const h=e.hud,inGame=h.scene==="ingame"; // boost lists, lane panel, League timers and icons only matter for the in-game scene
   const hg=e.game==="Minecraft"&&h.scene==="ingame"&&e.mc.mode!=="buildbattle"?hgEditor(e):""; // sets HGCARD, shown under the preview
   const T0=e.teams.find(t=>t.id===e.live.left),T1=e.teams.find(t=>t.id===e.live.right);
-  return`<div class="hudone">${!["Rocket League","League of Legends","Minecraft","Riftbound","Fortnite","Dead by Daylight","Valorant"].includes(e.game)?`<div class="banner">${esc(e.game)} has no live player data. Scenes show team names, scores and the clock read from the screen with Screen OCR.</div>`:""}
+  return`<div class="hudone">${!["Rocket League","League of Legends","Minecraft","Riftbound","Fortnite","Dead by Daylight","Valorant","Valorant 2v2 Skirmish"].includes(e.game)?`<div class="banner">${esc(e.game)} has no live player data. Scenes show team names, scores and the clock read from the screen with Screen OCR.</div>`:""}
   ${inGame&&e.game==="League of Legends"?`<p class="note">Switch the bottom board to the teamfight strip with the button below, or press <b>F9</b> from any program. League's live data has no health, mana or ultimate timers for other players, so the strip shows level, items, K/D/A and death timers.</p>`:""}
   <div class="hudtop">
     <div class="fld"><span>Selected Scene</span><div class="row c nowrap" style="gap:8px"><div style="width:240px">${F.sel("hud.scene","",Object.entries(SCENES),"data-rerender")}</div><button class="btn icon" type="button" data-act="copySceneLink" title="Copy this scene's overlay link" aria-label="Copy this scene's overlay link">${ico("copy")}</button></div></div>
     <div class="fld"><span>Colors</span><div class="row c nowrap" style="gap:8px"><div class="seg"><button type="button" data-act="hudColor" data-arg="custom" aria-pressed="${h.colorMode==="custom"}">Custom</button><button type="button" data-act="hudColor" data-arg="team" aria-pressed="${h.colorMode==="team"}"><i class="tdots"><b style="background:${esc((T0&&T0.color)||"#2f7dff")}"></b><b style="background:${esc((T1&&T1.color)||"#ff9b1a")}"></b></i>Team</button></div>${h.colorMode==="custom"?`<span class="row c nowrap" style="gap:6px"><input type="color" id="f-hud-custom-0" data-bind="hud.custom.0" value="${esc(h.custom[0])}" aria-label="Left colour"><input type="color" id="f-hud-custom-1" data-bind="hud.custom.1" value="${esc(h.custom[1])}" aria-label="Right colour"><button class="btn icon" type="button" data-act="resetColors" aria-label="Reset colours">${ico("reset")}</button></span>`:""}</div></div>
     ${inGame&&e.game==="League of Legends"?`<div class="fld" style="flex:none"><span>Bottom board (F9)</span><div class="seg">${[["lane","Lane board"],["fight","Teamfight strip"]].map(([k,l])=>`<button type="button" data-act="lolPanel" data-arg="${k}" aria-pressed="${(e.hud.lolPanel==="fight"?"fight":"lane")===k}">${l}</button>`).join("")}</div></div>`:""}
-    ${inGame&&e.game==="Valorant"?(()=>{const V=e.val||{},vs=V.state||"main",to=V.to||{};return`<div class="fld" style="flex:none"><span>HUD State</span><div class="seg">${[["main","Main"],["buy","Buy"],["timeout","Timeout"]].map(([k,l])=>`<button type="button" data-act="valState" data-arg="${k}" aria-pressed="${vs===k}">${l}</button>`).join("")}</div></div>
+    ${inGame&&isVal(e.game)?(()=>{const V=e.val||{},vs=V.state||"main",to=V.to||{};return`<div class="fld" style="flex:none"><span>HUD State</span><div class="seg">${[["main","Main"],["buy","Buy"],["timeout","Timeout"]].map(([k,l])=>`<button type="button" data-act="valState" data-arg="${k}" aria-pressed="${vs===k}">${l}</button>`).join("")}</div></div>
       ${vs==="timeout"?`<div class="fld" style="flex:none"><span>Timeout</span><div class="row c nowrap" style="gap:8px"><div class="seg">${[0,1].map(s=>{const t=s?T1:T0;return`<button type="button" data-act="valToSide" data-arg="${s}" aria-pressed="${(+to.side||0)===s}">${esc((t&&(t.tag||t.name))||(s?"Right":"Left"))}</button>`}).join("")}</div><div class="seg">${[["","No side"],["atk","Attackers"],["def","Defenders"]].map(([k,l])=>`<button type="button" data-act="valToRole" data-arg="${k}" aria-pressed="${(to.role||"")===k}">${l}</button>`).join("")}</div><button class="btn" type="button" data-act="valToStart">Restart ${Math.round(+to.secs||60)}s</button></div></div>`:""}`})():""}
     <span class="grow"></span>
   </div>
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)?`<div class="chks hudchks">${F.chk("hud.show.boost",e.game==="League of Legends"?"Side player lists (off: the bottom board has them)":"Player Boost")}${F.chk("hud.show.card",e.game==="League of Legends"?"Lane Panel (items, gold)":"Player Card")}${F.chk("hud.show.score","Score Line")}${F.chk("hud.show.stats",e.game==="League of Legends"?"Objective Timers":"Team Stats")}${F.chk("hud.show.feed","Stat Feed")}${F.chk("hud.show.goal","Goal Banner")}${F.chk("hud.show.playerCam",e.game==="League of Legends"?"Player webcams (one big camera per team)":"Player webcams (3 a team)")}${e.game==="League of Legends"?F.chk("hud.show.focus","Focus panel")+F.chk("hud.show.sponsor","Sponsor box")+F.chk("hud.show.minimap","Minimap frame"):""}${F.chk("hud.autoBoard","Team stats on podium")}</div>`:""}
   ${inGame&&["Rocket League","League of Legends"].includes(e.game)&&e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}
-  ${inGame&&["Valorant","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${e.game==="Valorant"?F.chk("hud.show.boost","Players Alive")+F.chk("hud.show.feed","Game Events")+F.chk("hud.show.score","Score Line")+F.chk("hud.show.sponsor","Sponsors")+F.chk("hud.show.stats","Team Stats (Buy and Timeout board)")+F.chk("hud.show.maps","Series Maps"):""}${F.chk("hud.show.playerCam","Player webcams")}</div>${inGame&&e.game==="Valorant"&&(e.val||{}).state!=="main"&&(e.val||{}).state?valRounds(e):""}${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
+  ${inGame&&["Valorant","Valorant 2v2 Skirmish","Dead by Daylight","Fortnite"].includes(e.game)?`<div class="chks hudchks">${isVal(e.game)?F.chk("hud.show.boost","Players Alive")+F.chk("hud.show.feed","Game Events")+F.chk("hud.show.score","Score Line")+F.chk("hud.show.sponsor","Sponsors")+F.chk("hud.show.stats","Team Stats (Buy and Timeout board)")+F.chk("hud.show.maps","Series Maps"):""}${F.chk("hud.show.playerCam","Player webcams")}</div>${inGame&&isVal(e.game)&&(e.val||{}).state!=="main"&&(e.val||{}).state?valRounds(e):""}${e.hud.show.playerCam?`<div class="sec">${camControls(e)}</div>`:""}`:""}
   ${scControls(e,h.scene)}
   <div class="hudprev">${stage()}${HGCARD}${tkPanel(e)}</div>
   ${["statsteam","statsplayer"].includes(h.scene)&&!["Rocket League","League of Legends","Minecraft","Riftbound"].includes(e.game)?statsEditor(e):""}
@@ -401,8 +402,8 @@ teams(e){
     <div class="sec"><div><h2>Team logo</h2><p class="sub">Upload your team's primary, secondary and tertiary logos. The HUD uses the primary.</p></div>
       <div class="cols" style="--n:3">${["Primary","Secondary","Tertiary"].map((l,j)=>F.dz(`${P}.logos.${j}`,l)).join("")}</div></div>
     <div class="sec"><div class="sechead"><div><h2>Team members</h2><p class="sub">The in-game name must match the IGN exactly for auto team tracking.</p></div><div class="row c" style="gap:8px"><button class="btn" type="button" data-act="nav" data-arg="camera">${ico("link")}Webcams</button><button class="btn" type="button" data-act="addPlayer">${ico("plus")}Add player</button></div></div>
-      <div class="tw"><table class="grid members"><colgroup><col style="width:64px"><col style="width:21%"><col style="width:17%"><col style="width:17%"><col>${e.game==="Valorant"?`<col style="width:140px">`:""}<col style="width:52px"></colgroup><thead><tr><th>Avatar</th><th>${IGN_LABEL(e.game)} *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source</th>${e.game==="Valorant"?`<th style="min-width:150px">Agent</th>`:""}<th style="width:44px"></th></tr></thead><tbody>
-      ${t.players.map((p,j)=>`<tr><td>${F.dz(`${P}.players.${j}.avatar`,"Avatar","mini pt")}</td><td>${F.text(`${P}.players.${j}.ign`,"","In-game name")}</td><td>${F.text(`${P}.players.${j}.alias`,"","Alias")}</td><td><div class="row c nowrap ctry">${flagImg(p.country)}${F.sel(`${P}.players.${j}.country`,"",COUNTRIES)}</div></td><td>${p.cam||ui.camEdit===p.id?F.text(`${P}.players.${j}.cam`,"","Camera link, or blank for our own"):`<button class="btn ghost camsrc" type="button" data-act="camEdit" data-arg="${esc(p.id)}" title="Our own camera system. Click to use another link instead.">${ico("cam")}Internal Webcam</button>`}</td>${e.game==="Valorant"?`<td>${F.sel(`${P}.players.${j}.agent`,"",agentOpts(p.agent))}</td>`:""}<td><button class="btn icon" type="button" data-act="delPlayer" data-arg="${j}" aria-label="Remove player">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="7" class="sub" style="padding:18px 12px">No players yet. Press Add player to start the roster.</td></tr>`}
+      <div class="tw"><table class="grid members"><colgroup><col style="width:64px"><col style="width:21%"><col style="width:17%"><col style="width:17%"><col>${isVal(e.game)?`<col style="width:140px">`:""}<col style="width:52px"></colgroup><thead><tr><th>Avatar</th><th>${IGN_LABEL(e.game)} *</th><th>Alias (optional)</th><th>Country / Region</th><th>Webcam source</th>${isVal(e.game)?`<th style="min-width:150px">Agent</th>`:""}<th style="width:44px"></th></tr></thead><tbody>
+      ${t.players.map((p,j)=>`<tr><td>${F.dz(`${P}.players.${j}.avatar`,"Avatar","mini pt")}</td><td>${F.text(`${P}.players.${j}.ign`,"","In-game name")}</td><td>${F.text(`${P}.players.${j}.alias`,"","Alias")}</td><td><div class="row c nowrap ctry">${flagImg(p.country)}${F.sel(`${P}.players.${j}.country`,"",COUNTRIES)}</div></td><td>${p.cam||ui.camEdit===p.id?F.text(`${P}.players.${j}.cam`,"","Camera link, or blank for our own"):`<button class="btn ghost camsrc" type="button" data-act="camEdit" data-arg="${esc(p.id)}" title="Our own camera system. Click to use another link instead.">${ico("cam")}Internal Webcam</button>`}</td>${isVal(e.game)?`<td>${F.sel(`${P}.players.${j}.agent`,"",agentOpts(p.agent))}</td>`:""}<td><button class="btn icon" type="button" data-act="delPlayer" data-arg="${j}" aria-label="Remove player">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="7" class="sub" style="padding:18px 12px">No players yet. Press Add player to start the roster.</td></tr>`}
       </tbody></table></div></div>`:`<div class="empty"><div class="ico">${ico("teams")}</div><p>No teams yet. Add your first team to start building the roster.</p><button class="btn primary" type="button" data-act="addTeam">${ico("plus")}Add team</button></div>`}</div></div>`;
 },
 tournament(e){
@@ -435,7 +436,7 @@ live(e){
         <button class="btn icon lg-swap" type="button" data-act="swap" aria-label="Swap sides">${ico("swap")}</button>
         <div class="lg-side"><span class="lg-lbl r">${e.game==="League of Legends"?"Right Team (red)":"Right Team"}</span><div class="lg-team">${ml(T(l.right))}${F.sel("live.right","",teamOpts(e))}</div></div></div>
       <div class="lg-teams lg-track" id="trackRow"></div>
-      <button class="btn lg-wide" type="button" data-act="copyCamLinks">${ico("copy")}${e.game==="Valorant"?"Copy Webcams &amp; Mapbans":"Copy Webcam Links"}</button></div>
+      <button class="btn lg-wide" type="button" data-act="copyCamLinks">${ico("copy")}${isVal(e.game)?"Copy Webcams &amp; Mapbans":"Copy Webcam Links"}</button></div>
     <hr class="lg-sep">
     <div class="sec lg"><div class="sechead"><h2>Scoreline</h2>${F.sw("live.autoScore","Auto")}</div>
       <p class="note lg-hint">Score changes here turn Auto off and override the live score. ${ico("info")}</p>
@@ -475,13 +476,13 @@ ocr(e){
     <div class="note">Capture needs the game in <b>borderless windowed</b> mode. Exclusive fullscreen can't be captured.</div>
     <b style="font:700 13px var(--f-head)">2. Draw a box around each value</b>
     <div class="ocr-stage" id="ocrStage"><div class="empty" id="ocrEmpty">Pick a screen or window above to see it here.</div><img id="ocrFrame" alt="" hidden><div id="ocrBoxes"></div></div>
-    <div class="row c"><label class="fld" style="max-width:220px;flex:none"><span>New box reads</span><select id="ocrNewRole">${Object.entries(OCR_ROLES).map(([k,[n]])=>`<option value="${k}">${n}</option>`).join("")}</select></label>
+    <div class="row c"><label class="fld" style="max-width:220px;flex:none"><span>New box reads</span><select id="ocrNewRole">${ocrRoleKeys().map(k=>`<option value="${k}">${OCR_ROLES[k][0]}</option>`).join("")}</select></label>
       <span class="note" style="align-self:flex-end;flex:1">Drag on the picture to draw. Drag a box to move it, or its corner to resize.</span></div>
   </div><div class="sec">
     <div class="sechead"><h2>3. Check and start</h2></div>
     <div class="row c"><button class="btn ${on?"danger":"blue"}" type="button" data-act="${on?"ocrStop":"ocrStart"}">${on?"Stop reading":"Start reading"}</button>
       <label class="fld" style="max-width:140px;flex:none"><span>Read every (ms)</span><input type="number" id="ocrInterval" min="250" max="5000" step="50" value="${c.interval||800}"></label>
-      <label class="fld" style="max-width:200px;flex:none"><span>Starting layout</span><select id="ocrLayout"><option value="">Choose…</option><option value="top">Top-centre scorebar</option><option value="corners">Scores in the top corners</option><option value="fn">Fortnite: match results screen</option><option value="dbd">Dead by Daylight: trial tally screen</option></select></label></div>
+      <label class="fld" style="max-width:200px;flex:none"><span>Starting layout</span><select id="ocrLayout"><option value="">Choose…</option>${ocrLayoutKeys().map(k=>`<option value="${k}">${OCR_LAYOUT_NAME[k]}</option>`).join("")}</select></label></div>
     <p class="note" id="ocrError"></p>
     <div class="tw"><table class="grid" style="min-width:0"><thead><tr><th>Reads</th><th>Text</th><th>Value</th><th></th></tr></thead><tbody id="ocrRows"></tbody></table></div>
     <div id="ocrTest"></div>
@@ -560,7 +561,8 @@ function gameData(e){
   if(g==="Riftbound")return box("Riftbound","There is no live data feed. You score the match by hand on the Riftbound page: points, games, turns, the clock and the cards in play.");
   if(g==="Dead by Daylight")return box("Dead by Daylight","The game has no live data feed, no spectator mode and no official API. Score each trial on the Trials page: kills, escapes and generators. Screen OCR can read the end-of-trial screen if you point it at the game window.");
   if(g==="Fortnite")return box("Fortnite","Epic gives casters no live match feed. Score each match on the Fortnite scoring page: placement and eliminations per team, with the placement tiers set to your event's rules.");
-  if(g==="Valorant")return box("VALORANT 2v2 Skirmish","Riot gives spectators no live data. Score each round on the Skirmish page (first to 10 by default), or let Screen OCR read the observer's screen for names, scores and the clock.")+other;
+  if(g==="Valorant")return box("VALORANT","Riot gives spectators no live data. Score each round on the Valorant page (first to 13 by default), or let Screen OCR read the observer's screen for names, scores and the clock.")+other;
+  if(g==="Valorant 2v2 Skirmish")return box("VALORANT 2v2 Skirmish","Riot gives spectators no live data. Score each round on the Skirmish page (first to 10 by default), or let Screen OCR read the observer's screen for names, scores and the clock.")+other;
   return box(esc(g)+" (screen reading)","${esc(g)} has no live data feed, so scores, the clock and team names are read from the screen with Screen OCR. Pick the game's window on the Screen OCR page and draw a box around each value.".replace("${esc(g)}",esc(g)))+other;
 }
 /* Hunger Games HUD editor: HUD state, the elements, and the settings of the one you click */
@@ -613,7 +615,7 @@ outputs(e){
         +g("Webcams",[["Webcams on","action=cams&value=on"],["Webcams off","action=cams&value=off"],["Webcams on or off","action=cams&value=toggle"],["Every player's webcam","action=director&value=all"],["Only the player in the action","action=director&value=action"],["Left team: auto","action=pin&side=0&value=0"],["Left team: player 1","action=pin&side=0&value=1"],["Left team: player 2","action=pin&side=0&value=2"],["Right team: auto","action=pin&side=1&value=0"],["Right team: player 1","action=pin&side=1&value=1"],["Right team: player 2","action=pin&side=1&value=2"]])
         +g("Score",[["Left +1","action=score&side=0&delta=1"],["Left −1","action=score&side=0&delta=-1"],["Right +1","action=score&side=1&delta=1"],["Right −1","action=score&side=1&delta=-1"]])
         +g("Show or hide an element",Object.keys(e.hud.show).map(k=>[k,`action=show&name=${k}&value=toggle`]))
-        +(e.game==="Valorant"?g("VALORANT HUD state",[["Main","action=valstate&value=main"],["Buy round","action=valstate&value=buy"],["Timeout: left team","action=valstate&value=timeout&side=0"],["Timeout: right team","action=valstate&value=timeout&side=1"]]):"")
+        +(isVal(e.game)?g("VALORANT HUD state",[["Main","action=valstate&value=main"],["Buy round","action=valstate&value=buy"],["Timeout: left team","action=valstate&value=timeout&side=0"],["Timeout: right team","action=valstate&value=timeout&side=1"]]):"")
         +(e.game==="Minecraft"?g("Hunger Games HUD state",[["Main","action=hgstate&value=main"],["Final","action=hgstate&value=final"],["Winner","action=hgstate&value=winner"]]):"")})()
       :`<p class="sub">The addresses are shown on the PC that runs the app.</p>`}</div>
   <div class="sec"><div><h2>Other events</h2><p class="sub">Each one has its own link too.</p></div>${others.map(x=>row(x.name+" · "+x.game,overlayUrl("auto",x))).join("")||`<p class="sub">No other events.</p>`}</div>`;
@@ -670,7 +672,7 @@ rb(e){
 }});
 /* ---------- VALORANT 2v2 Skirmish, Dead by Daylight and Fortnite: scored by hand ---------- */
 const VETO_ACTIVE=["Abyss","Bind","Corrode","Lotus","Sunset","Summit"]; // the starting pool until you change it: the competitive rotation in MJ's reference
-const GAMEPAGE={"Minecraft":"mc","Riftbound":"rb","Fortnite":"fn","Dead by Daylight":"dbd","Valorant":"val"};
+const GAMEPAGE={"Minecraft":"mc","Riftbound":"rb","Fortnite":"fn","Dead by Daylight":"dbd","Valorant":"val","Valorant 2v2 Skirmish":"val"};
 const gameOcr=()=>(FEEDS.ocr&&FEEDS.ocr.gameOcr&&Date.now()-FEEDS.ocr.gameOcr.t<120000)?FEEDS.ocr.gameOcr:null;
 function dbdRead(v){const o=[1,2,3,4].map(i=>String(v["dbdS"+i]||"")),esc4=o.filter(t=>/escap|hatch/i.test(t)).length,kills=o.filter(t=>/sacrific|kill|dead|died|hook/i.test(t)).length;return{escapes:esc4,kills,gens:Math.max(0,Math.min(5,+v.dbdGens||0))}}
 function gameOcrHtml(e){
@@ -752,11 +754,10 @@ veto(e){
 val(e){
   const v=e.val,t=+v.target||10,sc=e.live.score,done=sc[0]>=t||sc[1]>=t;
   return`<div class="halves"><div class="sec" style="gap:24px">
-    <div class="sec"><div class="sechead"><div><h2>2v2 Skirmish</h2><p class="sub">First team to ${t} rounds wins. Add each round as it ends and everything on stream follows. There is no live data feed for this mode: score it here, or let Screen OCR read the observer's screen.</p></div>${done?`<span class="pill ok">${esc(sideName(e,sc[0]>=t?0:1))} win</span>`:""}</div>
+    <div class="sec"><div class="sechead"><div><h2>${e.game==="Valorant"?"Valorant":"2v2 Skirmish"}</h2><p class="sub">First team to ${t} rounds wins. Add each round as it ends and everything on stream follows. There is no live data feed for this game: score it here, or let Screen OCR read the observer's screen.</p></div>${done?`<span class="pill ok">${esc(sideName(e,sc[0]>=t?0:1))} win</span>`:""}</div>
       <div class="cols">${[0,1].map(s=>`<div class="box"><b>${esc(sideName(e,s))}</b><div class="row c" style="justify-content:space-between"><span class="mono" style="font-size:44px" data-mirror="live.score.${s}">${sc[s]}</span><button class="btn primary" type="button" data-act="valRound" data-arg="${s}">${ico("plus")}Round</button></div></div>`).join("")}</div>
       <div class="row c"><button class="btn" type="button" data-act="valUndo">Undo last round</button><button class="btn danger" type="button" data-act="valReset">New match</button></div>
-      <div class="cols" style="--n:4">${F.num("val.target","Rounds to win",'min="1" max="30" data-rerender')}${F.text("live.gameSeries","Label on stream","2V2 SKIRMISH")}${F.sel("live.left","Left team",teamOpts(e))}${F.sel("live.right","Right team",teamOpts(e))}</div>
-      <div class="cols" style="--n:4">${F.sel("val.squad","Players a side",[2,3,4,5].map(n=>[n,n+" players"]),"data-num data-rerender")}</div>
+      <div class="cols" style="--n:4">${F.num("val.target","Rounds to win",'min="1" max="30" data-rerender')}${F.text("live.gameSeries","Label on stream",e.game==="Valorant"?"VALORANT":"2V2 SKIRMISH")}${F.sel("live.left","Left team",teamOpts(e))}${F.sel("live.right","Right team",teamOpts(e))}</div>
       <div class="sec"><div class="sechead"><div><h2>Players alive</h2><p class="sub">Tap a player when they die. The players-left tab appears on stream after the first tap, and + Round brings everyone back for the next round.</p></div><button class="btn" type="button" data-act="valAllAlive">Everyone alive</button></div>
       <div class="cols">${[0,1].map(s=>{const t=sideTeam(e,s),sq=Math.max(2,Math.min(5,+v.squad||2)),dead=v.dead||{};return`<div class="box"><b>${esc(sideName(e,s))}</b><div class="row c" style="flex-wrap:wrap">${(t?t.players.slice(0,sq):[]).filter(p=>p.alias||p.ign).map(p=>`<button class="btn sm" type="button" data-act="valAlive" data-arg="${esc(p.id)}" aria-pressed="${!!dead[p.id]}">${esc(p.alias||String(p.ign).replace(/#[^#]*$/,""))}${dead[p.id]?" · out":""}</button>`).join("")||`<span class="sub">No named players yet. Add them on Players &amp; Teams.</span>`}</div></div>`}).join("")}</div></div>
       ${(()=>{const sq=Math.max(2,Math.min(5,+v.squad||2)),ps=[0,1].flatMap(s=>{const t=sideTeam(e,s);return(t?t.players.slice(0,sq):[]).filter(p=>p.alias||p.ign).map(p=>({p,s}))}),nm=p=>esc(p.alias||String(p.ign).replace(/#[^#]*$/,"")),dead=v.dead||{};
@@ -773,7 +774,7 @@ val(e){
         <div class="cols">${[0,1].map(s=>{const t=sideTeam(e,s);return`<div class="box"><b>${esc(sideName(e,s))}</b>${(t?t.players.slice(0,sq):[]).filter(p=>p.alias||p.ign).map(p=>`<div class="row c" style="gap:6px;margin-top:8px;flex-wrap:wrap"><span style="min-width:84px">${esc(p.alias||String(p.ign).replace(/#[^#]*$/,""))}</span><select data-agspid="${esc(p.id)}" data-k="agent" aria-label="Agent"><option value="">No agent yet</option>${AG.map(a=>`<option value="${esc(a.uuid)}"${p.agent===a.uuid?" selected":""}>${esc(a.name)}</option>`).join("")}</select><select data-agspid="${esc(p.id)}" data-k="st" aria-label="State"><option value="lock"${(A.st[p.id]||"lock")!=="hover"?" selected":""}>Locked in</option><option value="hover"${A.st[p.id]==="hover"?" selected":""}>Hovering</option></select></div>`).join("")||`<span class="sub">No named players yet.</span>`}</div>`}).join("")}</div></div>`})()}
       <div class="sec"><div class="sechead"><div><h2>Top bar background</h2><p class="sub">The built-in look, a transparent bar, or your own picture or video behind it (PNG, JPG, WebP, GIF, or an MP4, WebM or MOV that loops; 1143 × 86 at 1080p fills it exactly).</p></div></div>
       <div class="cols" style="--n:2">${F.sel("val.barStyle","Style",[["solid","Built-in look"],["clear","Transparent"],["media","Your picture or video"]],"data-rerender")}${v.barStyle==="media"?`<div class="fld"><span>Picture or video</span><div class="dz mini" style="width:100%;min-height:56px">${v.barBg?(/\.(mp4|webm|mov)$/i.test(v.barBg)?`<video src="${esc(v.barBg)}" muted loop autoplay playsinline style="max-height:56px"></video>`:`<img src="${esc(v.barBg)}" alt="">`)+`<button class="btn icon x" type="button" data-act="clearImg" data-path="val.barBg" aria-label="Remove background">${ico("x")}</button>`:ico("up")}<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime,.mov" data-upload="val.barBg" data-video aria-label="Top bar picture or video"></div></div>`:""}</div></div>
-      <p class="note">Each team has ${Math.max(2,Math.min(5,+v.squad||2))} players. Add them (and their agents) on Players &amp; Teams.</p></div>
+      <p class="note">Each team has ${e.game==="Valorant"?5:2} players. Add them (and their agents) on Players &amp; Teams.</p></div>
   </div><div class="sec">${stage("ingame")}</div></div>`;
 },
 dbd(e){
@@ -943,19 +944,30 @@ const TKP_FIELDS={
   stats:{t:"Individual Stats",f:[["statLabels.0","Row 1","text"],["statLabels.1","Row 2","text"],["statLabels.2","Row 3","text"],["statLabels.3","Row 4","text"]]},
 };
 const tkHas=(sc,k)=>k==="ticker"||k==="match"||!!(TKP_FIELDS[k]&&(!TKP_FIELDS[k].only||TKP_FIELDS[k].only.includes(sc)));
+/* The tick panels are draggable by their title bar, like BLOB's, so they can be moved off what they cover. Where one was put is kept while the control room is open. */
+const TKPOS={};
+const tkStyle=k=>TKPOS[k]?` style="left:${TKPOS[k][0]}px;top:${TKPOS[k][1]}px"`:"";
+document.addEventListener("pointerdown",d=>{
+  const h=d.target.closest&&d.target.closest(".tkh");if(!h||d.target.closest("button"))return;
+  const p=h.closest(".tkp"),box=p&&p.parentElement,k=ui.tkp;if(!p||!box||!k)return;d.preventDefault();
+  const r=p.getBoundingClientRect(),b=box.getBoundingClientRect(),ox=d.clientX-r.left,oy=d.clientY-r.top;
+  const mv=m=>{const x=Math.round(Math.max(0,Math.min(b.width-r.width,m.clientX-b.left-ox))),y=Math.round(Math.max(0,Math.min(b.height-r.height,m.clientY-b.top-oy)));p.style.left=x+"px";p.style.top=y+"px";TKPOS[k]=[x,y]};
+  const up=()=>{document.removeEventListener("pointermove",mv);document.removeEventListener("pointerup",up)};
+  document.addEventListener("pointermove",mv);document.addEventListener("pointerup",up);
+});
 function tkPanel(e){
   const D=(SaintsHUD.SC_DEF||{})[e.hud.scene],k=ui.tkp;if(!k||!D||!(k in D)||!tkHas(e.hud.scene,k))return"";
   const L=e.lowerThird||{};
   if(k==="ticker"){const t=SaintsHUD.tickerLines(e),sp=SaintsHUD.tickerSpeed(e);
-    return`<div class="tkp" role="dialog" aria-label="Bottom Announcement"><div class="tkh"><b>Bottom Announcement</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="ticker" title="Reset" aria-label="Reset the bottom announcement">${ico("reset")}</button></div>
+    return`<div class="tkp"${tkStyle(k)} role="dialog" aria-label="Bottom Announcement"><div class="tkh"><b>Bottom Announcement</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="ticker" title="Reset" aria-label="Reset the bottom announcement">${ico("reset")}</button></div>
       <div class="tkb"><div class="tkrow"><span>Speed</span><output id="tkSpeedV">${sp}</output></div><input type="range" class="tkrange" min="10" max="200" step="1" value="${sp}" data-tkspeed aria-label="Speed">
       <label class="tkf"><span>Line 1</span><input type="text" data-tkline="1" value="${esc(t.l1)}" maxlength="140" autocomplete="off"></label>
       <label class="tkf"><span>Line 2</span><input type="text" data-tkline="2" value="${esc(t.l2)}" maxlength="140" autocomplete="off"></label></div></div>`}
   if(k!=="match"){const sc=e.hud.scene,Z=TKP_FIELDS[k];
-    return`<div class="tkp" role="dialog" aria-label="${Z.t}"><div class="tkh"><b>${Z.t}</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="${k}" title="Reset" aria-label="Reset ${Z.t}">${ico("reset")}</button></div>
+    return`<div class="tkp"${tkStyle(k)} role="dialog" aria-label="${Z.t}"><div class="tkh"><b>${Z.t}</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="${k}" title="Reset" aria-label="Reset ${Z.t}">${ico("reset")}</button></div>
       <div class="tkb">${Z.f.map(([f,l,ty])=>{const p=`hud.sc.${sc}.${f}`,v=get(E,p)||"";return ty==="img"?`<div class="tkf"><span>${l}</span>${F.dz(p,l,"mini")}</div>`:ty==="color"?`<label class="tkf"><span>${l}</span><input type="color" data-bind="${p}" value="${/^#[0-9a-f]{6}$/i.test(v)?v:"#000000"}"></label>`:`<label class="tkf"><span>${l}</span><input type="text" data-bind="${p}" value="${esc(v)}" maxlength="80" autocomplete="off"></label>`}).join("")}</div></div>`}
   const g=e.live||{};
-  return`<div class="tkp" role="dialog" aria-label="Match Text"><div class="tkh"><b>Match Text</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="match" title="Reset" aria-label="Reset the match text">${ico("reset")}</button></div>
+  return`<div class="tkp"${tkStyle(k)} role="dialog" aria-label="Match Text"><div class="tkh"><b>Match Text</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="match" title="Reset" aria-label="Reset the match text">${ico("reset")}</button></div>
     <div class="tkb"><label class="tkf"><span>Title</span><input type="text" data-tktext="title" value="${esc(L.title||"")}" placeholder="${esc(e.tournament.name||e.game||"")}" maxlength="80" autocomplete="off"></label>
     <label class="tkf"><span>Subtitle</span><input type="text" data-tktext="subtitle" value="${esc(L.subtitle||"")}" placeholder="${esc(g.roundTitle||g.gameSeries||"")}" maxlength="80" autocomplete="off"></label></div></div>`;
 }
@@ -1132,7 +1144,7 @@ document.addEventListener("click",async ev0=>{
     case "liveRefresh":render();return;
     case "copyCamLinks":{const r=await fetch("/api/cam/links").then(r=>r.json()).catch(()=>null),ce=r&&r.events.find(x=>x.id===e.id);
       const lines=[];if(ce)ce.players.forEach(p=>lines.push(`${p.team} ${p.name}: ${p.url}`));
-      if(e.game==="Valorant")lines.push("Map bans: "+overlayUrl("mapveto"));
+      if(isVal(e.game))lines.push("Map bans: "+overlayUrl("mapveto"));
       if(!lines.length)return toast("No players on this event yet.");
       if(r&&!r.on)toast("Camera links copied. Switch on Let players connect on Camera feed before players open them.");
       try{await navigator.clipboard.writeText(lines.join("\n"));if(!r||r.on)toast("Copied "+lines.length+" link"+(lines.length===1?"":"s"))}catch{toast("Copy failed.")}return;}
@@ -1393,6 +1405,13 @@ const OCR_ROLES={score0:["Left score","number"],score1:["Right score","number"],
   alive:["Players alive","number"],total:["Players total","number"],kills:["Kills","number"],border:["World border","number"],theme:["Build theme","text"],phase:["Round phase","text"],custom:["Custom text","text"],
   fnPlace:["Fortnite: placement","number"],fnElims:["Fortnite: eliminations","number"],dbdGens:["Dead by Daylight: generators done","number"],
   dbdS1:["DBD survivor 1 result","text"],dbdS2:["DBD survivor 2 result","text"],dbdS3:["DBD survivor 3 result","text"],dbdS4:["DBD survivor 4 result","text"]};
+/* Only what suits the event's game is offered: a Fortnite event never lists Dead by Daylight's survivors, VALORANT never lists the Minecraft world border. A box already set to something else keeps its own entry. */
+const OCR_BASE=["score0","score1","clock","name0","name1","custom"];
+const OCR_GAME_ROLES={"Valorant":[...OCR_BASE,"phase"],"Valorant 2v2 Skirmish":[...OCR_BASE,"phase"],"Minecraft":["alive","total","kills","clock","border","theme","phase","custom"],"Fortnite":["fnPlace","fnElims","clock","custom"],"Dead by Daylight":["dbdGens","dbdS1","dbdS2","dbdS3","dbdS4","clock","custom"]};
+const OCR_GAME_LAYOUTS={"Minecraft":["mchg","mcbb"],"Fortnite":["fn"],"Dead by Daylight":["dbd"]};
+const OCR_LAYOUT_NAME={top:"Top-centre scorebar",corners:"Scores in the top corners",fn:"Fortnite: match results screen",dbd:"Dead by Daylight: trial tally screen",mchg:"Hunger Games HUD",mcbb:"Build Battle HUD"};
+const ocrRoleKeys=cur=>{const e=ev(),k=(e&&OCR_GAME_ROLES[e.game])||OCR_BASE;return cur&&!k.includes(cur)&&OCR_ROLES[cur]?[...k,cur]:k};
+const ocrLayoutKeys=()=>{const e=ev();return(e&&OCR_GAME_LAYOUTS[e.game])||["top","corners"]};
 // starting positions only (fractions of the frame; a 6th value turns on pixel-font reading): every game's HUD is different
 const OCR_LAYOUTS={
   top:[["name0",.30,.02,.13,.05],["score0",.44,.02,.04,.05],["clock",.47,.075,.06,.045],["score1",.52,.02,.04,.05],["name1",.57,.02,.13,.05]],
@@ -1436,7 +1455,7 @@ function ocrBoxes(){
 }
 function ocrRows(){
   const tb=$("#ocrRows");if(!tb)return;
-  tb.innerHTML=ocrCfg().regions.map(r=>`<tr><td><select data-rkey="${r.id}" aria-label="What this box reads">${Object.entries(OCR_ROLES).map(([k,[n]])=>`<option value="${k}"${r.key===k?" selected":""}>${n}</option>`).join("")}</select>${r.key==="custom"?`<select data-rtype="${r.id}" aria-label="Value type">${["text","number","time"].map(t=>`<option${r.type===t?" selected":""}>${t}</option>`).join("")}</select>`:""}</td>
+  tb.innerHTML=ocrCfg().regions.map(r=>`<tr><td><select data-rkey="${r.id}" aria-label="What this box reads">${ocrRoleKeys(r.key).map(k=>`<option value="${k}"${r.key===k?" selected":""}>${OCR_ROLES[k][0]}</option>`).join("")}</select>${r.key==="custom"?`<select data-rtype="${r.id}" aria-label="Value type">${["text","number","time"].map(t=>`<option${r.type===t?" selected":""}>${t}</option>`).join("")}</select>`:""}</td>
     <td class="read" data-rawof="${r.id}">—</td><td class="read" data-valof="${r.id}">—</td>
     <td><div class="row c nowrap"><button class="btn sm" type="button" data-act="ocrTest" data-arg="${r.id}">Test</button>
     <select data-rpol="${r.id}" aria-label="Text colour">${[["auto","Auto"],["light","Light text"],["dark","Dark text"]].map(([v,n])=>`<option value="${v}"${(r.polarity||"auto")===v?" selected":""}>${n}</option>`).join("")}</select>
