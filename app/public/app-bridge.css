@@ -363,6 +363,6 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 .tkh{cursor:grab;touch-action:none;user-select:none}.tkh:active{cursor:grabbing}
 
 /* the HUD Editor page is laid out like BLOB's: no title block, the preview a rounded 16:9 frame at a fixed width under the ticks */
-.hudone .hudprev{max-width:1200px}
+.hudone .hudprev{width:72%;max-width:1200px;min-width:560px}
 .hudone .hudprev .stage{border-radius:26px;border-color:var(--line)}
 .hudone .stagewrap>.row .note{display:none}.hudone .stagewrap>.row{justify-content:flex-end!important}
