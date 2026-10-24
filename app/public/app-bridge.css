@@ -332,3 +332,30 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 
 .tkf input[type=color]{width:100%;height:34px;padding:2px;background:transparent;border:1px solid var(--line,#2a2f3a);border-radius:6px;cursor:pointer}
 .tkf .dz.mini{width:100%;min-height:56px}
+
+.navtog{display:flex;align-items:center;justify-content:space-between;width:calc(100% - var(--s-4,16px));background:none;border:0;cursor:pointer;text-align:left;font-family:inherit}
+.navtog:hover{color:var(--text-2,#cbd6cf)}
+.navtog .car{width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin-top:-3px;transition:transform .15s}
+.navtog .car.up{transform:rotate(-135deg);margin-top:3px}
+.nav.collapsed .navtog{display:none}
+.nav:not(.collapsed) .brand{height:60px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2,rgba(255,255,255,.03));margin-bottom:var(--s-3,12px)}
+.navtog{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+
+/* the sidebar, laid out like BLOB's: a card on top that names the page, small section labels with a rule, a neutral selected row, a folded footer */
+:root{--rail-w:200px}
+.nav:not(.collapsed){padding:14px 12px}
+.nav:not(.collapsed) .brand{height:60px;margin:0 0 10px;padding:0 10px;border-radius:12px}
+.nav:not(.collapsed) .brand small{color:var(--text-2);font-size:12px}
+.navscroll{gap:0}
+.nav a.nl{height:40px;margin-bottom:9px;color:var(--text-2);font-size:13px}
+.nav a.nl.on{background:rgba(255,255,255,.07);color:var(--text)}
+.nav a.nl.on::before{display:none}
+.nav a.nl.on .ic{color:var(--text)}
+.navgroup{display:flex;align-items:center;gap:8px;margin:14px 8px 10px;font-size:9px;letter-spacing:.06em}
+.navgroup::after{content:"";flex:1;height:1px;background:var(--line)}
+.navgroup.navtog::after{display:none}
+.navfoot{border-top:0;gap:0}
+.navmore{display:flex;flex-direction:column;margin-bottom:4px}
+.navfoot .navtog{display:flex;align-items:center;justify-content:space-between;width:100%;margin:0;padding:10px 8px;font-size:11px;letter-spacing:0;text-transform:none;font-weight:700;color:var(--text-2)}
+.navfoot .navtog .car{margin-top:0}
+.navfoot .navtog .car.up{margin-top:0}

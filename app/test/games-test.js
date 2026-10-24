@@ -34,6 +34,12 @@ const check = (name, ok, extra = "") => { console.log(ok ? "  ok  " : " FAIL ", 
     check("Fortnite results are saved", f2.fn.matches.length === 1 && f2.fn.matches[0].place[0] === 1 && f2.fn.matches[0].elims[0] === 5);
     check("Dead by Daylight trials are saved", d2.dbd.trials.length === 1 && d2.dbd.trials[0].kills === 3);
 
+    // a tick panel's typed names (Individual Stats rows) are saved even before the scene has any
+    await post("/api/set", { event: fn.id, path: "hud.sc.statsplayer.statLabels.0", value: "K/D/A", by: "test" });
+    await post("/api/set", { event: fn.id, path: "hud.sc.statsplayer.statLabels.2", value: "FIRST BLOOD", by: "test" });
+    const sl = (await (await fetch(base + "/api/state")).json()).db.events.find(e => e.id === fn.id).hud.sc.statsplayer.statLabels;
+    check("typed stat row names are saved", sl && sl[0] === "K/D/A" && sl[2] === "FIRST BLOOD", JSON.stringify(sl));
+
     // data for vMix follows the scoring: the Dead by Daylight score is the trial's points
     const hud = await (await fetch(`${base}/hud.json?event=${dbd.id}`)).json();
     check("the vMix data carries the Dead by Daylight score", JSON.stringify(hud).includes("3"), JSON.stringify(hud).slice(0, 160));

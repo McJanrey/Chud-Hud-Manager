@@ -23,7 +23,7 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const {esc,SCENES}=SaintsHUD;
 const uid=()=>Math.random().toString(36).slice(2,12);
 const get=(o,p)=>String(p).split(".").reduce((a,k)=>a==null?a:a[k],o);
-const setL=(o,p,v)=>{const ks=String(p).split(".");const last=ks.pop();ks.reduce((a,k)=>a[k],o)[last]=v};
+const setL=(o,p,v)=>{const ks=String(p).split("."),make=String(p).startsWith("hud.sc.");const last=ks.pop();ks.reduce((a,k)=>{if(make&&a[k]==null)a[k]={};return a[k]},o)[last]=v}; // a scene's own settings are made on first use, as on the server
 const fid=p=>"f-"+String(p).replace(/\./g,"-");
 const CLIENT=uid();
 const GAMES=["Rocket League","League of Legends","Overwatch 2","Call of Duty","Deadlock","Fortnite","Valorant","Counter-Strike 2","Minecraft","Riftbound","Dead by Daylight"];
@@ -238,19 +238,21 @@ const PAGE_DESC={val:"Score each round, mark who is out, add kills and fill the 
   rb:"Score the match by hand and put cards on screen.",camera:"Every player and caster camera: who is live, their link, and a switch to keep any of them off air.",graphics:"The lower third and the countdown timer.",schedule:"Matches for the Schedule scene.",
   bracket:"Rounds and results for the Bracket scene.",standings:"Standings for the Rankings scene.",outputs:"Every overlay link and data address for this event."};
 function railStatus(){const sb=$("#srvbanner");if(sb)sb.hidden=online;const el=$("#conn");if(!el)return;const[c,t]=sourceState();el.innerHTML=`<span class="pill ${c==="bad"?"err":c}"><span class="lbl">${esc(t)}</span></span><span class="faint" style="font-size:12px;padding-left:2px">${screensText()}</span>`}
+/* BLOB's sidebar has no Broadcast group, so the pages it has no twin for sit in a fold at the bottom, like its Resources and Legal. Open by default only on one of them. */
+const NAV_MORE=["graphics","ads","schedule","bracket","standings","outputs"];
+const navMoreOpen=()=>ui.navMore!==undefined?!!ui.navMore:NAV_MORE.includes(ui.view);
 function rail(e){
   const link=v=>`<a class="nl${ui.view===v?" on":""}" href="#" data-act="nav" data-arg="${v}"${ui.view===v?' aria-current="page"':""} title="${META[v][0]}">${ico(META[v][1])}<span class="t">${META[v][0]}</span></a>`;
   const grp=(t,vs)=>`<div class="navgroup">${t}</div>${vs.map(link).join("")}`;
   // the same order as BLOB's sidebar: Overview and HUD Editor on top, then Event setup, then Live game (Live Game, Camera feed, the game's own page, Map Veto); the pages BLOB has no twin for sit last
   const nav=e?link("overview")+link("hud")
     +grp("Event setup",["teams","tournament","talent"])
-    +grp("Live game",["live","camera",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),...(e.game==="Valorant"?["veto"]:[]),"ocr"])
-    +grp("Broadcast",["graphics","ads","schedule","bracket","standings","outputs"])
+    +grp("Live game",["live","camera","ocr",...(GAMEPAGE[e.game]?[GAMEPAGE[e.game]]:[]),...(e.game==="Valorant"?["veto"]:[])])
     :`<div class="navgroup">Workspace</div><a class="nl on" href="#" data-act="home" aria-current="page" title="My Events">${ico("events")}<span class="t">My Events</span></a>`;
   const crest="/brand/chud-hud.png"; // fixed: the app logo cannot be changed
-  return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>Control room</small></div></div>
+  return`<aside class="nav${PREF.min?" collapsed":""}"><div class="brand"><div class="crest has"><img src="${esc(crest)}" alt="Chud Hud logo"></div><div><b>Chud Hud</b><small>${e?META[ui.view][0]:"My Events"}</small></div></div>
     <div class="navscroll">${nav}</div>
-    <div class="navfoot">${updPill()}<div id="conn" style="display:flex;flex-direction:column;gap:8px"></div><div class="row">
+    <div class="navfoot">${e?`${navMoreOpen()?`<div class="navmore">${NAV_MORE.map(link).join("")}</div>`:""}<button type="button" class="navtog" data-act="navMore" aria-expanded="${navMoreOpen()}">More<span class="car${navMoreOpen()?" up":""}"></span></button>`:""}${updPill()}<div id="conn" style="display:flex;flex-direction:column;gap:8px"></div><div class="row">
       <button class="btn icon ghost" type="button" data-act="collapse" aria-label="Collapse sidebar" title="Collapse sidebar">${ico("collapse")}</button>
       ${window.chudUpdate?`<button class="btn icon ghost" type="button" data-act="updCheck" aria-label="Check for updates" title="Check for updates">${ico("reset")}</button>`:""}
       <button class="btn icon ghost" type="button" data-act="theme" aria-label="Toggle theme" title="Toggle theme">${ico(PREF.theme==="dark"?"sun":"moon")}</button></div></div></aside>`;
@@ -1101,6 +1103,7 @@ document.addEventListener("click",async ev0=>{
     case "newEvent":openNew();return;
     case "palette":openPalette();return;
     case "collapse":toggleRail();return;
+    case "navMore":ui.navMore=!navMoreOpen();render();return;
     case "theme":toggleTheme();return;
     case "ovlClose":closeOverlay();return;
     case "neGame":OVL.game=arg;drawOverlay();return;

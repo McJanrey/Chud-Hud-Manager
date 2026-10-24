@@ -1099,7 +1099,9 @@ function setPath(obj, p, v) {
   const ks = String(p).split(".");
   if (ks.some(k => k === "__proto__" || k === "constructor" || k === "prototype")) throw new Error("bad path");
   const last = ks.pop();
-  const parent = ks.reduce((a, k) => (a == null ? a : a[k]), obj);
+  // a HUD scene's own settings (hud.sc.<scene>.<name>.<n>, such as the stat row names) are made on first use
+  const make = String(p).startsWith("hud.sc.");
+  const parent = ks.reduce((a, k) => { if (a == null) return a; if (make && a[k] == null && typeof a === "object") a[k] = {}; return a[k]; }, obj);
   if (parent == null || typeof parent !== "object") throw new Error("path not found");
   parent[last] = v;
 }
