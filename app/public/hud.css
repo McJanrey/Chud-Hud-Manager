@@ -949,3 +949,4 @@
 .bp-tm b{position:absolute;left:150px;top:214px;font:600 190px/1 "Teko",sans-serif;color:#fff;letter-spacing:.01em}
 .bp-tm span{position:absolute;left:156px;top:400px;font:800 64px/1 "Montserrat","Inter",sans-serif;color:var(--gold,#FDC82F);letter-spacing:.02em}
 .bp-lu .tpic{max-width:100%;max-height:100%;object-fit:contain;object-position:bottom}
+.bp-tm b{font-weight:500}.bp-tm span{text-transform:none}
