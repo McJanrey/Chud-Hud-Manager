@@ -491,9 +491,9 @@
   S.lowerthird = (m) => {
     const ev = m.ev, o = so(ev, "lowerthird"), [L, R] = m.sides, mt = bpMatch(ev), lbl = esc(String((ev.lowerThird || {}).label || "LOCAL TIME").toUpperCase());
     const hasSp = sponsorsOf(ev).length > 0, fit = (str, w) => Math.max(18, Math.min(34, Math.floor(w / (String(str).length * 0.6))));
-    let h = `<div class="bp-l3${hasSp ? "" : " nosp"}" data-k="bp-l3"><div class="ck"><b class="num">${esc(bpClock())}</b><small>${lbl}</small></div><i class="sl"></i>`;
+    let h = `<div class="bp-l3" data-k="bp-l3"><div class="ck"><b class="num">${esc(bpClock())}</b><small>${lbl}</small></div><i class="sl"></i>`;
     if (o.match) h += `<div class="scb">${lg(L)}<b class="num">${+m.series[0] || 0}</b><i></i><b class="num">${+m.series[1] || 0}</b>${lg(R)}</div><i class="sl"></i>`;
-    h += `<div class="mt"><b style="font-size:${fit(mt.t, hasSp ? 345 : 660)}px">${mt.t}</b><small>${mt.s}</small></div>${hasSp ? bpSponsor(ev) : ""}</div>`;
+    h += `<div class="mt"><b style="font-size:${fit(mt.t, 345)}px">${mt.t}</b><small>${mt.s}</small></div>${hasSp ? bpSponsor(ev) : `<div class="bp-spon" data-k="bp-spon">${logoBox(ev, [{ logo: tourLogo(ev), name: "" }])}</div>`}</div>`; // the box at the right always holds a logo: the sponsors, else the tournament's
     if (o.ticker) h += bpTicker(ev, true);
     return { html: h, cams: [] };
   };
