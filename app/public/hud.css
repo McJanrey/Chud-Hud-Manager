@@ -966,3 +966,10 @@
 .bp-tk i{width:2.5px}
 .bp-l3 .ck b{font-size:20px}.bp-l3 .ck small{letter-spacing:.11em}
 .bp-l3 .mt b{font-weight:500}
+
+/* the timer bug: a small timer in one corner, the clock block's look */
+.bp-bug{position:absolute;width:214px;height:64px;box-sizing:border-box;background:#022816;border:1.2px solid rgba(255,194,0,.6);padding-left:34px;display:flex;flex-direction:column;justify-content:center;z-index:5}
+.bp-bug.tl{left:29px;top:29px}.bp-bug.tr{right:29px;top:29px}.bp-bug.bl{left:29px;bottom:76px}.bp-bug.br{right:29px;bottom:76px}
+.bp-bug i{position:absolute;left:-1px;top:-1px;bottom:-1px;width:16px;background:#ffc200;clip-path:polygon(0 0,100% 0,62% 100%,0 100%)}
+.bp-bug b{font:600 40px/1 "Teko",sans-serif;color:#fff;letter-spacing:.02em;white-space:nowrap}
+.bp-bug small{font:800 12px/1.2 "Inter",sans-serif;color:#ffc200;letter-spacing:.12em;margin-top:2px;white-space:nowrap}

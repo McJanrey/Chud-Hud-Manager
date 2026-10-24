@@ -58,5 +58,12 @@ check("Screen OCR offers only what suits the game (no Dead by Daylight survivors
 check("the tick panels can be dragged by their title bar", html.includes('d.target.closest(".tkh")') && html.includes("const TKPOS={}") && html.includes("tkStyle(k)"));
 check("VALORANT and the 2v2 Skirmish are two games in the list, each with its own team size", html.includes('const isVal=g=>g==="Valorant"||g==="Valorant 2v2 Skirmish"') && html.includes('"Valorant","Valorant 2v2 Skirmish"') && server.includes('"Valorant": 5, "Valorant 2v2 Skirmish": 2'));
 
+// the timer bug: a small timer in a corner over every scene
+const bug = (b, scene) => HUD.sceneHtml(ev(e => { e.hud.scene = scene || "lowerthird"; e.hud.bug = b; }), null, scene || "lowerthird");
+check("the timer bug is off until switched on", !/bp-bug/.test(bug({ on: false })));
+check("the timer bug shows over any scene, in the chosen corner, with its text", /class="bp-bug bl"[^>]*>.*LIVE SOON/.test(bug({ on: true, corner: "bl", mode: "text", text: "live soon" }, "statsteam")) && /class="bp-bug tr"/.test(bug({ on: true, corner: "nope", mode: "text", text: "x" })));
+check("the timer bug counts down to a time of day and shows 00:00:00 once it has passed", /\d\d:\d\d:\d\d<\/b>/.test(bug({ on: true, mode: "count", hh: 11, mm: 59, ss: 59, ap: "PM" })) && HUD.timerShow(ev(e => { e.hud.sc = { timer: { mode: "count", hh: 12, mm: 0, ss: 1, ap: "AM" } }; }), new Date(2026, 0, 1, 0, 0, 5).getTime()) === "00:00:00");
+check("the timer bug has its controls on the Lower Thirds & Timer page and acts at once", html.includes("<h2>Timer bug</h2>") && html.includes('tkSeg("hud.bug.on"') && html.includes("hud\\.bug\\.\\w+"));
+
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nTICKER TEST PASS");
 process.exit(failures ? 1 : 0);

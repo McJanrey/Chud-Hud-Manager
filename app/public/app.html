@@ -63,7 +63,7 @@ function put(path,value,eventScoped=true){
 /* Unsaved changes. Typing in a field only changes this screen (the previews show it); nothing reaches the overlay until Save
    Changes. Buttons (scores, timers, scene switches) still act at once, because they are live controls. */
 const PENDING=new Map(); // "event id|path" -> { ev, path, value, area }
-const LIVE_SC=/^hud\.sc\.\w+\.(bgColor|topText|bannerImg|teamText|titleText|countLabel|img|statLabels\.\d|side|pid|source|rows\.\d|imgMode|teamPic|mode|text|hh|mm|ss|ap)$/; // the tick panels' fields act at once too
+const LIVE_SC=/^(?:hud\.bug\.\w+|hud\.sc\.\w+\.(bgColor|topText|bannerImg|teamText|titleText|countLabel|img|statLabels\.\d|side|pid|source|rows\.\d|imgMode|teamPic|mode|text|hh|mm|ss|ap))$/; // the tick panels' fields act at once too
 const LIVE_FIELDS=new Set(["hud.scene"]); // fields that switch what is on air; picking one never waits for Save Changes
 function stageEdit(path,value){
   const e=ev();if(!e)return;
@@ -531,7 +531,15 @@ graphics(e){
   <div class="halves"><div class="sec"><div class="sec"><h2>Timer</h2>${F.text("timer.label","Label","BACK SOON")}
     <div class="row"><label class="fld" style="max-width:160px"><span>Length (minutes)</span><input type="number" id="timerMin" min="0" max="180" step="0.5" value="${t.seconds/60}"></label>
     <span class="row c"><button class="btn" type="button" data-act="timer" data-arg="start">${t.endsAt?"Pause":"Start"}</button><button class="btn" type="button" data-act="timer" data-arg="reset">Reset</button><button class="btn" type="button" data-act="scene" data-arg="timer">Show timer</button></span></div>
-    <p class="note">Remaining: <b data-timer>${SaintsHUD.fmt(rem)}</b></p></div></div><div class="sec">${stage("timer")}</div></div>`;
+    <p class="note">Remaining: <b data-timer>${SaintsHUD.fmt(rem)}</b></p></div></div><div class="sec">${stage("timer")}</div></div>
+  <div class="sec"><div class="sechead"><div><h2>Timer bug</h2><p class="sub">A small timer in one corner, over every scene, with the same three displays as the Timer scene. Every change acts at once.</p></div></div>
+    ${(()=>{const B=e.hud.bug||{},mode=["text","local","count"].includes(B.mode)?B.mode:"count";return`<div class="row c" style="flex-wrap:wrap;gap:22px;align-items:flex-start">
+      <div class="tkf"><span>Show</span>${tkSeg("hud.bug.on",!!B.on,[["false","Off"],["true","On"]])}</div>
+      <div class="tkf"><span>Corner</span>${tkSeg("hud.bug.corner",B.corner||"tr",[["tl","Top left"],["tr","Top right"],["bl","Bottom left"],["br","Bottom right"]])}</div>
+      <div class="tkf"><span>Display</span>${tkSeg("hud.bug.mode",mode,[["text","Just Text"],["local","Local Time"],["count","Countdown"]])}</div>
+      ${mode==="text"?`<label class="tkf"><span>Time</span><input type="text" data-bind="hud.bug.text" value="${esc(B.text||"")}" maxlength="40" autocomplete="off"></label>`:""}
+      ${mode==="count"?`<div class="tkf"><span>Counts down to</span><div class="tkhms"><input type="number" data-bind="hud.bug.hh" data-num min="1" max="12" value="${+B.hh||12}" aria-label="Hour"><i>:</i><input type="number" data-bind="hud.bug.mm" data-num min="0" max="59" value="${+B.mm||0}" aria-label="Minutes"><i>:</i><input type="number" data-bind="hud.bug.ss" data-num min="0" max="59" value="${+B.ss||0}" aria-label="Seconds">${tkSeg("hud.bug.ap",B.ap==="AM"?"AM":"PM",[["AM","AM"],["PM","PM"]])}</div></div>`:""}
+      <label class="tkf"><span>Caption (empty: automatic)</span><input type="text" data-bind="hud.bug.label" value="${esc(B.label||"")}" maxlength="24" autocomplete="off"></label></div>`})()}</div>`;
 },
 schedule(e){
   return`<div class="sec"><div class="sechead"><div><h2>Schedule</h2><p class="sub">The first six matches show on the Schedule scene. Fill in both scores to mark a match as played.</p></div><button class="btn" type="button" data-act="addMatch">${ico("plus")}Add match</button></div>
@@ -1144,7 +1152,7 @@ document.addEventListener("click",async ev0=>{
     case "newEvent":openNew();return;
     case "palette":openPalette();return;
     case "collapse":toggleRail();return;
-    case "tkSet":{const v=b.dataset.val;put(b.dataset.path,/^-?\d+$/.test(v)?+v:v);render();break}
+    case "tkSet":{const v=b.dataset.val;put(b.dataset.path,v==="true"?true:v==="false"?false:/^-?\d+$/.test(v)?+v:v);render();break}
     case "tkMove":{const[id,d]=String(arg).split("|"),{ids}=tkLineupIds(e),i=ids.indexOf(id),j=i+(+d);if(i>=0&&j>=0&&j<ids.length){const n=ids.slice();[n[i],n[j]]=[n[j],n[i]];put("hud.sc.lineup.ids",n);render()}break}
     case "navMore":ui.navMore=!navMoreOpen();render();return;
     case "theme":toggleTheme();return;

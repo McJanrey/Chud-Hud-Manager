@@ -413,13 +413,21 @@
     const body = rows.map((r, i) => { const t = sideTeam(ev, r.team); return `<tr class="${i === 0 ? "top" : ""}"><td class="num">${i + 1}</td><td class="tm"><div class="tmi">${o.logos ? lg(t) : ""}${esc(t ? t.name : "TBD")}</div></td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.gd > 0 ? "+" : ""}${r.gd}</td></tr>`; }).join("");
     return { html: `<div class="h-full${o.bg ? "" : " nobg"}">${head}<table class="h-table" style="width:820px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>W</th><th>L</th><th>${gdLabel(ev.game)}</th></tr></thead><tbody>${body}</tbody></table></div>${o.banner ? bpBanner(ev, o) : ""}${o.ticker ? bpTicker(ev) : ""}`, cams: [] };
   };
-  const timerShow = (ev, now) => { const o = so(ev, "timer"), mode = ["text", "local", "count"].includes(o.mode) ? o.mode : "text";
-    if (mode === "text") return String(o.text || "").toUpperCase();
+  const timeText = (o, now) => { const mode = ["text", "local", "count"].includes(o.mode) ? o.mode : "text";
+    if (mode === "text") return String(o.text || "").trim() ? String(o.text).toUpperCase() : bpClock(); // nothing typed: the clock, never a blank timer
     if (mode === "local") return bpClock();
     const d = new Date(now || Date.now()), h12 = Math.max(1, Math.min(12, Math.round(+o.hh) || 12)), h = (h12 % 12) + (o.ap === "AM" ? 0 : 12);
     d.setHours(h, Math.max(0, Math.min(59, Math.round(+o.mm) || 0)), Math.max(0, Math.min(59, Math.round(+o.ss) || 0)), 0);
     const r = Math.max(0, Math.round((d.getTime() - (now || Date.now())) / 1000)), z = n => String(n).padStart(2, "0");
     return z(Math.floor(r / 3600)) + ":" + z(Math.floor(r / 60) % 60) + ":" + z(r % 60); }; // the countdown to a clock time today: 00:00:00 once it has passed
+  const timerShow = (ev, now) => timeText(so(ev, "timer"), now);
+  /* The timer bug: a small timer in a corner, over every scene when it is switched on (hud.bug), with the same three displays as the Timer scene. */
+  const bugOverlay = ev => {
+    const b = (ev.hud || {}).bug; if (!b || !b.on) return "";
+    const mode = ["text", "local", "count"].includes(b.mode) ? b.mode : "count", c = ["tl", "tr", "bl", "br"].includes(b.corner) ? b.corner : "tr";
+    const lbl = String(b.label || (mode === "local" ? "LOCAL TIME" : mode === "count" ? "STARTING SOON" : "")).toUpperCase();
+    return `<div class="bp-bug ${c}" data-k="bp-bug"><i></i><b class="num">${esc(timeText(Object.assign({}, b, { mode })))}</b>${lbl ? `<small>${esc(lbl)}</small>` : ""}</div>`;
+  };
   S.timer = (m) => {
     const ev = m.ev, shown = timerShow(ev), sub = [m.sides[0], m.sides[1]].map(t => (t && (t.tag || t.name)) || "").filter(Boolean).join(" vs ");
     return { html: `<div class="bp-tm" data-k="bp-tm"><i class="band"></i><i class="slant"></i><b class="num">${esc(shown)}</b><span>${esc(sub)}</span></div>`, cams: [] };
@@ -435,7 +443,7 @@
     statsteam: { bg: false, ticker: true, match: true, top: true },
     statsplayer: { bg: false, ticker: true, top: true, stats: true, team: true, pid: "", source: "", side: -1 },
     lineup: { bg: true, top: true, banner: true, lineup: true, side: 0, imgMode: "players", teamPic: "" },
-    timer: { mode: "text", text: "", hh: 12, mm: 0, ss: 0, ap: "PM" },
+    timer: { mode: "local", text: "", hh: 12, mm: 0, ss: 0, ap: "PM" },
     bracket: { bg: true, logo: true },
     starting: { bg: false, border: true, count: true, logo: true, sponsors: true, img: "" },
     title: { bg: false, border: true, logo: true, sponsors: true, img: "" },
@@ -1481,7 +1489,7 @@
     const m = model(ev, game);
     const s = resolveScene(ev, m, scene);
     const out = S[s](m);
-    out.html += adOverlay(ev, s); // the ad corner box or banner, over every scene when switched on
+    out.html += adOverlay(ev, s) + bugOverlay(ev); // the ad corner box or banner and the timer bug, over every scene when switched on
     hudEl.style.setProperty("--L", m.colors[0]); hudEl.style.setProperty("--R", m.colors[1]);
     const lay = hudEl.firstChild;
     if (lay.dataset.scene !== s) { lay.dataset.scene = s; lay.className = "lay"; lay.textContent = ""; lay.__html = null; lay.__seen = false; }
@@ -1540,7 +1548,7 @@
   }
 
   // the html a scene draws for an event and a live feed, without a page (used by the tests)
-  function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s); }
+  function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s) + bugOverlay(ev); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
   const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, timerShow, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };

@@ -92,6 +92,7 @@ function upgrade(ev) {
     for (const k of Object.keys(SC)) ev.hud.sc[k] = Object.assign({}, SC[k], ev.hud.sc[k]); }
   ev.lowerThird = Object.assign({ label: "LOCAL TIME", ticker: "", tickerSpeed: 60 }, ev.lowerThird); ev.lowerThird.tickerSpeed = Math.max(10, Math.min(200, Math.round(+ev.lowerThird.tickerSpeed) || 60)); ev.lowerThird.ticker = String(ev.lowerThird.ticker || "").replace(/\s*\n\s*/g, " | "); // older events kept one message per line
   ev.teams.forEach(t => t.players.forEach(p => { if (!p.stats || typeof p.stats !== "object") p.stats = {}; })); // typed stats for the Stats scenes // our own camera links are used unless an event opts out
+  ev.hud.bug = Object.assign({ on: false, corner: "tr", mode: "count", text: "", hh: 12, mm: 0, ss: 0, ap: "PM", label: "" }, ev.hud.bug && typeof ev.hud.bug === "object" ? ev.hud.bug : {}); // the timer bug
   ev.hud.mcSet = Object.assign({}, d.hud.mcSet, ev.hud.mcSet); if (!ev.hud.mcState) ev.hud.mcState = "main";
   if (ev.mc && ev.mc.winner === undefined) ev.mc.winner = "";
   while (ev.camera.seats.length < 8) ev.camera.seats.push({ talent: "", url: "", role: "" }); // older events kept three or five seats
