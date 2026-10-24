@@ -37,7 +37,7 @@ check("the old Lower Third page no longer has its own announcement box (one plac
 
 // the other ticks have panels too
 const sc = (scene, o, f) => HUD.sceneHtml(ev(e => { e.hud.scene = scene; e.hud.sc = { [scene]: o }; f && f(e); }), null, scene);
-check("every tick with something to type or pick opens a panel, and its fields act at once", ["bg", "top", "banner", "team", "title", "count", "logo", "stats"].every(k => html.includes(k + ':{t:"')) && /const LIVE_SC=/.test(html));
+check("every tick with something to type or pick opens a panel, and its fields act at once", ["bg", "top", "banner", "team", "title", "count", "logo"].every(k => html.includes(k + ":{t:\"")) && html.includes("function tkIndividual") && html.includes("function tkLineup") && html.includes("function tkTimer") && /const LIVE_SC=/.test(html));
 check("the Background colour shows on the overlay and a bad colour is ignored", /class="bp-bg" style="background:#112233"/.test(sc("statsteam", { bg: true, bgColor: "#112233" })) && !/style="background:red/.test(sc("statsteam", { bg: true, bgColor: "red;x" })));
 check("the Background tick is the background loop, and a picked colour replaces it", /<div class="bp-bg"><video src="\/brand\/bg-loop\.webm" autoplay muted loop/.test(sc("statsteam", { bg: true })) && !/<video/.test(sc("statsteam", { bg: true, bgColor: "#112233" })));
 check("Top Bar text replaces the series title", />MY SERIES</.test(sc("statsteam", { top: true, topText: "my series" })));

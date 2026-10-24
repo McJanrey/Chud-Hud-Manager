@@ -63,7 +63,7 @@ function put(path,value,eventScoped=true){
 /* Unsaved changes. Typing in a field only changes this screen (the previews show it); nothing reaches the overlay until Save
    Changes. Buttons (scores, timers, scene switches) still act at once, because they are live controls. */
 const PENDING=new Map(); // "event id|path" -> { ev, path, value, area }
-const LIVE_SC=/^hud\.sc\.\w+\.(bgColor|topText|bannerImg|teamText|titleText|countLabel|img|statLabels\.\d)$/; // the tick panels' fields act at once too
+const LIVE_SC=/^hud\.sc\.\w+\.(bgColor|topText|bannerImg|teamText|titleText|countLabel|img|statLabels\.\d|side|pid|source|rows\.\d|imgMode|teamPic|mode|text|hh|mm|ss|ap)$/; // the tick panels' fields act at once too
 const LIVE_FIELDS=new Set(["hud.scene"]); // fields that switch what is on air; picking one never waits for Save Changes
 function stageEdit(path,value){
   const e=ev();if(!e)return;
@@ -942,9 +942,8 @@ const TKP_FIELDS={
   title:{t:"Heading",f:[["titleText","Text","text"]]},
   count:{t:"Countdown",f:[["countLabel","Label","text"]]},
   logo:{t:"Logo",f:[["img","Image","img"]],only:["bracket"]},
-  stats:{t:"Individual Stats",f:[["statLabels.0","Row 1","text"],["statLabels.1","Row 2","text"],["statLabels.2","Row 3","text"],["statLabels.3","Row 4","text"]]},
 };
-const tkHas=(sc,k)=>k==="ticker"||k==="match"||!!(TKP_FIELDS[k]&&(!TKP_FIELDS[k].only||TKP_FIELDS[k].only.includes(sc)));
+const tkHas=(sc,k)=>k==="ticker"||k==="match"||(k==="stats"&&sc==="statsplayer")||(k==="lineup"&&sc==="lineup")||(k==="count"&&sc==="timer")||!!(TKP_FIELDS[k]&&(!TKP_FIELDS[k].only||TKP_FIELDS[k].only.includes(sc)));
 /* The tick panels are draggable by their title bar, like BLOB's, so they can be moved off what they cover. Where one was put is kept while the control room is open. */
 const TKPOS={};
 const tkStyle=k=>TKPOS[k]?` style="left:${TKPOS[k][0]}px;top:${TKPOS[k][1]}px"`:"";
@@ -956,8 +955,41 @@ document.addEventListener("pointerdown",d=>{
   const up=()=>{document.removeEventListener("pointermove",mv);document.removeEventListener("pointerup",up)};
   document.addEventListener("pointermove",mv);document.addEventListener("pointerup",up);
 });
+/* BLOB's own panels: a two-way switch, the two teams as logo buttons, a tick per player, and the order of the players. Every change acts at once. */
+const tkSeg=(path,cur,opts)=>`<div class="seg tkseg">${opts.map(([v,l])=>`<button type="button" data-act="tkSet" data-path="${path}" data-val="${v}" aria-pressed="${String(cur)===String(v)}">${l}</button>`).join("")}</div>`;
+const tkTeams=(e,path,cur)=>`<div class="tkteams">${[0,1].map(s=>{const t=sideTeam(e,s),lg=t&&(t.logos||[]).find(Boolean);return`<button type="button" class="tkteam${+cur===s?" on":""}" data-act="tkSet" data-path="${path}" data-val="${s}" title="${esc(sideName(e,s))}" aria-label="${esc(sideName(e,s))}" aria-pressed="${+cur===s}">${lg?`<img src="${esc(lg)}" alt="">`:`<span>${esc((t&&(t.tag||t.name))||(s?"Right":"Left"))}</span>`}</button>`}).join("")}</div>`;
+const tkWrap=(k,title,reset,body)=>`<div class="tkp"${tkStyle(k)} role="dialog" aria-label="${title}"><div class="tkh"><b>${title}</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="${reset}" title="Reset" aria-label="Reset ${title}">${ico("reset")}</button></div><div class="tkb">${body}</div></div>`;
+function tkIndividual(e,k){
+  const B=e.hud.sc.statsplayer||{},manual=B.source==="manual"||(B.source!=="mvp"&&!!B.pid),side=+B.side===0||+B.side===1?+B.side:-1;
+  const kind=SaintsHUD.model(e,G()).kind,names=kind==="rl"?["Goals","Assists","Saves","Score"]:kind==="lol"?["K/D/A","CS","Level","Vision"]:["K/D/A","Performance Score","First Kills","Multi Kills"];
+  const pl=(side<0?[0,1]:[side]).flatMap(s=>{const t=sideTeam(e,s);return t?t.players.filter(p=>p.ign||p.alias):[]});
+  return tkWrap(k,"Individual Stats","stats",`<div class="tkf"><span>Player Source</span>${tkSeg("hud.sc.statsplayer.source",manual?"manual":"mvp",[["mvp","Winning MVP"],["manual","Manual"]])}</div>
+    <div class="tkf"><span>Team To Show</span>${tkTeams(e,"hud.sc.statsplayer.side",side)}</div>
+    ${manual?`<label class="tkf"><span>Choose Player</span><select data-bind="hud.sc.statsplayer.pid"><option value="">Pick a player</option>${pl.map(p=>`<option value="${esc(p.id)}"${B.pid===p.id?" selected":""}>${esc(p.alias||p.ign)}</option>`).join("")}</select></label>`:""}
+    <div class="tkchk">${names.map((n,i)=>`<label class="chk"><input type="checkbox" data-bind="hud.sc.statsplayer.rows.${i}"${(B.rows||{})[i]===false?"":" checked"}>${n}</label>`).join("")}</div>`);
+}
+function tkLineupIds(e){const B=e.hud.sc.lineup||{},t=sideTeam(e,+B.side?1:0),named=t?t.players.filter(p=>p.ign||p.alias):[];
+  return{named,ids:Array.isArray(B.ids)?B.ids.filter(id=>named.some(p=>p.id===id)):named.map(p=>p.id)}}
+function tkLineup(e,k){
+  const B=e.hud.sc.lineup||{},{named,ids}=tkLineupIds(e),team=B.imgMode==="team";
+  return tkWrap(k,"Team Lineup","lineup",`<div class="tkf"><span>Images</span>${tkSeg("hud.sc.lineup.imgMode",team?"team":"players",[["players","Players"],["team","Team Pic"]])}</div>
+    <div class="tkf"><span>Team To Show</span>${tkTeams(e,"hud.sc.lineup.side",+B.side?1:0)}</div>
+    ${team?`<div class="tkf"><span>Team Picture</span>${F.dz("hud.sc.lineup.teamPic","Team picture","mini")}</div>`
+    :`<div class="tkf"><span>Choose Players</span><div class="tkchk">${named.map(p=>`<label class="chk"><input type="checkbox" data-tkpick="${esc(p.id)}"${ids.includes(p.id)?" checked":""}>${esc(p.alias||p.ign)}</label>`).join("")||'<span class="note">No named players yet.</span>'}</div></div>
+    <div class="tkf"><span>Player Order</span><div class="tkord">${ids.map((id,i)=>{const p=named.find(x=>x.id===id);return`<div class="tkor"><i>${i+1}</i><b>${esc(p.alias||p.ign)}</b><button type="button" class="btn icon sm ghost" data-act="tkMove" data-arg="${esc(id)}|-1"${i?"":" disabled"} aria-label="Move up">↑</button><button type="button" class="btn icon sm ghost" data-act="tkMove" data-arg="${esc(id)}|1"${i<ids.length-1?"":" disabled"} aria-label="Move down">↓</button></div>`}).join("")}</div></div>`}`);
+}
+function tkTimer(e,k){
+  const B=e.hud.sc.timer||{},mode=["text","local","count"].includes(B.mode)?B.mode:"text";
+  return tkWrap(k,"Countdown","timer",`<div class="tkf"><span>Timer Display</span>${tkSeg("hud.sc.timer.mode",mode,[["text","Just Text"],["local","Local Time"],["count","Countdown"]])}</div>
+    ${mode==="text"?`<label class="tkf"><span>Time</span><input type="text" data-bind="hud.sc.timer.text" value="${esc(B.text||"")}" maxlength="40" autocomplete="off"></label>`:""}
+    ${mode==="count"?`<div class="tkf"><span>Starting Soon Countdown</span><div class="tkhms"><input type="number" data-bind="hud.sc.timer.hh" data-num min="1" max="12" value="${+B.hh||12}" aria-label="Hour"><i>:</i><input type="number" data-bind="hud.sc.timer.mm" data-num min="0" max="59" value="${+B.mm||0}" aria-label="Minutes"><i>:</i><input type="number" data-bind="hud.sc.timer.ss" data-num min="0" max="59" value="${+B.ss||0}" aria-label="Seconds">${tkSeg("hud.sc.timer.ap",B.ap==="AM"?"AM":"PM",[["AM","AM"],["PM","PM"]])}</div></div>`:""}`);
+}
 function tkPanel(e){
+  const sc0=e.hud.scene;
+  if(sc0==="timer")return tkTimer(e,"count"); // the Timer scene has only the one element, so its panel is simply open
   const D=(SaintsHUD.SC_DEF||{})[e.hud.scene],k=ui.tkp;if(!k||!D||!(k in D)||!tkHas(e.hud.scene,k))return"";
+  if(k==="stats")return tkIndividual(e,k);
+  if(k==="lineup")return tkLineup(e,k);
   const L=e.lowerThird||{};
   if(k==="ticker"){const t=SaintsHUD.tickerLines(e),sp=SaintsHUD.tickerSpeed(e);
     return`<div class="tkp"${tkStyle(k)} role="dialog" aria-label="Bottom Announcement"><div class="tkh"><b>Bottom Announcement</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="ticker" title="Reset" aria-label="Reset the bottom announcement">${ico("reset")}</button></div>
@@ -984,9 +1016,7 @@ function scControls(e,sc){
   const ticks=Object.keys(D).filter(k=>typeof D[k]==="boolean").map(k=>{const lab=k==="logo"?(sc==="bracket"?"Tournament Logo":"Logo"):SC_LABEL[k]||k,p=`hud.sc.${sc}.${k}`;
     return tkHas(sc,k)?`<span class="chk tkchk"><input type="checkbox" id="${fid(p)}" data-bind="${p}"${get(E,p)?" checked":""} aria-label="${lab} on or off"><button type="button" class="tklbl${ui.tkp===k?" on":""}" data-act="tkPanel" data-arg="${k}" aria-expanded="${ui.tkp===k}" title="Click to edit">${lab}</button></span>`:F.chk(p,lab)}).join("");
   const T=id=>e.teams.find(t=>t.id===id),pl=[...(T(e.live.left)||{players:[]}).players,...(T(e.live.right)||{players:[]}).players].filter(p=>p.ign||p.alias);
-  const extra=sc==="statsplayer"?`<div style="width:240px">${F.sel("hud.sc.statsplayer.pid","",[["","Player: spotlight or MVP"],...pl.map(p=>[p.id,p.alias||p.ign])])}</div>`
-    :sc==="lineup"?`<div style="width:240px">${F.sel("hud.sc.lineup.side","",[[0,"Team: "+((T(e.live.left)||{}).name||"left")],[1,"Team: "+((T(e.live.right)||{}).name||"right")]],"data-num")}</div>`
-    :["starting","title"].includes(sc)?`<div class="row c nowrap" style="gap:8px">${F.dz(`hud.sc.${sc}.img`,"Logo","mini")}<span class="note">Logo for this scene (empty: the tournament logo)</span></div>`:"";
+  const extra=["starting","title"].includes(sc)?`<div class="row c nowrap" style="gap:8px">${F.dz(`hud.sc.${sc}.img`,"Logo","mini")}<span class="note">Logo for this scene (empty: the tournament logo)</span></div>`:"";
   return`<div class="row c" style="gap:16px;flex-wrap:wrap"><div class="chks hudchks">${ticks}</div>${extra}</div>`;
 }
 /* Typed player stats for games with no live stats feed (VALORANT, screen-read games): what the Stats scenes show. */
@@ -1114,6 +1144,8 @@ document.addEventListener("click",async ev0=>{
     case "newEvent":openNew();return;
     case "palette":openPalette();return;
     case "collapse":toggleRail();return;
+    case "tkSet":{const v=b.dataset.val;put(b.dataset.path,/^-?\d+$/.test(v)?+v:v);render();break}
+    case "tkMove":{const[id,d]=String(arg).split("|"),{ids}=tkLineupIds(e),i=ids.indexOf(id),j=i+(+d);if(i>=0&&j>=0&&j<ids.length){const n=ids.slice();[n[i],n[j]]=[n[j],n[i]];put("hud.sc.lineup.ids",n);render()}break}
     case "navMore":ui.navMore=!navMoreOpen();render();return;
     case "theme":toggleTheme();return;
     case "ovlClose":closeOverlay();return;
@@ -1320,7 +1352,10 @@ document.addEventListener("click",async ev0=>{
       put("val.feed",F);put("val.dead",D);put("val.p",P);updateStages();render();break}
     case "valSpec":put("val.spec",arg||"");updateStages();render();break;
     case "tkPanel":ui.tkp=ui.tkp===arg?"":arg;render();break;
-    case "tkReset":{if(arg!=="ticker"&&arg!=="match"){const sc=e.hud.scene;for(const[f]of (TKP_FIELDS[arg]||{f:[]}).f)await put(`hud.sc.${sc}.${f}`,"");render();break}const L=Object.assign({},e.lowerThird||{});if(arg==="ticker"){L.line1="";L.line2="";L.lineMore=[];L.ticker="";L.tickerSpeed=60}else{L.title="";L.subtitle=""}put("lowerThird",L);render();break}
+    case "tkReset":{
+      if(arg==="stats"){for(const[p,v]of[["source",""],["side",-1],["pid",""],["rows",{}]])await put("hud.sc.statsplayer."+p,v);render();break}
+      if(arg==="lineup"){for(const[p,v]of[["ids",null],["side",0],["imgMode","players"],["teamPic",""]])await put("hud.sc.lineup."+p,v);render();break}
+      if(arg==="timer"){for(const[p,v]of[["mode","text"],["text",""],["hh",12],["mm",0],["ss",0],["ap","PM"]])await put("hud.sc.timer."+p,v);render();break}if(arg!=="ticker"&&arg!=="match"){const sc=e.hud.scene;for(const[f]of (TKP_FIELDS[arg]||{f:[]}).f)await put(`hud.sc.${sc}.${f}`,"");render();break}const L=Object.assign({},e.lowerThird||{});if(arg==="ticker"){L.line1="";L.line2="";L.lineMore=[];L.ticker="";L.tickerSpeed=60}else{L.title="";L.subtitle=""}put("lowerThird",L);render();break}
     case "valAllAlive":put("val.dead",{});put("val.aliveUsed",false);break;
     case "dbdAdd":{const t=e.dbd.trials,last=t[t.length-1];put("dbd.trials",[...t,{killer:last?1-last.killer:0,kills:0,escapes:0,gens:0}]);break}
     case "dbdFromOcr":{const v=gameOcr();if(!v)break;const r=dbdRead(v);put("dbd.trials",[...e.dbd.trials,{killer:+arg,kills:r.kills,escapes:r.escapes,gens:r.gens}]);toast("Trial added from the screen.");break}
@@ -1352,6 +1387,7 @@ document.addEventListener("input",ev0=>{
   if(el.id==="draftLock"){put("settings.draft.lockfile",el.value.trim(),false);return}
   if(el.id==="rbLimit"){put("rb.limitMinutes",Math.max(0,+el.value||0));return}
   if(el.id==="timerMin"){const s=Math.max(0,Math.round((+el.value||0)*60));put("timer",Object.assign({},e.timer,{seconds:s,remaining:e.timer.endsAt?e.timer.remaining:s}));return}
+  if(el.dataset.tkpick){const{ids}=tkLineupIds(e),id=el.dataset.tkpick,next=el.checked?(ids.includes(id)?ids:ids.concat(id)):ids.filter(x=>x!==id);put("hud.sc.lineup.ids",next);render();return}
   if(el.dataset.tkline||el.dataset.tkspeed!==undefined||el.dataset.tktext){tkEdit(el);return}
   const p=el.dataset.bind;if(!p||!e)return;
   let v=el.type==="checkbox"?el.checked:el.dataset.num!==undefined?(parseInt(el.value)||0):el.value;

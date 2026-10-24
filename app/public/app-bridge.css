@@ -366,3 +366,12 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 .hudone .hudprev{width:72%;max-width:1200px;min-width:560px}
 .hudone .hudprev .stage{border-radius:26px;border-color:var(--line)}
 .hudone .stagewrap>.row .note{display:none}.hudone .stagewrap>.row{justify-content:flex-end!important}
+
+/* panels like BLOB's: the segmented switch, the two team logo buttons, ticks, the player order */
+.tkseg{display:inline-flex}.tkseg button[aria-pressed="true"]{background:var(--surface-3,rgba(255,255,255,.1));color:var(--text)}
+.tkteams{display:flex;gap:8px}.tkteam{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);display:grid;place-items:center;cursor:pointer;opacity:.55;color:var(--text);font-size:11px;font-weight:700}
+.tkteam img{max-width:30px;max-height:30px}.tkteam.on{opacity:1;border-color:var(--accent,#fdc82f)}
+.tkchk{display:flex;flex-wrap:wrap;gap:8px 18px}
+.tkord{display:flex;flex-direction:column;gap:6px}.tkor{display:flex;align-items:center;gap:10px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.tkor i{font-style:normal;font-size:11px;opacity:.7;width:16px}.tkor b{flex:1;font-weight:500;font-size:13px}
+.tkhms{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.tkhms input{width:54px;text-align:center}.tkhms i{font-style:normal}

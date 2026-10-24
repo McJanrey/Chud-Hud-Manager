@@ -52,7 +52,7 @@
   const SCENES = {
     ingame: "Ingame HUD", bracket: "Bracket", casters: "Caster Nameplates", lowerthird: "Lower Thirds",
     rankings: "Rankings Screen", replay: "Replay", schedule: "Schedule", starting: "Starting Soon",
-    statsplayer: "Stats Page Individual", statsteam: "Stats Page Team", lineup: "Team Lineup", timer: "Timer", title: "Title Screen", ads: "Ad Rotation", draft: "Champion Select", mapveto: "Map Selection", agents: "Agent Select",
+    statsplayer: "Stats Page Individual", statsteam: "Stats Page Team", lineup: "Team Graphic", timer: "Timer", title: "Title Screen", ads: "Ad Rotation", draft: "Champion Select", mapveto: "Map Selection", agents: "Agent Select",
   };
 
   /* Combine event config with the live game feed into one view model. */
@@ -411,9 +411,16 @@
     const body = rows.map((r, i) => { const t = sideTeam(ev, r.team); return `<tr class="${i === 0 ? "top" : ""}"><td class="num">${i + 1}</td><td class="tm"><div class="tmi">${o.logos ? lg(t) : ""}${esc(t ? t.name : "TBD")}</div></td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.gd > 0 ? "+" : ""}${r.gd}</td></tr>`; }).join("");
     return { html: `<div class="h-full${o.bg ? "" : " nobg"}">${head}<table class="h-table" style="width:820px"><thead><tr><th>#</th><th style="text-align:left">TEAM</th><th>W</th><th>L</th><th>${gdLabel(ev.game)}</th></tr></thead><tbody>${body}</tbody></table></div>${o.banner ? bpBanner(ev, o) : ""}${o.ticker ? bpTicker(ev) : ""}`, cams: [] };
   };
+  const timerShow = (ev, now) => { const o = so(ev, "timer"), mode = ["text", "local", "count"].includes(o.mode) ? o.mode : "text";
+    if (mode === "text") return String(o.text || "").toUpperCase();
+    if (mode === "local") return bpClock();
+    const d = new Date(now || Date.now()), h12 = Math.max(1, Math.min(12, Math.round(+o.hh) || 12)), h = (h12 % 12) + (o.ap === "AM" ? 0 : 12);
+    d.setHours(h, Math.max(0, Math.min(59, Math.round(+o.mm) || 0)), Math.max(0, Math.min(59, Math.round(+o.ss) || 0)), 0);
+    const r = Math.max(0, Math.round((d.getTime() - (now || Date.now())) / 1000)), z = n => String(n).padStart(2, "0");
+    return z(Math.floor(r / 3600)) + ":" + z(Math.floor(r / 60) % 60) + ":" + z(r % 60); }; // the countdown to a clock time today: 00:00:00 once it has passed
   S.timer = (m) => {
-    const t = m.ev.timer, rem = t.endsAt ? Math.max(0, Math.round((t.endsAt - Date.now()) / 1000)) : t.remaining;
-    return { html: `<div class="h-full"><div class="h-eyebrow">${esc(m.ev.live.seriesTitle || m.ev.name)}</div><div class="h-title" style="font-size:80px">${esc(t.label)}</div><div class="h-timer num">${fmt(rem)}</div></div>`, cams: [] };
+    const ev = m.ev, shown = timerShow(ev), sub = [m.sides[0], m.sides[1]].map(t => (t && (t.tag || t.name)) || "").filter(Boolean).join(" vs ");
+    return { html: `<div class="bp-tm" data-k="bp-tm"><i class="band"></i><i class="slant"></i><b class="num">${esc(shown)}</b><span>${esc(sub)}</span></div>`, cams: [] };
   };
 
   /* ---------------- broadcast pack: lower third, schedule, team and player stats, lineup, bracket, starting soon, title ----------------
@@ -424,8 +431,9 @@
     lowerthird: { ticker: true, match: true },
     schedule: { bg: true, ticker: true, match: true },
     statsteam: { bg: false, ticker: true, match: true, top: true },
-    statsplayer: { bg: false, ticker: true, top: true, stats: true, team: true, pid: "" },
-    lineup: { bg: true, top: true, banner: true, lineup: true, side: 0 },
+    statsplayer: { bg: false, ticker: true, top: true, stats: true, team: true, pid: "", source: "", side: -1 },
+    lineup: { bg: true, top: true, banner: true, lineup: true, side: 0, imgMode: "players", teamPic: "" },
+    timer: { mode: "text", text: "", hh: 12, mm: 0, ss: 0, ap: "PM" },
     bracket: { bg: true, logo: true },
     starting: { bg: false, border: true, count: true, logo: true, sponsors: true, img: "" },
     title: { bg: false, border: true, logo: true, sponsors: true, img: "" },
@@ -533,7 +541,8 @@
   };
   S.statsplayer = (m) => {
     const ev = m.ev, o = so(ev, "statsplayer"), all = [...bpPlayers(m, 0), ...bpPlayers(m, 1)];
-    const p = (o.pid && all.find(x => x.pid === o.pid)) || all.find(x => x === m.focus) || all.find(x => x === m.mvp) || all[0];
+    const pool = +o.side === 0 || +o.side === 1 ? bpPlayers(m, +o.side) : all, manual = o.source === "manual" || (o.source !== "mvp" && !!o.pid);
+      const p = (manual && o.pid && all.find(x => x.pid === o.pid)) || (!manual && (pool.find(x => x === m.mvp) || pool.find(x => x === m.focus))) || pool[0] || all[0];
     let h = `${bpBg(o)}${o.top ? bpTop(ev, o) : ""}`;
     if (p) {
       const t = p.team, rows = m.kind === "rl" ? [["GOALS", stv(ev, p, "goals")], ["ASSISTS", stv(ev, p, "assists")], ["SAVES", stv(ev, p, "saves")], ["SCORE", stv(ev, p, "score")]]
@@ -541,16 +550,16 @@
         : [["K/D/A", `${stv(ev, p, "kills")} / ${stv(ev, p, "deaths")} / ${stv(ev, p, "assists")}`], ["PERFORMANCE SCORE", stv(ev, p, "score")], ["FIRST KILLS", stv(ev, p, "fk")], ["MULTI KILLS", stv(ev, p, "mk")]];
       const photo = p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH;
       h += `<div class="bp-ind" data-k="bp-ind-${esc(p.pid || p.display)}">${o.team && (t || o.teamText) ? `<span class="vt">${esc(String(o.teamText || t.name).toUpperCase())}</span>` : ""}<div class="ph">${photo}</div><b class="pn">${esc(noTag(p.display).toUpperCase())}</b>
-        ${o.stats ? `<div class="rows">${rows.map(([n, v], i) => `<div class="r" data-k="r${i}"><span>${esc((o.statLabels || {})[i] || n)}</span><b class="num">${esc(v)}</b></div>`).join("")}</div>` : ""}</div>`;
+        ${o.stats ? `<div class="rows">${rows.map(([n, v], i) => [n, v, i]).filter(x => (o.rows || {})[x[2]] !== false).map(([n, v, i]) => `<div class="r" data-k="r${i}"><span>${esc((o.statLabels || {})[i] || n)}</span><b class="num">${esc(v)}</b></div>`).join("")}</div>` : ""}</div>`;
     }
     if (o.ticker) h += bpTicker(ev);
     return { html: h, cams: [] };
   };
   const flag = cc => /^[a-z]{2}$/i.test(String(cc || "")) ? `<img class="fl" src="https://flagcdn.com/w40/${String(cc).toLowerCase()}.png" alt="" onerror="this.remove()">` : "";
   S.lineup = (m) => {
-    const ev = m.ev, o = so(ev, "lineup"), s = +o.side ? 1 : 0, t = m.sides[s], ps = (t ? t.players : []).filter(p => p.ign || p.alias).slice(0, 5);
+    const ev = m.ev, o = so(ev, "lineup"), s = +o.side ? 1 : 0, t = m.sides[s], named = (t ? t.players : []).filter(p => p.ign || p.alias), ps = (Array.isArray(o.ids) ? o.ids.map(id => named.find(p => p.id === id)).filter(Boolean) : named).slice(0, 5);
     let h = `${bpBg(o)}${o.top ? bpTop(ev, o) : ""}${o.banner ? bpBanner(ev) : ""}`;
-    if (o.lineup) h += `<div class="bp-lu" data-k="bp-lu${s}" style="--n:${Math.max(1, ps.length)}"><div class="ppl">${ps.map((p, i) => `<div class="pp" data-k="pp${i}">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH}</div>`).join("")}</div>
+    if (o.lineup) h += `<div class="bp-lu" data-k="bp-lu${s}" style="--n:${Math.max(1, ps.length)}"><div class="ppl">${o.imgMode === "team" && o.teamPic ? `<img class="tpic" data-k="tpic" src="${esc(o.teamPic)}" alt="">` : ps.map((p, i) => `<div class="pp" data-k="pp${i}">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : PH}</div>`).join("")}</div>
       <div class="nms">${ps.map((p, i) => `<div class="nm" data-k="nm${i}">${flag(p.country)}<b>${esc(String(p.alias || p.ign).toUpperCase())}</b></div>`).join("") || `<div class="nm"><b>${esc(t ? t.name.toUpperCase() : "PICK A TEAM")}</b></div>`}</div></div>`;
     return { html: h, cams: [] };
   };
@@ -1531,7 +1540,7 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
+  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, timerShow, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();
