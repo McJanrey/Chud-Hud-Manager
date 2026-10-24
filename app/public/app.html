@@ -1060,7 +1060,19 @@ function confirmBox(title,msg,ok){
 function confirmTwice(b){if(b.dataset.armed)return true;b.dataset.armed="1";const h=b.innerHTML;b.textContent="Click again to confirm";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.innerHTML=h}},3000);return false}
 // the frame the photo editor starts with: people are portrait, covers and screenshots wide, logos and ads keep their own shape
 const cropShape=up=>/\.(avatar|portrait)$/.test(up)?"portrait":/(^|\.)(cover|bgImage|barBg)$/.test(up)?"wide":"free";
+/* Ads size themselves: a picture with transparent margins is trimmed to its visible art (the overlay then scales it to fill the ad box), so no cropping step is needed. */
+async function trimTransparent(file){
+  if(!/^image\/(png|webp)$/.test(file.type))return file;
+  try{const bmp=await createImageBitmap(file),w=bmp.width,h=bmp.height;if(w*h>36e6)return file;
+    const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(bmp,0,0);
+    const d=x.getImageData(0,0,w,h).data;let x0=w,y0=h,x1=-1,y1=-1;
+    for(let y=0;y<h;y++)for(let i=0,o=y*w*4;i<w;i++,o+=4)if(d[o+3]>8){if(i<x0)x0=i;if(i>x1)x1=i;if(y<y0)y0=y;if(y>y1)y1=y}
+    if(x1<0)return file;const cw=x1-x0+1,ch=y1-y0+1;if(cw*ch>w*h*.98)return file;
+    const o=document.createElement("canvas");o.width=cw;o.height=ch;o.getContext("2d").drawImage(c,x0,y0,cw,ch,0,0,cw,ch);
+    const blob=await new Promise(r=>o.toBlob(r,"image/png"));return blob||file}catch(e){return file}
+}
 async function upload(input,file,edited){
+  if(input.dataset.upload==="!ads.add"&&file){file=await trimTransparent(file);edited=true}
   if(!edited&&file&&/^image\/(png|jpeg|webp)$/.test(file.type)&&window.ChudCrop){const out=await ChudCrop.open(file,cropShape(input.dataset.upload||""));if(!out)return;file=out}
   const vid=input.dataset.video!==undefined&&file&&(/^video\/(mp4|webm|quicktime)$/.test(file.type)||/\.mov$/i.test(file.name));
   if(!file||!(file.type.startsWith("image/")||vid)){toast(input.dataset.video!==undefined?"Use a picture (PNG, JPG, WebP, GIF) or a video (MP4, WebM, MOV).":"That file isn't an image. Use PNG, JPG, SVG or WebP.");return}

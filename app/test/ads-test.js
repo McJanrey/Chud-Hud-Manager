@@ -13,5 +13,7 @@ at(-5000); ok(!!H.adNow(ev), "a clock behind the start still picks an ad");
 ok(H.adNow({ ads: { items: [] } }) === null && H.adNow({}) === null, "no ads, nothing shown (and old events without ads are fine)");
 ev.ads.items[1].on = false; ev.ads.items[0].on = false; at(3000); ok(H.adNow(ev) === null, "all switched off, nothing shown");
 Date.now = realNow;
+const appHtml = require("fs").readFileSync(require("path").join(__dirname, "..", "public", "app.html"), "utf8");
+ok(appHtml.includes("async function trimTransparent") && appHtml.includes('if(input.dataset.upload==="!ads.add"&&file){file=await trimTransparent(file);edited=true}'), "an ad picture is trimmed of its transparent margins on upload (no crop step)");
 console.log(bad ? `\n${bad} CHECK(S) FAILED` : "\nADS TEST PASS");
 process.exit(bad ? 1 : 0);
