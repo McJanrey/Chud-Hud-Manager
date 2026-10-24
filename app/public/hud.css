@@ -952,3 +952,17 @@
 .bp-tm b{font-weight:500}.bp-tm span{text-transform:none}
 .bp-l3 .mt b,.bp-l3 .mt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bp-l3.nosp .mt{width:739px}
 .bp-l3 .sl{z-index:2}
+
+/* the lower third's shapes are drawn once as an SVG (hud.js L3_SHAPES); the blocks only place their content over it */
+.bp-l3 .l3s{position:absolute;left:0;top:0;width:1226px;height:82px;z-index:0}
+.bp-l3>*:not(.l3s){z-index:1}
+.bp-l3 .ck,.bp-l3 .scb,.bp-l3 .mt{background:none;border:0;transform:none}
+.bp-l3 .scb>*{transform:none}
+.bp-l3 .sl{display:none}
+.bp-l3{width:1226px;height:82px}.bp-l3>*{height:82px}
+/* BLOB's ticker and lower-third type, measured off the reference */
+.bp-tk{height:47px;background:#000b06;border-top:1.2px solid rgba(255,194,0,.5)}
+.bp-tk span{font-size:18px;letter-spacing:.085em;color:#dfe0e0}
+.bp-tk i{width:2.5px}
+.bp-l3 .ck b{font-size:20px}.bp-l3 .ck small{letter-spacing:.11em}
+.bp-l3 .mt b{font-weight:500}

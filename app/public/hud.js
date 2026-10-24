@@ -246,6 +246,8 @@
     });
     return { html, cams };
   };
+  /* The lower third's shapes, measured off the reference at 1:1: a clock block cut by a gold slash, the score block a trapezoid (wider at the bottom, thin gold edges) and a second slash leaning the other way, then the match block. */
+  const L3_SHAPES = `<svg class="l3s" viewBox="0 0 1226 82" width="1226" height="82" aria-hidden="true"><g fill="#022816" stroke="#ffc200" stroke-width="1.2" stroke-opacity=".6"><polygon points="0.6,0.6 192.2,0.6 169.4,81.4 0.6,81.4"/><polygon points="214.5,0.6 461.6,0.6 484.3,81.4 191.8,81.4" stroke-opacity=".5"/><polygon points="485.7,0.6 905.5,0.6 905.5,81.4 508,81.4" stroke-opacity=".5"/></g><g fill="#ffc200"><polygon points="192.2,0 206.7,0 183.9,82 169.4,82"/><polygon points="470,0 485.7,0 508,82 492.3,82"/></g></svg>`;
   S.lowerthird = (m) => {
     const x = m.ev.lowerThird;
     return { html: x.title ? `<div class="h-l3"><b>${esc(x.title)}</b>${x.subtitle ? `<span>${esc(x.subtitle)}</span>` : ""}</div>` : "", cams: [] };
@@ -490,9 +492,9 @@
 
   S.lowerthird = (m) => {
     const ev = m.ev, o = so(ev, "lowerthird"), [L, R] = m.sides, mt = bpMatch(ev), lbl = esc(String((ev.lowerThird || {}).label || "LOCAL TIME").toUpperCase());
-    const hasSp = sponsorsOf(ev).length > 0, fit = (str, w) => Math.max(18, Math.min(34, Math.floor(w / (String(str).length * 0.6))));
-    let h = `<div class="bp-l3" data-k="bp-l3"><div class="ck"><b class="num">${esc(bpClock())}</b><small>${lbl}</small></div><i class="sl"></i>`;
-    if (o.match) h += `<div class="scb">${lg(L)}<b class="num">${+m.series[0] || 0}</b><i></i><b class="num">${+m.series[1] || 0}</b>${lg(R)}</div><i class="sl"></i>`;
+    const hasSp = sponsorsOf(ev).length > 0, fit = (str, w) => Math.max(18, Math.min(32, Math.floor(w / (String(str).length * 0.6))));
+    let h = `<div class="bp-l3" data-k="bp-l3">${L3_SHAPES}<div class="ck"><b class="num">${esc(bpClock())}</b><small>${lbl}</small></div>`;
+    if (o.match) h += `<div class="scb">${lg(L)}<b class="num">${+m.series[0] || 0}</b><i></i><b class="num">${+m.series[1] || 0}</b>${lg(R)}</div>`;
     h += `<div class="mt"><b style="font-size:${fit(mt.t, 345)}px">${mt.t}</b><small>${mt.s}</small></div>${hasSp ? bpSponsor(ev) : `<div class="bp-spon" data-k="bp-spon">${logoBox(ev, [{ logo: tourLogo(ev), name: "" }])}</div>`}</div>`; // the box at the right always holds a logo: the sponsors, else the tournament's
     if (o.ticker) h += bpTicker(ev, true);
     return { html: h, cams: [] };
