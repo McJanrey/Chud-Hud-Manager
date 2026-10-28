@@ -224,7 +224,7 @@
      centred, and more share the desk evenly; when a row can't hold them (four plates for the standard 296 px plate, three for LOTD's
      380 px one) they go in rows, the upper row first. Every plate is one size. LOTD has its own plate artwork, so its size differs. */
   const EDITION = typeof document !== "undefined" && document.documentElement ? document.documentElement.getAttribute("data-variant") || "" : "";
-  const NP = EDITION === "lotd" ? { w: 380, y: 639, gap: 80 } : { w: 296, y: 623, gap: 96 };
+  const NP = EDITION === "lotd" ? { w: 300, y: 590, gap: 122 } : { w: 296, y: 623, gap: 96 };
   const NP_CAP = Math.floor(1240 / (NP.w + 10)); // plates a row can hold, with room between them
   const npRowX = (m, k) => (m === 1 ? 640 - NP.w / 2 : m === 2 ? [307, 907][k] - NP.w / 2 : Math.round(27 + k * (1280 - NP.w - 54) / (m - 1)));
   function casterSpot(i, n) {
@@ -426,6 +426,7 @@
     const b = (ev.hud || {}).bug; if (!b || !b.on) return "";
     const mode = ["text", "local", "count"].includes(b.mode) ? b.mode : "count", c = ["tl", "tr", "bl", "br"].includes(b.corner) ? b.corner : "tr";
     const lbl = String(b.label || (mode === "local" ? "LOCAL TIME" : mode === "count" ? "STARTING SOON" : "")).toUpperCase();
+    if (EDITION === "lotd") return `<div class="lbug ${c}" data-k="bp-bug"><img src="/brand/lotd/timer-bug.png" alt=""><b class="num" data-fit>${esc(timeText(Object.assign({}, b, { mode })))}</b>${lbl ? `<small>${esc(lbl)}</small>` : ""}</div>`;
     return `<div class="bp-bug ${c}" data-k="bp-bug"><i></i><b class="num">${esc(timeText(Object.assign({}, b, { mode })))}</b>${lbl ? `<small>${esc(lbl)}</small>` : ""}</div>`;
   };
   S.timer = (m) => {
@@ -498,7 +499,18 @@
   const pic = (p, cls) => { const url = p && (p.agent && VAL_UUID.test(String(p.agent)) ? `/val-agent/${p.agent}/displayicon.png` : p.avatar);
     return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="">` : PH}</span>`; };
 
+  function lotdLowerThird(m) {
+    const ev = m.ev, o = so(ev, "lowerthird"), mt = bpMatch(ev), [L, R] = m.sides, lbl = esc(String((ev.lowerThird || {}).label || "CURRENT TIME").toUpperCase());
+    let clock = ""; try { clock = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(/\s/g, ""); } catch { /* no clock */ }
+    const teams = [L, R].map(t => t ? (t.tag || t.name) : "").filter(Boolean).join(" vs "), score = (+m.series[0] || 0) + " - " + (+m.series[1] || 0);
+    let h = `<div class="l3d${o.ticker ? " tk" : ""}" data-k="l3d"><img src="/brand/lotd/l3.png" alt=""><div class="ck"><b>${esc(clock)}</b><small>${lbl}</small></div>`;
+    if (o.match) h += `<div class="s1"><b data-fit>${mt.t}</b><small data-fit>${mt.s}</small></div><div class="s2"><b data-fit>${esc(teams.toUpperCase())}</b><small>${score}</small></div>`;
+    h += "</div>";
+    if (o.ticker) h += bpTicker(ev, true);
+    return { html: h, cams: [] };
+  }
   S.lowerthird = (m) => {
+    if (EDITION === "lotd") return lotdLowerThird(m);
     const ev = m.ev, o = so(ev, "lowerthird"), [L, R] = m.sides, mt = bpMatch(ev), lbl = esc(String((ev.lowerThird || {}).label || "LOCAL TIME").toUpperCase());
     const hasSp = sponsorsOf(ev).length > 0, fit = (str, w) => Math.max(18, Math.min(32, Math.floor(w / (String(str).length * 0.6))));
     let h = `<div class="bp-l3" data-k="bp-l3">${L3_SHAPES}<div class="ck"><b class="num">${esc(bpClock())}</b><small>${lbl}</small></div>`;
@@ -511,17 +523,16 @@
      step in, the ad rotation under them, a wide bar with the event name, the game and UP NEXT, and the ticker. Same ticks as the standard
      Schedule: Background, Match Text (the bar) and Bottom Announcement (the ticker). Long names shrink to fit their boxes. */
   function lotdSchedule(m) {
-    const ev = m.ev, o = so(ev, "schedule"), open = x => x.sa === "" || x.sb === "";
+    const ev = m.ev, o = so(ev, "schedule"), open = x => x.sa === "" || x.sb === "", mt = bpMatch(ev);
     const list = ev.schedule.filter(open).concat(ev.schedule.filter(x => !open(x)));
     const nm = (x, side) => { const t = sideTeam(ev, side ? x.right : x.left); return t ? (t.name || t.tag || "TBD") : "TBD"; };
-    // however many activities there are, up to five: cards keep the wireframe's 82 px until the stack (165 to 365) is full, then share it
-    const shown = list.slice(0, 5), n = shown.length, GAP = 7, ch = Math.max(30, Math.min(82.7, Math.floor((200 - (n - 1) * GAP) / Math.max(1, n))));
+    const shown = list.slice(0, 4), nextUp = list[0];
     const cards = shown.map((x, i) => { const teams = x.left || x.right ? `${nm(x, 0)} VS ${nm(x, 1)}` : "", sub = [x.time, teams].filter(Boolean).join(" | ");
-      return `<div class="lc${ch < 58 ? " tight" : ""}" data-k="lsc${i}" style="top:${(164.7 + i * (ch + GAP)).toFixed(1)}px;height:${ch}px;width:${342 - 12.4 * i}px;--f:${Math.min(33, Math.round(ch * 0.4))}px"><b data-fit>${esc(String(x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${ch < 58 || !sub ? "" : `<small data-fit>${esc(sub.toUpperCase())}</small>`}</div>`; }).join("");
-    const ads = adList(ev).length ? adRot(ev, "", false) : logoBox(ev, sponsorsOf(ev));
+      return `<div class="lc" data-k="lsc${i}" style="top:${(133.3 + i * 93.3).toFixed(1)}px"><b data-fit>${esc(String(x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${sub ? `<small data-fit>${esc(sub)}</small>` : ""}</div>`; }).join("");
+    const nextTxt = nextUp ? esc(String(nextUp.time || nextUp.label || "UP NEXT").toUpperCase()) : "UP NEXT";
     let h = bpBg(o);
-    h += `<div class="lsch" data-k="lsch"><div class="vid"></div><em class="up">UPCOMING</em>${cards || `<div class="lc" style="top:164.7px;height:82.7px;width:342px"><small>NOTHING SCHEDULED</small></div>`}<div class="adb">${ads}</div><em class="act" data-k="lsact">ACTIVITIES</em>
-      ${o.match ? `<div class="bar"><b class="ev" data-fit>${esc(String(ev.tournament.name || ev.name || "").toUpperCase())}</b><i class="dv"></i><div class="nx"><b data-fit>${esc(String(ev.game).toUpperCase())}</b><b class="un">UP NEXT</b></div></div>` : ""}
+    h += `<div class="lsch" data-k="lsch"><div class="vid"></div><img class="lhd" src="/brand/lotd/sch-head.png" alt=""><img class="pl" src="/brand/lotd/sch-planks.png" alt="">${cards || `<div class="lc" style="top:133.3px"><small>NOTHING SCHEDULED</small></div>`}
+      ${o.match ? `<div class="bar"><img src="/brand/lotd/sch-bar.png" alt=""><b class="ev" data-fit>${esc(String(ev.tournament.name || ev.name || "").toUpperCase())}</b><div class="nx"><b data-fit>${(ev.lowerThird || {}).title ? mt.t : esc(String(ev.game).toUpperCase())}</b><b class="un" data-fit>UP NEXT</b></div></div>` : ""}
       ${o.ticker ? bpTicker(ev, true) : ""}</div>`;
     return { html: h, cams: [] };
   }

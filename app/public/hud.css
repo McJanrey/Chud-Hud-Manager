@@ -973,3 +973,38 @@
 .bp-bug i{position:absolute;left:-1px;top:-1px;bottom:-1px;width:16px;background:#ffc200;clip-path:polygon(0 0,100% 0,62% 100%,0 100%)}
 .bp-bug b{font:600 40px/1 "Teko",sans-serif;color:#fff;letter-spacing:.02em;white-space:nowrap}
 .bp-bug small{font:800 12px/1.2 "Inter",sans-serif;color:#ffc200;letter-spacing:.12em;margin-top:2px;white-space:nowrap}
+
+/* LOTD Schedule on the designer's art (brand/lotd/sch-*.png, text removed): video frame, UPCOMING ACTIVITIES with four planks, the segment bar, the ticker */
+.lsch .vid{left:14px;top:14px;width:853.3px;height:480px;border:0;background:transparent}
+.lsch .lhd{position:absolute;left:890px;top:23.3px;width:226.7px;height:93.3px}
+.lsch .pl{position:absolute;left:890px;top:130px;width:356.7px;height:370px}
+.lsch .lc{left:890px;width:356.7px;height:83.3px;padding:0 26px 0 38px;background:none;border:0;border-radius:0}
+.lsch .lc b{font:600 var(--f,30px)/1 "Teko",sans-serif;font-size:30px;color:#dc8744;letter-spacing:.02em;text-transform:uppercase}
+.lsch .lc small{margin-top:2px;font:800 italic 13px/1.2 "Montserrat",sans-serif;color:#fff;letter-spacing:.02em}
+.lsch .bar{left:33.3px;top:520px;width:1213.3px;height:130px;background:none}
+.lsch .bar img{position:absolute;left:0;top:0;width:100%;height:100%}
+.lsch .bar .ev{left:197px;top:36px;width:326px;height:50px;display:flex;align-items:center;justify-content:center;font:600 58px/1 "Teko",sans-serif;color:#dc8744;letter-spacing:.01em}
+.lsch .bar .nx{left:0;top:0;width:100%;height:100%;text-align:center}
+.lsch .bar .nx b{position:absolute;display:block;margin:0;white-space:nowrap;overflow:hidden}
+.lsch .bar .nx b:first-child{left:640px;width:163px;top:45px;height:40px;font:600 34px/1 "Teko",sans-serif;color:#dc8744;text-align:center}
+.lsch .bar .nx .un{left:905px;width:102px;top:50px;height:30px;font:800 italic 14px/30px "Montserrat",sans-serif;color:#fff;text-align:center;margin:0}
+.lsch .bp-tk{top:auto;bottom:0;left:0;right:0;height:63.3px;background:#232323;border:0}
+.lsch .bp-tk span,.l3d ~ .bp-tk span{font:800 italic 25px/1 "Montserrat",sans-serif;letter-spacing:.02em;color:#fff;padding:0 56px;text-transform:none}
+.lsch .bp-tk i,.l3d ~ .bp-tk i{display:none}
+.l3d ~ .bp-tk{top:auto;bottom:0;left:0;right:0;height:63.3px;background:#232323;border:0}
+/* LOTD Lower Third on the designer's art: the clock, then two segment boards */
+.l3d{position:absolute;left:26.7px;top:553.3px;width:1220px;height:160px}
+.l3d.tk{top:490px}
+.l3d img{position:absolute;left:0;top:0;width:100%;height:100%}
+.l3d b,.l3d small{position:absolute;display:block;text-align:center;white-space:nowrap;overflow:hidden}
+.l3d .ck b{left:8px;width:134px;top:56px;height:34px;font:600 32px/34px "Teko",sans-serif;color:#dc8744}
+.l3d .ck small{left:8px;width:134px;top:84px;height:14px;font:800 italic 11px/14px "Montserrat",sans-serif;color:#fff;letter-spacing:.02em}
+.l3d .s1 b,.l3d .s2 b{width:210px;top:60px;height:34px;font:600 35px/34px "Teko",sans-serif;color:#dc8744}
+.l3d .s1 small,.l3d .s2 small{width:210px;top:93px;height:16px;font:800 italic 14px/16px "Montserrat",sans-serif;color:#fff}
+.l3d .s1 b,.l3d .s1 small{left:228px}.l3d .s2 b,.l3d .s2 small{left:828px}
+/* the timer bug on the designer's ticket */
+.lbug{position:absolute;width:208px;height:125px;z-index:5}
+.lbug img{position:absolute;inset:0;width:100%;height:100%}
+.lbug.tl{left:20px;top:20px}.lbug.tr{right:20px;top:20px}.lbug.bl{left:20px;bottom:76px}.lbug.br{right:20px;bottom:76px}
+.lbug b{position:absolute;left:104px;width:94px;top:20px;height:48px;display:block;text-align:center;font:600 44px/48px "Teko",sans-serif;color:#dc8744;white-space:nowrap;overflow:hidden}
+.lbug small{position:absolute;left:104px;width:94px;top:72px;display:block;text-align:center;font:800 11px/1.2 "Montserrat",sans-serif;color:#fff;letter-spacing:.02em}

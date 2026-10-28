@@ -1,6 +1,6 @@
 // Run with: node test/lotd-test.js
 // The LOTD edition's Schedule (laid out on MJ's "Schedule Draft 2"): the bar names the event with its year, the ticker always runs,
-// the boxes carry Draft 2's own transparency, the ad rotation fades, and the preview's "Transparent" backdrop is visibly a checkerboard.
+// the designer's art, the ad rotation fades, and the preview's "Transparent" backdrop is visibly a checkerboard.
 "use strict";
 const fs = require("fs"), path = require("path");
 let failures = 0;
@@ -28,28 +28,23 @@ check("a typed announcement wins over that fallback", (x => /<span>HELLO LAN<\/s
 check("the Bottom Announcement tick switches the ticker off", !/bp-tk/.test(draw(mk(e => { e.hud.sc = { schedule: { ticker: false } }; }))));
 check("the Match Text tick switches the bar off", !/class="bar"/.test(draw(mk(e => { e.hud.sc = { schedule: { match: false } }; }))));
 check("an event with no sponsors still gets a ticker (its own name)", /<span>LAN OF THE DEAD 2026<\/span>/.test(draw(mk(e => { e.tournament.sponsors = []; }))));
-check("names are escaped in the ticker", !/<img/.test(draw(mk(e => { e.tournament.name = "<img src=x>"; e.tournament.sponsors = []; }))));
+check("names are escaped in the ticker", !/<img src=x>/.test(draw(mk(e => { e.tournament.name = "<img src=x>"; e.tournament.sponsors = []; }))));
 check("without the Background tick nothing paints the page", !/bp-bg/.test(draw(mk(e => { e.hud.sc = { schedule: { bg: false } }; }))) && /bp-bg/.test(h));
 
-// Draft 2's transparency: cards and ad box 40%, bar and ticker 50%
-const rule = sel => (css.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\{[^}]*\\}")) || [""])[0];
-check("the activity cards are 40% opaque", /background:rgba\(\d+,\d+,\d+,\.4\)/.test(rule(".lsch .lc")), rule(".lsch .lc"));
-check("the ad box is 40% opaque", /background:rgba\(\d+,\d+,\d+,\.4\)/.test(rule(".lsch .adb")), rule(".lsch .adb"));
-check("the bar is 50% opaque orange", /background:rgba\(217,131,70,\.5\)/.test(rule(".lsch .bar")), rule(".lsch .bar"));
-check("the ticker is 50% opaque and sits where Draft 2 puts it (y 648, full width)", /background:rgba\(\d+,\d+,\d+,\.5\)/.test(rule(".lsch .bp-tk")) && /top:648px/.test(rule(".lsch .bp-tk")), rule(".lsch .bp-tk"));
-
-// Draft 3: green cards with a lavender border, a black ad box, a full-width black ticker, bright red GAME over a smaller UP NEXT
-check("the cards are green at 40% with a lavender border", /background:rgba\(0,190,97,\.4\)/.test(rule(".lsch .lc")) && /border:2px solid rgba\(192,192,255,\.4\)/.test(rule(".lsch .lc")), rule(".lsch .lc"));
-check("the ad box is black at 40% and as big as Draft 3's (342.7 x 138 at 865.3, 376)", /background:rgba\(0,0,0,\.4\)/.test(rule(".lsch .adb")) && /left:865\.3px/.test(rule(".lsch .adb")) && /top:376px/.test(rule(".lsch .adb")) && /width:342\.7px/.test(rule(".lsch .adb")) && /height:138px/.test(rule(".lsch .adb")), rule(".lsch .adb"));
-check("the ticker is black at 50% and runs edge to edge", /background:rgba\(0,0,0,\.5\)/.test(rule(".lsch .bp-tk")) && /left:0;right:0/.test(rule(".lsch .bp-tk")), rule(".lsch .bp-tk"));
-const fsz = sel => parseFloat((/font-size:([\d.]+)px/.exec(rule(sel)) || [0, 0])[1]);
-check("the game is bright red and bigger than UP NEXT", /color:#ff3131/.test(rule(".lsch .bar .nx b:first-child")) && fsz(".lsch .bar .nx b:first-child") > fsz(".lsch .bar .nx .un") && fsz(".lsch .bar .nx .un") > 0);
-check("the ticker's separators are white", /\.lsch \.bp-tk i\{[^}]*background:#fff/.test(css));
+// the designer's art (text removed): the files ship and the scenes use them
+for (const f of ["l3", "caster-plank", "timer-bug", "sch-bar", "sch-planks", "sch-head"]) check("ships brand/lotd/" + f + ".png", fs.existsSync(path.join(__dirname, "..", "public", "brand", "lotd", f + ".png")));
+check("the Schedule draws the head, planks and bar art, and the planks carry the activities (four at most)", /sch-head.png/.test(h) && /sch-planks.png/.test(h) && /sch-bar.png/.test(h) && (draw(mk(e => { e.schedule = [1, 2, 3, 4, 5, 6].map(n => ({ id: "s" + n, time: n + ":00 PM", left: "", right: "", sa: "", sb: "", label: "Act " + n })); })).match(/class="lc"/g) || []).length === 4);
+check("the ticker is the designer's grey band at the bottom edge", /.lsch .bp-tk{[^}]*background:#232323/.test(css) && /.lsch .bp-tk{[^}]*bottom:0/.test(css));
+const l3 = HUD.sceneHtml(mk(e => { e.hud.scene = "lowerthird"; }), null, "lowerthird");
+check("the Lower Third draws the designer's board with a clock and two segments, and the ticker shifts it up", /l3.png/.test(l3) && /class="s1"/.test(l3) && /class="s2"/.test(l3) && /class="l3d tk"/.test(l3) && !/class="l3d tk"/.test(HUD.sceneHtml(mk(e => { e.hud.scene = "lowerthird"; e.hud.sc = { lowerthird: { ticker: false } }; }), null, "lowerthird")));
+check("the timer bug uses the designer's ticket in LOTD", /class="lbug tr"/.test(HUD.sceneHtml(mk(e => { e.hud.bug = { on: true, corner: "tr", mode: "text", text: "10:00" }; }), null, "schedule")) && /timer-bug.png/.test(HUD.sceneHtml(mk(e => { e.hud.bug = { on: true, mode: "text", text: "x" }; }), null, "schedule")));
+check("the caster nameplate is the designer's plank", /caster-plank.png/.test(fs.readFileSync(path.join(__dirname, "..", "variant.js"), "utf8")));
 // the ad rotation fades: the shown slide fades in even when its element is brand new, and every slide keeps its transition
 check("the ad rotation fades (transition on every slide, animation on the shown one)", /\.rot \.ri\{[^}]*transition:opacity var\(--rt,800ms\)/.test(css) && /\.rot-fade \.ri\.on[^{]*\{animation:rotIn var\(--rt,800ms\)/.test(css) && /@keyframes rotIn\{from\{opacity:0\}to\{opacity:1\}\}/.test(css));
 check("only the Cut style has no fade", /\.rot-cut \.ri\{transition:none\}/.test(css) && !/\.rot-cut \.ri\.on[^{]*\{animation/.test(css));
 const ads = mk(e => { e.ads.items = [{ id: "a", url: "/u/a.png", secs: 8, on: true }, { id: "b", url: "/u/b.png", secs: 8, on: true }]; });
-const d0 = Date.now; Date.now = () => 0; const a0 = draw(ads); Date.now = () => 8000; const a1 = draw(ads); Date.now = d0;
+const d0 = Date.now; Date.now = () => 0; const drawAds = e => HUD.sceneHtml(e, null, "ads"); // the rotation itself (the new Schedule has no ad box; ads show on the Ad Rotation scene or as the corner and banner)
+const a0 = drawAds(ads); Date.now = () => 8000; const a1 = drawAds(ads); Date.now = d0;
 check("both ad slides are always in the markup", (a0.match(/class="ri[ "]/g) || []).length === 2 && (a1.match(/class="ri[ "]/g) || []).length === 2);
 check("the shown slide changes with the clock", a0.match(/class="ri on" data-k="([^"]+)"/)[1] !== a1.match(/class="ri on" data-k="([^"]+)"/)[1]);
 
