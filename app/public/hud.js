@@ -950,7 +950,7 @@
       const nm = (t, s) => noTag(t ? t.name || (t.players[0] && t.players[0].ign) || t.tag : "") || (s ? "TEAM B" : "TEAM A");
       const wm = (t, s) => String((t && (t.tag || t.name)) || (s ? "B" : "A")).slice(0, 4).toUpperCase();
       const half = (t, s) => `<div class="hf ${s ? "r" : "l"}" data-k="v3-hf-${s}" style="--c:${esc(m.colors[s])}"><div class="mx"><i class="fill"></i><svg class="ol" viewBox="0 0 294 49" preserveAspectRatio="none"><polyline points="${s ? "3,48.5 3,26 26,4.5 175,4.5" : "94,4 3,4 3,23.5 26,45 291,45"}"/></svg><i class="sl"><b></b><b></b></i></div>
-        <b class="wm">${esc(wm(t, s))}</b>${lg(t)}<div class="nw"><b class="nm">${esc(nm(t, s))}</b><i class="ln"></i></div><i class="mk"></i></div>`;
+        <b class="wm">${esc(wm(t, s))}</b>${lg(t)}<div class="nw"><b class="nm" data-fit>${esc(nm(t, s))}</b><i class="ln"></i></div><i class="mk"></i></div>`;
       const media = !bg ? "" : /\.(mp4|webm|mov)$/i.test(bg) ? `<video src="${esc(bg)}" autoplay muted loop playsinline disablepictureinpicture></video>` : `<img src="${esc(bg)}" alt="" onerror="this.style.display='none'">`;
       const chip = s => `<span class="cp ${s ? "r" : "l"}" data-k="cp-${s}" style="--c:${esc(m.colors[s])}"><b class="num${fnDrop("vcp" + s, info.left[s]) ? " dn" : ""}" data-k="cpn-${s}-${info.left[s]}">${info.left[s]}</b></span>`; // the number jumps when it drops
       h += `<div class="v3-top ${style}" data-k="v3-top-${style}">${media ? `<div class="v3-bg" data-k="v3-bg-${esc(bg)}">${media}</div>` : ""}<i class="hl"></i>${half(L, 0)}${half(R, 1)}
