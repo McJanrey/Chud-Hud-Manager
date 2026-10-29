@@ -10,11 +10,13 @@
   #stage{position:fixed;inset:0}
   #bg{position:fixed;inset:0;width:100%;height:100%;display:none}
   .offline{position:fixed;left:12px;bottom:12px;font:600 14px system-ui;color:#fff;background:#c0392b;padding:6px 10px;border-radius:6px;display:none}
+#diag{position:fixed;left:12px;top:12px;z-index:99999;margin:0;max-width:calc(100vw - 24px);padding:12px 16px;background:rgba(90,8,8,.94);color:#fff;font:15px/1.5 Consolas,monospace;white-space:pre-wrap;border:2px solid #ff6b6b;pointer-events:none}
 </style>
 </head>
 <body>
 <canvas id="bg"></canvas>
 <div id="stage"><div class="hud" id="hud"></div></div>
+<pre id="diag" hidden></pre>
 <div class="offline" id="off">Lost connection to Chud Hud server, retrying…</div>
 <script src="/hud.js"></script>
 <script>
@@ -26,18 +28,37 @@ let DB = null, GAMES = {}, DRAFT = null;
 if (qs.get("bg")) { const c = document.getElementById("bg"); c.style.display = "block"; SaintsHUD.drawBg(c, qs.get("bg") === "pitch" ? "game" : qs.get("bg"), qs.get("game") || ""); }
 function fit() { hud.style.transform = `scale(${Math.min(innerWidth / 1280, innerHeight / 720)})`; }
 addEventListener("resize", fit); fit();
+const DIAG = { sse: "connecting", errs: [], drawn: 0, ev: null, t0: Date.now() };
+addEventListener("error", e => DIAG.errs.push(String(e.message || "error") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")));
+addEventListener("unhandledrejection", e => DIAG.errs.push("promise: " + String((e.reason && e.reason.message) || e.reason)));
 function draw() {
   if (!DB || LOCKED) return;
   const ev = DB.events.find(e => e.id === (qs.get("event") || DB.onAir)) || DB.events[0];
-  if (ev) SaintsHUD.render(hud, ev, GAMES[SaintsHUD.feedKey(ev)] || null, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons), kits: DB.settings && DB.settings.kits, draft: DRAFT });
+  DIAG.ev = ev || null;
+  if (ev) try { SaintsHUD.render(hud, ev, GAMES[SaintsHUD.feedKey(ev)] || null, scene, { icons: Object.assign({}, DB.settings && DB.settings.iconsOfficial, DB.settings && DB.settings.icons), kits: DB.settings && DB.settings.kits, draft: DRAFT }); DIAG.drawn++; } catch (err) { DIAG.errs.push("draw: " + err.message); }
 }
+// ?debug=1 prints what this page sees, for a source that stays blank in OBS or vMix
+function showDiag() {
+  const d = document.getElementById("diag"); if (qs.get("debug") !== "1") return; d.hidden = false;
+  const ev = DIAG.ev, lay = hud.querySelector(".lay"), ms = DIAG.errs.slice(-3);
+  d.textContent = ["Chud Hud overlay check (remove &debug=1 when done)",
+    "script loaded:   " + (typeof SaintsHUD === "object" ? "yes" : "NO: hud.js did not run"),
+    "live data:       " + DIAG.sse + (DB ? ", " + DB.events.length + " events" : ", nothing received yet"),
+    "this event:      " + (ev ? ev.name + " (" + ev.game + ")" + (qs.get("event") && ev.id !== qs.get("event") ? "  [link's event id not found, using the first one]" : "") : "none"),
+    "scene:           " + scene + (lay ? ", " + lay.children.length + " parts drawn" : ", nothing drawn"),
+    "draws ok:        " + DIAG.drawn,
+    "window:          " + innerWidth + " x " + innerHeight,
+    "browser:         " + (navigator.userAgent.match(/(Chrome|CEF)\/[\d.]+/) || [navigator.userAgent.slice(0, 40)])[0],
+    "errors:          " + (ms.length ? "\n  " + ms.join("\n  ") : "none")].join("\n");
+}
+setInterval(showDiag, 500);
 function connect() {
   const es = new EventSource("/events?kind=overlay");
   es.addEventListener("db", e => { DB = JSON.parse(e.data).db; draw(); });
   es.addEventListener("draft", e => { DRAFT = JSON.parse(e.data); draw(); }); // League champion select, already delayed by the server
   es.addEventListener("game", e => { const m = JSON.parse(e.data); GAMES[m.key] = m.game; draw(); }); // one feed per kind of source; this event reads its own
-  es.onopen = () => document.getElementById("off").style.display = "none";
-  es.onerror = () => { document.getElementById("off").style.display = "block"; };
+  es.onopen = () => { DIAG.sse = "connected"; document.getElementById("off").style.display = "none"; };
+  es.onerror = () => { DIAG.sse = "NOT connected (retrying)"; document.getElementById("off").style.display = "block"; };
 }
 connect();
 setInterval(draw, 500);
