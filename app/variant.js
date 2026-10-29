@@ -13,7 +13,7 @@ const VARIANTS = {
     tagline: "LAN OF THE DEAD",
     appId: "ca.stclair.chudhudlotd",
     dataDir: "Chud Hud LOTD",
-    port: 7787, camPort: 7788,          // next to the standard app's 7777 and 7778, so both can run at once
+    port: 7787, camPort: 7788, ovlPort: 7789,          // next to the standard app's 7777 and 7778, so both can run at once
     icon: "build/lotd/icon.png",
     bg: "#0d0614",
     // the caster nameplate is MJ's own artwork (brand/lotd/nameplate.png, text removed) with the name and role set over it in its lettering
@@ -39,7 +39,7 @@ const VARIANTS = {
     tagline: "WINTER WONDER-LAN",
     appId: "ca.stclair.chudhudwwl",
     dataDir: "Chud Hud WWL",
-    port: 7767, camPort: 7768,          // next to the standard app and LOTD, so all three can run at once
+    port: 7767, camPort: 7768, ovlPort: 7769,          // next to the standard app and LOTD, so all three can run at once
     icon: "build/wwl/icon.png",
     bg: "#001e3c",
     /* Winter Wonder-LAN brand: navy #001e3c, blues #57a5fc and #98c6ff, grey #e9e9e9, red #ff6060, green #74db83.
@@ -72,7 +72,7 @@ function forId(id) {
   const out = {
     id: v ? v.id : "", name, tagline: v ? v.tagline : "BROADCAST", appId: v ? v.appId : "ca.stclair.saintshud",
     dataDir: v ? v.dataDir : "Saints HUD",       // the standard app keeps the folder it had before it was renamed
-    port: v ? v.port : 0, camPort: v ? v.camPort : 0,
+    port: v ? v.port : 0, camPort: v ? v.camPort : 0, ovlPort: v ? v.ovlPort : 0,
     icon: v ? v.icon : "build/icon.png", bg: v ? v.bg : "#08110d",
     /* a page as served: the variant's name and tagline, a data-variant attribute and, on the control pages only (never the
        overlay, which goes to air), the theme stylesheet */

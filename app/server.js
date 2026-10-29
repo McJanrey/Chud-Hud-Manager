@@ -1115,7 +1115,7 @@ function setPath(obj, p, v) {
 // browser could change events, switch the data source, start screen reading or edit League's game.cfg.
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 function hostOk(req) { // DNS rebinding: when listening on loopback only, only loopback names are served
-  if (HOST === "0.0.0.0" || HOST === "::") return true;
+  if (HOST === "0.0.0.0" || HOST === "::" || req.__ovl) return true; // __ovl: arrived on the overlay-only network listener, which has its own allowlist
   const h = String(req.headers.host || "").replace(/:\d+$/, "").toLowerCase();
   return LOOPBACK.has(h) || h === HOST.toLowerCase();
 }
@@ -1164,6 +1164,34 @@ async function setCamLan(on) {
   srv.on("error", err => log("Camera server error:", err.message));
   log(`Player cameras: listening on https://<this PC>:${CAM_PORT}`);
 }
+/* ------------------------------------------------ overlays for OBS and vMix on other PCs
+   The main server answers on this PC only. When the operator switches "Show overlays on other PCs" on, a second listener opens on the
+   network and passes on only what a browser source needs: the overlay page, its script and style, its pictures and fonts, and its live
+   data stream. It never serves the control room, the settings or anything that changes data (GET only). Off by default; saved. */
+const OVL_PORT = +process.env.OVL_PORT || V.ovlPort || 7779;
+let ovlServer = null;
+const OVL_EXACT = new Set(["/overlay", "/hud.js", "/hud.css", "/favicon.ico", "/api/license", "/hud.json", "/hud.xml", "/hud.csv"]); // the last three: the same live fields as the overlay, for vMix titles
+const OVL_PREFIX = ["/fonts/", "/brand/", "/uploads/", "/ddragon/", "/objective-icons/", "/val-agent/", "/val-weapon/", "/val-map/", "/rb-card/", "/covers/"];
+function ovlAllowed(req, url) {
+  if (req.method !== "GET" && req.method !== "HEAD") return false;
+  const p = url.pathname;
+  if (p === "/events") return url.searchParams.get("kind") === "overlay"; // the live data stream, for overlays only
+  return OVL_EXACT.has(p) || OVL_PREFIX.some(x => p.startsWith(x));
+}
+async function setOvlLan(on) {
+  if (!on) { if (ovlServer) { const s = ovlServer; ovlServer = null; await new Promise(r => { s.close(r); s.closeAllConnections && s.closeAllConnections(); }); } return; }
+  if (ovlServer) return;
+  const srv = http.createServer((req, res) => {
+    let url; try { url = new URL(req.url, "http://x"); } catch { res.writeHead(400); return res.end(); }
+    if (!ovlAllowed(req, url)) { res.writeHead(404, { "content-type": "text/plain" }); return res.end("Not found"); }
+    req.__ovl = true; server.emit("request", req, res);
+  });
+  await new Promise((resolve, reject) => { srv.once("error", reject); srv.listen(OVL_PORT, "0.0.0.0", () => { srv.removeListener("error", reject); resolve(); }); });
+  ovlServer = srv;
+  srv.on("error", err => log("Overlay network server error:", err.message));
+  log(`Overlays for other PCs: listening on http://<this PC>:${OVL_PORT}/overlay`);
+}
+const ovlInfo = () => ({ on: !!ovlServer, port: OVL_PORT, ips: lanIps() });
 function camLinks() {
   const ip = lanIps()[0] || "localhost", base = `https://${ip}:${CAM_PORT}`, mk = room => ({ room, url: `${base}/cam?r=${encodeURIComponent(room)}&t=${cams.tokenFor(room)}`, local: `/cam?r=${encodeURIComponent(room)}` });
   return { on: !!camServer, port: CAM_PORT, base, status: cams.status(), events: DB.events.map(ev => ({ id: ev.id, name: ev.name,
@@ -1298,6 +1326,7 @@ const server = http.createServer((req, res) => {
       const ip = lanIps()[0] || "localhost", room = ev.id + ".n-" + slug;
       return json(res, 200, { room, url: `https://${ip}:${CAM_PORT}/cam?r=${encodeURIComponent(room)}&t=${cams.tokenFor(room)}`, local: `/cam?r=${encodeURIComponent(room)}` });
     }
+    if (p === "/api/ovl/lan") return json(res, 200, ovlInfo());
     if (p === "/api/chat/status") return json(res, 200, Object.assign(twitch.status(), { event: chat.event, mode: chat.mode, voters: Object.fromEntries([...chat.voters].map(([k, m]) => [k, m.size])) }));
     if (p === "/" || p === "/dashboard") return sendFile(res, path.join(PUB, "app.html"));
     if (p === "/overlay") return sendFile(res, path.join(PUB, "overlay.html"));
@@ -1451,6 +1480,11 @@ const server = http.createServer((req, res) => {
           }
           case "/api/chat/open": { const err = chatOpen(String(body.event || ""), String(body.mode || ""), !!body.open); return err ? json(res, 400, { error: err }) : json(res, 200, { ok: true }); }
           case "/api/chat/clear": chatClear(String(body.event || ""), String(body.mode || ""), String(body.build || "")); return json(res, 200, { ok: true });
+          case "/api/ovl/lan": {
+            const on = !!body.on;
+            return setOvlLan(on).then(() => { DB.settings.ovlLan = on; save(); json(res, 200, ovlInfo()); })
+              .catch(e => json(res, 500, { error: e.code === "EADDRINUSE" ? `Port ${OVL_PORT} is already in use.` : e.message }));
+          }
           case "/api/cam/lan": {
             const on = !!body.on;
             return setCamLan(on).then(() => { DB.settings.camLan = on; save(); json(res, 200, camLinks()); })
@@ -1537,5 +1571,6 @@ server.listen(PORT, HOST, () => {
   applyFeeds();
   ensureOfficialIcons();
   if (DB.settings.twitch && DB.settings.twitch.channel) twitch.connect(DB.settings.twitch.channel);
+  if (DB.settings.ovlLan) setOvlLan(true).catch(e => log("Overlays for other PCs could not start:", e.message));
   if (DB.settings.camLan) setCamLan(true).catch(e => log("Player cameras could not start:", e.message));
 });

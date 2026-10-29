@@ -346,7 +346,13 @@ async function createEvent(){
 /* ---------- views ---------- */
 const stage=(scene="auto")=>`<div class="stagewrap"><div class="stage" data-stage="${scene}"></div><div class="row c" style="justify-content:space-between"><span class="note">${scene==="auto"?"Shows the scene picked in the HUD Editor.":"Preview of "+esc(SCENES[scene])+"."} <span data-bgnote></span></span><button class="btn sm" type="button" data-act="full">${ico("full")}Full screen</button></div></div>`;
 const kitSeats=e=>Math.max(1,Math.min(8,Math.round(+((DB.settings.kits||{})[e.kit]||{}).seats||{solo:1,duo:2,trio:3}[e.camera.layout]||2)));
-const overlayUrl=(s,e)=>`${location.origin}/overlay?scene=${s}&event=${(e||ev()).id}`; // every event has its own link
+/* Overlays for other PCs: while the switch on the Outputs page is on, every overlay link uses this PC's network address (and the overlay-only
+   port), so the same link works in OBS or vMix on this PC or on another one. */
+let NETOVL=null;
+async function ovlLoad(){try{NETOVL=await fetch("/api/ovl/lan").then(r=>r.json())}catch{NETOVL=null}}
+ovlLoad();setInterval(ovlLoad,5000);
+const ovlBase=()=>NETOVL&&NETOVL.on&&NETOVL.ips&&NETOVL.ips[0]?`http://${NETOVL.ips[0]}:${NETOVL.port}`:location.origin;
+const overlayUrl=(s,e)=>`${ovlBase()}/overlay?scene=${s}&event=${(e||ev()).id}`; // every event has its own link
 const VIEWS={
 overview(e){
   const sc=ui.ovScene||"auto";
@@ -612,11 +618,14 @@ Object.assign(VIEWS,{
 outputs(e){
   const row=(label,url)=>`<div class="row c nowrap"><span class="note" style="width:200px;flex:none">${esc(label)}</span><input class="mono olink" readonly value="${esc(url)}"><button class="btn icon" type="button" data-act="copyText" data-arg="${esc(url)}" aria-label="Copy ${esc(label)}">${ico("copy")}</button></div>`;
   const others=DB.events.filter(x=>x!==e);
-  return`<div class="sec"><div><h2>Overlay links for ${esc(e.name)}</h2><p class="sub">Every event has its own links and all of them are live at once, so there is nothing to set on air. Add one as a 1920 × 1080 browser source in OBS or vMix, with "Shutdown source when not visible" switched off.</p></div>
+  const net=`<div class="sec"><div class="sechead"><div><h2>Show overlays on other PCs</h2><p class="sub">Off: OBS and vMix must run on this PC. On: another PC on your network can open the overlay links below. It can only show the overlays; the control room stays on this PC. Windows may ask to allow Chud Hud through the firewall: allow it on private networks.</p></div>
+    <button class="btn${NETOVL&&NETOVL.on?" primary":""}" type="button" data-act="ovlLan" aria-pressed="${!!(NETOVL&&NETOVL.on)}"${NETOVL?"":" disabled"}>${NETOVL&&NETOVL.on?"Overlays shared on the network":"Show overlays on other PCs"}</button></div>
+    ${NETOVL&&NETOVL.on?`<p class="note">The links below now start with <b>${esc(ovlBase())}</b>. If this PC has more than one network address (${NETOVL.ips.map(esc).join(", ")}), and the first doesn't work from the other PC, swap in another one.</p>`:""}</div>`;
+  return net+`<div class="sec"><div><h2>Overlay links for ${esc(e.name)}</h2><p class="sub">Every event has its own links and all of them are live at once, so there is nothing to set on air. Add one as a 1920 × 1080 browser source in OBS or vMix, with "Shutdown source when not visible" switched off.</p></div>
     ${row("Follows the HUD Editor",overlayUrl("auto",e))}
     <details open><summary class="note" style="cursor:pointer">One link per scene</summary><div class="sec" style="gap:8px;margin-top:10px">${Object.entries(SCENES).map(([k,v])=>row(v,overlayUrl(k,e))).join("")}</div></details></div>
   <div class="sec"><div><h2>Data for vMix and GT Title Designer</h2><p class="sub">The same fields for this event, as a web address or as files that are rewritten every second.</p></div>
-    ${["json","xml","csv"].map(t=>row(t.toUpperCase()+" address",`${location.origin}/hud.${t}?event=${e.id}`)).join("")}
+    ${["json","xml","csv"].map(t=>row(t.toUpperCase()+" address",`${ovlBase()}/hud.${t}?event=${e.id}`)).join("")}
     ${row("Files (hud.csv, .json, .xml)",((OUTS&&OUTS.eventsDir)||"output/events").replace(/\\/g,"/")+"/"+e.id+"/")}</div>
   <div class="sec"><div><h2>Stream Deck and Companion</h2><p class="sub">One web address per button. In Bitfocus Companion add a "Generic HTTP" connection and give a button a GET action with the address; anything that can open a link works. The key in each address stops other web pages from pressing your buttons, so keep these private.</p></div>
     ${CTRL?(()=>{const u=(q)=>`${location.origin}/api/control?key=${CTRL.key}&event=${e.id}&${q}`,g=(t,rows)=>`<details><summary class="note" style="cursor:pointer">${t}</summary><div class="sec" style="gap:8px;margin-top:10px">${rows.map(([l,q])=>row(l,u(q))).join("")}</div></details>`;
@@ -1166,6 +1175,7 @@ document.addEventListener("click",async ev0=>{
       if(!await confirmBox("Delete Event",`Are you sure you want to delete ${x.name}? Its teams, talent and graphics are deleted with it.`,"Delete Event"))return;
       await put("events",DB.events.filter(q=>q.id!==arg),false);if(ui.cur===arg)ui.cur=null;toast(`${x.name} deleted`);break}
     case "delEvent":if(!await confirmBox("Delete Event",`Are you sure you want to delete ${e.name}? Its teams, talent and graphics are deleted with it.`,"Delete Event"))return;await put("events",DB.events.filter(x=>x!==e),false);ui.cur=null;toast("Event deleted");break;
+    case "ovlLan":{const r=await fetch("/api/ovl/lan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on:!(NETOVL&&NETOVL.on)})});const j=await r.json().catch(()=>({}));if(!r.ok)return toast(j.error||"Could not change that.");NETOVL=j;toast(NETOVL.on?"Other PCs can now show your overlays":"Overlays are back to this PC only");render();return}
     case "camLan":{const r=await fetch("/api/cam/lan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({on:!(CAM&&CAM.on)})}).then(r=>r.json()).catch(()=>({error:"No answer from the server."}));
       if(r.error)toast(r.error);else{CAM=r;camPaint()}return;}
     case "camCopy":{try{await navigator.clipboard.writeText(arg);toast("Player link copied")}catch(err){toast("Copy failed. Open the link instead.")}return;}
