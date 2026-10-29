@@ -376,3 +376,7 @@ table.grid.members .camsrc{max-width:100%;overflow:hidden;white-space:nowrap}tab
 .tkor i{font-style:normal;font-size:11px;opacity:.7;width:16px}.tkor b{flex:1;font-weight:500;font-size:13px}
 .tkhms{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.tkhms input{width:54px;text-align:center}.tkhms i{font-style:normal}
 .tkseg{flex-wrap:nowrap;max-width:100%}.tkseg button{white-space:nowrap;padding-left:9px;padding-right:9px;font-size:12px}
+/* observer client */
+.obscode{font:700 34px/1 var(--font-mono,monospace);letter-spacing:.28em;padding:10px 16px 10px 22px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface-2);color:var(--accent)}
+/* observer client */
+.obscode{font:700 34px/1 var(--font-mono,monospace);letter-spacing:.28em;padding:10px 16px 10px 22px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface-2);color:var(--accent)}

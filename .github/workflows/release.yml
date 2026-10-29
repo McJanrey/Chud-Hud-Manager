@@ -44,6 +44,7 @@ jobs:
           node test/packaging-test.js
           node test/ads-test.js
           node test/ovl-test.js
+          node test/observer-test.js
           node test/notes-test.js
           node test/lotd-test.js
           node test/ticker-test.js

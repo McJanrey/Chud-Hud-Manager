@@ -75,9 +75,29 @@ function setupLauncherIpc() {
 
 // The control room's update pop-up: read the state, and "Update now" (download, then back up and install when it arrives).
 let installWhenReady = false;
+// Observer client: the graphics PC's overlay over this PC's game. A borderless, see-through window the size of the screen, on top,
+// that never takes focus or clicks, so the observer keeps playing underneath. Only the graphics PC this copy is paired with can be shown.
+let hudWin = null;
+function hudAllowed(url) {
+  try { const o = (dbOf() || {}).settings && dbOf().settings.observer, g = o && o.gfx ? new URL(o.gfx) : null, u = new URL(url);
+    return !!(g && u.protocol === g.protocol && u.host === g.host && u.pathname === "/overlay"); } catch { return false; }
+}
+function showHudOnGame(url) {
+  if (!hudAllowed(url)) return { ok: false, error: "That isn't the paired graphics PC's overlay." };
+  if (hudWin) { hudWin.close(); hudWin = null; }
+  const d = require("electron").screen.getPrimaryDisplay();
+  hudWin = new BrowserWindow({ x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height, transparent: true, frame: false, resizable: false, movable: false,
+    focusable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: true, show: false, backgroundColor: "#00000000", webPreferences: { contextIsolation: true, sandbox: true } });
+  hudWin.setIgnoreMouseEvents(true); hudWin.setAlwaysOnTop(true, "screen-saver"); hudWin.loadURL(url);
+  hudWin.once("ready-to-show", () => hudWin && hudWin.showInactive()); hudWin.on("closed", () => { hudWin = null; });
+  return { ok: true };
+}
 function setupControlIpc() {
   const on = (ch, fn) => ipcMain.handle(ch, (e, ...a) => (win && e.sender === win.webContents ? fn(...a) : undefined)); // only our own control room page
   on("app:update-state", () => ({ version: app.getVersion(), update: upd }));
+  on("app:hud-show", url => showHudOnGame(String(url || "")));
+  on("app:hud-hide", () => { if (hudWin) { hudWin.close(); hudWin = null; } return { ok: true }; });
+  on("app:hud-state", () => ({ on: !!hudWin }));
   on("app:update-check", () => { if (!updater) return { ok: false, error: "Updates only work in the installed app." }; if ([...BUSY, "available"].includes(upd.state)) return { ok: true, state: upd.state };
     lastCheck = Date.now(); updater.checkForUpdates().catch(() => {}); return { ok: true, state: "checking" }; });
   on("app:update-go", () => {

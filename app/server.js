@@ -987,7 +987,8 @@ setInterval(() => { if (mcOn) mcc.update({ roster: mcRoster() }); }, 5000);
 let ocr = null;
 function setOcrProvider(p) { ocr = p; }
 // OCR readings arrive as Stats API–shaped messages and go to every event that reads the screen (the OCR and Minecraft feeds).
-function ocrIngest(msg) { for (const key of ["ocr", "mc"]) if (feeds.has(key)) inFeed(key, () => { game.connected = true; [].concat(msg).forEach(handleMessage); }); }
+function applyReadings(msg) { for (const key of ["ocr", "mc"]) if (feeds.has(key)) inFeed(key, () => { game.connected = true; [].concat(msg).forEach(handleMessage); }); }
+function ocrIngest(msg) { if (obsLink()) { observerSend(msg); return; } /* observer PC: the graphics PC applies it */ applyReadings(msg); }
 
 /* -------------------------------------------- League replay and game config */
 function lolHttp(method, pth, body) {
@@ -1029,7 +1030,14 @@ function enableReplayApi() {
 const clients = new Set();
 const frame = (type, data) => `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`; // built once, then written to every client
 function sse(res, type, data) { res.write(frame(type, data)); }
-function broadcastDb(by) { const msg = frame("db", { db: DB, by, screens: screens() }); clients.forEach(c => c.res.write(msg)); }
+// what an overlay may see of the data: never the observer pairing code or link (overlays can be opened from other PCs)
+const SECRET_SETTINGS = ["observerCode", "observer"];
+const dbForOverlay = () => Object.assign({}, DB, { settings: Object.fromEntries(Object.entries(DB.settings || {}).filter(([k]) => !SECRET_SETTINGS.includes(k))) });
+function broadcastDb(by) {
+  const scr = screens(), full = frame("db", { db: DB, by, screens: scr });
+  let pub = null; // built once, only if an overlay is connected
+  clients.forEach(c => c.res.write(c.kind === "overlay" ? (pub || (pub = frame("db", { db: dbForOverlay(), by, screens: scr }))) : full));
+}
 function notice(text) { clients.forEach(c => sse(c.res, "notice", { text })); }
 function screens() { const s = { dashboard: 0, overlay: 0 }; clients.forEach(c => { s[c.kind] = (s[c.kind] || 0) + 1; }); return s; }
 setInterval(() => {
@@ -1173,13 +1181,15 @@ let ovlServer = null;
 const OVL_EXACT = new Set(["/overlay", "/hud.js", "/hud.css", "/favicon.ico", "/api/license", "/hud.json", "/hud.xml", "/hud.csv"]); // the last three: the same live fields as the overlay, for vMix titles
 const OVL_PREFIX = ["/fonts/", "/brand/", "/uploads/", "/ddragon/", "/objective-icons/", "/val-agent/", "/val-weapon/", "/val-map/", "/rb-card/", "/covers/"];
 function ovlAllowed(req, url) {
-  if (req.method !== "GET" && req.method !== "HEAD") return false;
   const p = url.pathname;
+  if (req.method === "POST") return p === "/api/observer/readings"; // an observer PC's screen readings (checked against the pairing code)
+  if (req.method !== "GET" && req.method !== "HEAD") return false;
+  if (p === "/api/observer/hello") return true; // "is a graphics PC here, and does it want a code?"
   if (p === "/events") return url.searchParams.get("kind") === "overlay"; // the live data stream, for overlays only
   return OVL_EXACT.has(p) || OVL_PREFIX.some(x => p.startsWith(x));
 }
 async function setOvlLan(on) {
-  if (!on) { if (ovlServer) { const s = ovlServer; ovlServer = null; await new Promise(r => { s.close(r); s.closeAllConnections && s.closeAllConnections(); }); } return; }
+  if (!on) { if (ovlServer) { const s = ovlServer; ovlServer = null; obsBeaconSync(); await new Promise(r => { s.close(r); s.closeAllConnections && s.closeAllConnections(); }); } return; }
   if (ovlServer) return;
   const srv = http.createServer((req, res) => {
     let url; try { url = new URL(req.url, "http://x"); } catch { res.writeHead(400); return res.end(); }
@@ -1187,11 +1197,79 @@ async function setOvlLan(on) {
     req.__ovl = true; server.emit("request", req, res);
   });
   await new Promise((resolve, reject) => { srv.once("error", reject); srv.listen(OVL_PORT, "0.0.0.0", () => { srv.removeListener("error", reject); resolve(); }); });
-  ovlServer = srv;
+  ovlServer = srv; obsBeaconSync();
   srv.on("error", err => log("Overlay network server error:", err.message));
   log(`Overlays for other PCs: listening on http://<this PC>:${OVL_PORT}/overlay`);
 }
 const ovlInfo = () => ({ on: !!ovlServer, port: OVL_PORT, ips: lanIps() });
+
+/* ------------------------------------------------ observer client (the design of Owen's League HUD, adapted)
+   The PC that makes the graphics (the "graphics PC") can take readings from the observer's PC: the observer PC runs the same Screen OCR
+   on its own copy of the game and sends what it reads here, instead of applying it locally. Pairing: the graphics PC shows a short code,
+   the observer types it once. The graphics PC announces itself on the network (UDP) so the observer can find it without typing an address.
+   Only readings are accepted from the network, and only with the code; nothing else can be changed from another PC. */
+const dgram = require("dgram");
+const OBS_DISC_PORT = +process.env.OBS_DISC_PORT || 7790;
+const obsIn = { at: 0, name: "", count: 0 };                     // graphics PC: the last reading that arrived
+const obsOut = { at: 0, ok: null, error: "", count: 0 };         // observer PC: the last reading it sent
+let obsBeacon = null, obsBeaconTimer = null, obsFinder = null;
+const obsSeen = new Map();                                       // observer PC: graphics PCs heard on the network
+const obsFails = new Map();                                      // graphics PC: wrong codes by address (8 a minute, then it waits)
+const obsCode = () => String(DB.settings.observerCode || "");
+function obsCodeOk(c) { const want = obsCode(), a = Buffer.from(String(c || "")), b = Buffer.from(want); return want.length >= 4 && a.length === b.length && crypto.timingSafeEqual(a, b); }
+function obsBroadcasts() {
+  const out = [];
+  Object.values(os.networkInterfaces()).forEach(l => (l || []).forEach(a => {
+    if (a.family !== "IPv4" || a.internal || !a.netmask) return;
+    const ip = a.address.split(".").map(Number), m = a.netmask.split(".").map(Number);
+    out.push(ip.map((x, i) => (x | (~m[i] & 255))).join("."));
+  }));
+  return out.length ? out : ["255.255.255.255"];
+}
+function obsBeaconSync() { // announce this PC while the network port is open and a code is set; stop otherwise
+  const want = !!(ovlServer && obsCode());
+  if (!want) { clearInterval(obsBeaconTimer); obsBeaconTimer = null; if (obsBeacon) { try { obsBeacon.close(); } catch { /* closed */ } obsBeacon = null; } return; }
+  if (obsBeacon) return;
+  obsBeacon = dgram.createSocket("udp4"); obsBeacon.on("error", () => {});
+  obsBeacon.bind(0, () => {
+    try { obsBeacon.setBroadcast(true); } catch { /* not allowed here */ }
+    const send = () => {
+      const msg = Buffer.from(JSON.stringify({ app: "chudhud", name: os.hostname(), port: OVL_PORT, edition: V.id || "std", v: require("./package.json").version }));
+      obsBroadcasts().forEach(b => { try { obsBeacon && obsBeacon.send(msg, OBS_DISC_PORT, b); } catch { /* the network went away */ } });
+    };
+    send(); obsBeaconTimer = setInterval(send, 3000); obsBeaconTimer.unref();
+  });
+}
+function obsFind() { // observer PC: listen for graphics PCs (starts the first time it is asked)
+  if (!obsFinder) {
+    obsFinder = dgram.createSocket({ type: "udp4", reuseAddr: true }); obsFinder.on("error", () => { try { obsFinder.close(); } catch { /* closed */ } obsFinder = null; });
+    obsFinder.on("message", (buf, rinfo) => { try { const j = JSON.parse(buf.toString("utf8")); if (j && j.app === "chudhud" && +j.port > 0) obsSeen.set(rinfo.address + ":" + j.port, { name: String(j.name || rinfo.address).slice(0, 60), address: rinfo.address, port: +j.port, edition: String(j.edition || ""), v: String(j.v || ""), at: Date.now() }); } catch { /* not ours */ } });
+    try { obsFinder.bind(OBS_DISC_PORT); } catch { obsFinder = null; }
+  }
+  const now = Date.now(), mine = lanIps(); [...obsSeen].forEach(([k, x]) => { if (now - x.at > 12000) obsSeen.delete(k); });
+  return [...obsSeen.values()].filter(x => !(mine.includes(x.address) && x.port === OVL_PORT)); // not this PC's own announcement
+}
+// the observer PC's setting: { gfx: "http://10.0.0.5:7779", code, on }; while on, readings go there instead of into this PC's own events
+const obsLink = () => { const o = DB.settings.observer; return o && o.on && /^https?:\/\/[^/\s]+$/.test(String(o.gfx || "")) ? o : null; };
+function obsRequest(method, base, pth, body) {
+  return new Promise(resolve => {
+    let u; try { u = new URL(pth, base); } catch { return resolve({ status: 0, error: "That address doesn't look right." }); }
+    const data = body ? Buffer.from(JSON.stringify(body)) : null;
+    const req = http.request({ host: u.hostname, port: u.port || 80, path: u.pathname, method, timeout: 3000, headers: data ? { "content-type": "application/json", "content-length": data.length } : {} }, r => {
+      let t = ""; r.setEncoding("utf8"); r.on("data", c => (t += c)); r.on("end", () => { let j = null; try { j = t ? JSON.parse(t) : null; } catch { /* not json */ } resolve({ status: r.statusCode, json: j }); });
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout"))); req.on("error", e => resolve({ status: 0, error: e.code === "ECONNREFUSED" ? "Nothing answered there. Is the graphics PC's network switch on?" : e.code === "ETIMEDOUT" || e.message === "timeout" ? "No answer from that address." : e.message }));
+    if (data) req.write(data); req.end();
+  });
+}
+function observerSend(msg) { // observer PC -> graphics PC
+  const o = obsLink(); if (!o) return Promise.resolve(false);
+  return obsRequest("POST", o.gfx, "/api/observer/readings", { code: o.code, from: os.hostname(), msg }).then(r => {
+    obsOut.at = Date.now(); obsOut.ok = r.status === 200; obsOut.error = r.status === 200 ? "" : r.status === 403 ? "The graphics PC didn't accept the code." : r.error || "The graphics PC answered " + r.status + ".";
+    if (obsOut.ok) obsOut.count++; return obsOut.ok;
+  });
+}
+const obsStatus = () => ({ code: obsCode(), net: ovlInfo(), in: Object.assign({}, obsIn), link: DB.settings.observer || null, out: Object.assign({}, obsOut), found: obsFind(), electron: !!ocr, name: os.hostname() });
 function camLinks() {
   const ip = lanIps()[0] || "localhost", base = `https://${ip}:${CAM_PORT}`, mk = room => ({ room, url: `${base}/cam?r=${encodeURIComponent(room)}&t=${cams.tokenFor(room)}`, local: `/cam?r=${encodeURIComponent(room)}` });
   return { on: !!camServer, port: CAM_PORT, base, status: cams.status(), events: DB.events.map(ev => ({ id: ev.id, name: ev.name,
@@ -1327,6 +1405,8 @@ const server = http.createServer((req, res) => {
       return json(res, 200, { room, url: `https://${ip}:${CAM_PORT}/cam?r=${encodeURIComponent(room)}&t=${cams.tokenFor(room)}`, local: `/cam?r=${encodeURIComponent(room)}` });
     }
     if (p === "/api/ovl/lan") return json(res, 200, ovlInfo());
+    if (p === "/api/observer/hello") return json(res, 200, { app: "chudhud", name: os.hostname(), edition: V.id || "std", v: require("./package.json").version, open: !!obsCode() }); // also answered on the network port
+    if (p === "/api/observer/status") return json(res, 200, obsStatus());
     if (p === "/api/chat/status") return json(res, 200, Object.assign(twitch.status(), { event: chat.event, mode: chat.mode, voters: Object.fromEntries([...chat.voters].map(([k, m]) => [k, m.size])) }));
     if (p === "/" || p === "/dashboard") return sendFile(res, path.join(PUB, "app.html"));
     if (p === "/overlay") return sendFile(res, path.join(PUB, "overlay.html"));
@@ -1335,7 +1415,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const c = { res, kind: url.searchParams.get("kind") === "overlay" ? "overlay" : "dashboard" };
       clients.add(c);
-      sse(res, "db", { db: DB, by: "init", screens: screens() });
+      sse(res, "db", { db: c.kind === "overlay" ? dbForOverlay() : DB, by: "init", screens: screens() });
       feeds.forEach((f, key) => sse(res, "game", { key, game: f.game }));
       sse(res, "draft", draftNow());
       broadcastDb("screens");
@@ -1480,6 +1560,42 @@ const server = http.createServer((req, res) => {
           }
           case "/api/chat/open": { const err = chatOpen(String(body.event || ""), String(body.mode || ""), !!body.open); return err ? json(res, 400, { error: err }) : json(res, 200, { ok: true }); }
           case "/api/chat/clear": chatClear(String(body.event || ""), String(body.mode || ""), String(body.build || "")); return json(res, 200, { ok: true });
+          case "/api/observer/readings": { // from an observer PC (arrives on the network port too): only with the pairing code
+            const who = req.socket.remoteAddress || "?", fl = obsFails.get(who) || { n: 0, at: 0 };
+            if (Date.now() - fl.at > 60000) { fl.n = 0; }
+            if (fl.n >= 8) return json(res, 429, { error: "Too many wrong codes. Wait a minute." });
+            if (!obsCodeOk(body.code)) { fl.n++; fl.at = Date.now(); obsFails.set(who, fl); return json(res, 403, { error: "Wrong or missing code." }); }
+            obsIn.at = Date.now(); obsIn.name = String(body.from || "").slice(0, 60); obsIn.count++;
+            applyReadings([].concat(body.msg == null ? [] : body.msg).slice(0, 50));
+            return json(res, 200, { ok: true });
+          }
+          case "/api/observer/code": { // this PC is the graphics PC: switch the inbox on or off, or make a new code
+            if (body.on === false) { DB.settings.observerCode = ""; }
+            else if (!DB.settings.observerCode || body.renew) DB.settings.observerCode = String(crypto.randomInt(0, 1e6)).padStart(6, "0");
+            save();
+            const ready = DB.settings.observerCode ? setOvlLan(true).then(() => { DB.settings.ovlLan = true; save(); }) : Promise.resolve(); // the inbox lives on the network port
+            return ready.then(() => { obsBeaconSync(); json(res, 200, obsStatus()); }).catch(e => json(res, 500, { error: e.code === "EADDRINUSE" ? `Port ${OVL_PORT} is already in use.` : e.message }));
+          }
+          case "/api/observer/connect": { // this PC is the observer PC: pair with a graphics PC, or let go
+            if (body.on === false) { DB.settings.observer = Object.assign({}, DB.settings.observer, { on: false }); save(); return json(res, 200, obsStatus()); }
+            let gfx = String(body.gfx || "").trim().replace(/\/+$/, ""); if (gfx && !/^https?:\/\//i.test(gfx)) gfx = "http://" + gfx;
+            gfx = gfx.replace(/\/overlay.*$/i, "");
+            if (!/^https?:\/\/[^/\s]+$/.test(gfx)) return json(res, 400, { error: "Type the graphics PC's address, like 10.0.0.5:7779." });
+            const code = String(body.code || "").trim();
+            return obsRequest("GET", gfx, "/api/observer/hello").then(h => {
+              if (!(h.json && h.json.app === "chudhud")) return json(res, 400, { error: h.error || "That address didn't answer like Chud Hud. Check the address and that its network switch is on." });
+              if (!h.json.open) return json(res, 400, { error: "That Chud Hud isn't taking readings yet. On the graphics PC, switch on the observer inbox." });
+              return obsRequest("POST", gfx, "/api/observer/readings", { code, from: os.hostname(), msg: [] }).then(r => {
+                if (r.status === 403) return json(res, 400, { error: "That code isn't right." });
+                if (r.status !== 200) return json(res, 400, { error: r.error || "The graphics PC answered " + r.status + "." });
+                DB.settings.observer = { gfx, code, on: true }; obsOut.ok = true; obsOut.error = ""; obsOut.at = Date.now(); save(); json(res, 200, obsStatus());
+              });
+            });
+          }
+          case "/api/observer/send": { // a test: checks the link by sending an empty reading
+            if (!obsLink()) return json(res, 400, { error: "Not connected to a graphics PC." });
+            return observerSend(Array.isArray(body.msg) ? body.msg : []).then(ok => json(res, ok ? 200 : 502, ok ? obsStatus() : { error: obsOut.error || "The graphics PC didn't answer." }));
+          }
           case "/api/ovl/lan": {
             const on = !!body.on;
             return setOvlLan(on).then(() => { DB.settings.ovlLan = on; save(); json(res, 200, ovlInfo()); })

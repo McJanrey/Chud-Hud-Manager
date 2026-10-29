@@ -7,3 +7,9 @@ contextBridge.exposeInMainWorld("chudUpdate", {
   check: () => ipcRenderer.invoke("app:update-check"),       // look for an update now (the sidebar button)          // download, back up the data folder, install and restart
   onUpdate: cb => ipcRenderer.on("app:update", (_e, u) => cb(u)),
 });
+// the observer client: the graphics PC's HUD drawn over this PC's game, in a see-through window that lets clicks through
+contextBridge.exposeInMainWorld("chudObserver", {
+  showHud: url => ipcRenderer.invoke("app:hud-show", url),
+  hideHud: () => ipcRenderer.invoke("app:hud-hide"),
+  hudState: () => ipcRenderer.invoke("app:hud-state"),
+});
