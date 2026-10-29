@@ -743,6 +743,7 @@
 /* ---------------- broadcast pack (hud.js "broadcast pack"): 1280x720, MJ's reference layouts ---------------- */
 .bp-bg{position:absolute;inset:0;background:#0b2a1b;overflow:hidden}
 .bp-bg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.bp-bg.vid{background:transparent}.bp-bg.vid video{opacity:0}
 .bp-tk{position:absolute;left:0;right:0;bottom:0;height:44px;background:#02100a;border-top:2px solid var(--gold,#FDC82F);overflow:hidden;display:flex;align-items:center}
 .bp-tk .rl,.bp-run .rl{display:flex;width:max-content;animation:bpScroll linear infinite}
 .bp-tk .g,.bp-run .g{display:flex;align-items:center;flex:none}
@@ -881,7 +882,7 @@
 .v3-tb .rw .ul{display:flex;gap:3px;justify-content:center}.v3-tb .rw .ul i{width:7px;height:7px;transform:rotate(45deg);border:1px solid rgba(255,255,255,.5)}.v3-tb .rw .ul i.on{background:#fff;border-color:#fff}
 .v3-tb .rw .lo{height:100%;display:grid;place-items:center}.v3-tb .rw .lo img{max-width:96px;max-height:26px;object-fit:contain;filter:brightness(0) invert(1);opacity:.9}.v3-tb.r .rw .lo img{transform:scaleX(-1)}
 .v3-tb .rw .cr{font-size:12px;color:rgba(255,255,255,.85)}.v3-tb .rw.dead{opacity:.45}
-.v3-to{position:absolute;left:438px;top:293px;width:404px;height:132px;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 75%,#000) 0%,#05070c 100%);border:1px solid color-mix(in srgb,var(--c) 60%,#fff);display:flex;flex-direction:column;align-items:center;font-family:var(--v3-ui);font-weight:800;overflow:hidden}
+.v3-to{position:absolute;left:438px;top:293px;width:404px;height:132px;background:linear-gradient(180deg,var(--c) 0%,#05070c 100%);background:linear-gradient(180deg,color-mix(in srgb,var(--c) 75%,#000) 0%,#05070c 100%);border:1px solid #fff;border:1px solid color-mix(in srgb,var(--c) 60%,#fff);display:flex;flex-direction:column;align-items:center;font-family:var(--v3-ui);font-weight:800;overflow:hidden}
 .v3-to .ro{margin-top:9px;font-size:8.5px;letter-spacing:.2em}.v3-to .tn{margin-top:4px;font-size:8px}.v3-to .tn:first-child{margin-top:12px}
 .v3-to .big{flex:1;display:grid;place-items:center;font-family:var(--v3-cond);font-size:58px;font-weight:700;line-height:1;padding-top:6px;letter-spacing:-.01em}
 .v3-to .bar{position:relative;width:100%;height:25px;background:rgba(0,0,0,.55);border-top:1px solid rgba(255,255,255,.25)}
@@ -909,7 +910,7 @@
 @keyframes vcIn{from{opacity:0;transform:translateY(26px) scale(.96)}to{opacity:1;transform:none}}
 /* ROUND WIN banner */
 .v3-rw{position:absolute;left:376px;top:262px;width:528px;height:126px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--c) 38%,transparent) 30%,color-mix(in srgb,var(--c) 38%,transparent) 70%,transparent),rgba(5,8,12,.82);border:1px solid rgba(255,255,255,.22);
+  background:rgba(5,8,12,.82);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--c) 38%,transparent) 30%,color-mix(in srgb,var(--c) 38%,transparent) 70%,transparent),rgba(5,8,12,.82);border:1px solid rgba(255,255,255,.22);
   animation:rwIn .45s cubic-bezier(.2,.8,.2,1) both,rwOut .4s ease 3.6s forwards}
 .v3-rw .cn{position:absolute;width:12px;height:12px;border:2px solid rgba(255,255,255,.8)}.v3-rw .tl{left:8px;top:8px;border-right:0;border-bottom:0}.v3-rw .tr{right:8px;top:8px;border-left:0;border-bottom:0}.v3-rw .bl{left:8px;bottom:8px;border-right:0;border-top:0}.v3-rw .br{right:8px;bottom:8px;border-left:0;border-top:0}
 .v3-rw .rwh{display:flex;align-items:center;gap:14px;font-family:var(--v3-cond);font-size:26px;font-weight:600;color:rgba(255,255,255,.85);line-height:1}.v3-rw .rwh b{padding-top:4px}.v3-rw .lgbox{width:30px;height:30px}.v3-rw .lgbox .lg,.v3-rw .lgbox img{width:30px;height:30px;font-size:12px}
