@@ -34,6 +34,13 @@ const start = (dir, ports) => spawn(process.execPath, [path.join(__dirname, ".."
     r = await ask(G.ovl, "GET", "/api/observer/hello", null, "10.1.2.3:" + G.ovl);
     check("a network host name can ask hello, and it says the inbox is open", r.code === 200 && j(r).app === "chudhud" && j(r).open === true, r.body);
 
+    // HUD only: the observer PC connects with just the address (no code), and sends no readings
+    r = await ask(O.port, "POST", "/api/observer/connect", { gfx: `127.0.0.1:${G.ovl}`, code: "" });
+    check("connecting with no code works: this PC only shows the HUD", r.code === 200 && j(r).link && j(r).link.on === true && j(r).link.code === "", r.body);
+    r = await ask(O.port, "POST", "/api/observer/send", { msg: [] });
+    check("without a code it sends no readings", r.code === 400 && /HUD/.test(j(r).error || ""), r.body);
+    await ask(O.port, "POST", "/api/observer/connect", { on: false });
+
     // the observer PC finds the graphics PC by UDP, pairs (a wrong code first), and a reading it sends changes the graphics PC's game
     let found = []; for (let i = 0; i < 10 && !found.length; i++) { found = j(await ask(O.port, "GET", "/api/observer/status")).found || []; if (!found.length) await wait(1000); }
     check("the observer PC finds the graphics PC on the network", found.some(f => f.port === G.ovl), JSON.stringify(found));

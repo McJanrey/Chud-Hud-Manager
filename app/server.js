@@ -988,7 +988,7 @@ let ocr = null;
 function setOcrProvider(p) { ocr = p; }
 // OCR readings arrive as Stats API–shaped messages and go to every event that reads the screen (the OCR and Minecraft feeds).
 function applyReadings(msg) { for (const key of ["ocr", "mc"]) if (feeds.has(key)) inFeed(key, () => { game.connected = true; [].concat(msg).forEach(handleMessage); }); }
-function ocrIngest(msg) { if (obsLink()) { observerSend(msg); return; } /* observer PC: the graphics PC applies it */ applyReadings(msg); }
+function ocrIngest(msg) { if (obsForward()) { observerSend(msg); return; } /* observer PC: the graphics PC applies it */ applyReadings(msg); }
 
 /* -------------------------------------------- League replay and game config */
 function lolHttp(method, pth, body) {
@@ -1226,8 +1226,8 @@ function obsBroadcasts() {
   }));
   return out.length ? out : ["255.255.255.255"];
 }
-function obsBeaconSync() { // announce this PC while the network port is open and a code is set; stop otherwise
-  const want = !!(ovlServer && obsCode());
+function obsBeaconSync() { // announce this PC while the network port is open (so an observer can find it); stop otherwise
+  const want = !!ovlServer;
   if (!want) { clearInterval(obsBeaconTimer); obsBeaconTimer = null; if (obsBeacon) { try { obsBeacon.close(); } catch { /* closed */ } obsBeacon = null; } return; }
   if (obsBeacon) return;
   obsBeacon = dgram.createSocket("udp4"); obsBeacon.on("error", () => {});
@@ -1251,6 +1251,7 @@ function obsFind() { // observer PC: listen for graphics PCs (starts the first t
 }
 // the observer PC's setting: { gfx: "http://10.0.0.5:7779", code, on }; while on, readings go there instead of into this PC's own events
 const obsLink = () => { const o = DB.settings.observer; return o && o.on && /^https?:\/\/[^/\s]+$/.test(String(o.gfx || "")) ? o : null; };
+const obsForward = () => { const o = obsLink(); return o && o.code ? o : null; }; // readings only go with a code; without one the link just shows the HUD
 function obsRequest(method, base, pth, body) {
   return new Promise(resolve => {
     let u; try { u = new URL(pth, base); } catch { return resolve({ status: 0, error: "That address doesn't look right." }); }
@@ -1263,7 +1264,7 @@ function obsRequest(method, base, pth, body) {
   });
 }
 function observerSend(msg) { // observer PC -> graphics PC
-  const o = obsLink(); if (!o) return Promise.resolve(false);
+  const o = obsForward(); if (!o) return Promise.resolve(false);
   return obsRequest("POST", o.gfx, "/api/observer/readings", { code: o.code, from: os.hostname(), msg }).then(r => {
     obsOut.at = Date.now(); obsOut.ok = r.status === 200; obsOut.error = r.status === 200 ? "" : r.status === 403 ? "The graphics PC didn't accept the code." : r.error || "The graphics PC answered " + r.status + ".";
     if (obsOut.ok) obsOut.count++; return obsOut.ok;
@@ -1584,7 +1585,8 @@ const server = http.createServer((req, res) => {
             const code = String(body.code || "").trim();
             return obsRequest("GET", gfx, "/api/observer/hello").then(h => {
               if (!(h.json && h.json.app === "chudhud")) return json(res, 400, { error: h.error || "That address didn't answer like Chud Hud. Check the address and that its network switch is on." });
-              if (!h.json.open) return json(res, 400, { error: "That Chud Hud isn't taking readings yet. On the graphics PC, switch on the observer inbox." });
+              if (!code) { DB.settings.observer = { gfx, code: "", on: true }; obsOut.ok = null; obsOut.error = ""; save(); return json(res, 200, obsStatus()); } // no code: this PC only shows the HUD
+              if (!h.json.open) return json(res, 400, { error: "That Chud Hud isn't taking readings yet. On the graphics PC, switch on the observer inbox, or leave the code empty to only show the HUD." });
               return obsRequest("POST", gfx, "/api/observer/readings", { code, from: os.hostname(), msg: [] }).then(r => {
                 if (r.status === 403) return json(res, 400, { error: "That code isn't right." });
                 if (r.status !== 200) return json(res, 400, { error: r.error || "The graphics PC answered " + r.status + "." });
@@ -1594,6 +1596,7 @@ const server = http.createServer((req, res) => {
           }
           case "/api/observer/send": { // a test: checks the link by sending an empty reading
             if (!obsLink()) return json(res, 400, { error: "Not connected to a graphics PC." });
+            if (!obsForward()) return json(res, 400, { error: "Connected without a code: this PC only shows the HUD. Add the code to send screen readings." });
             return observerSend(Array.isArray(body.msg) ? body.msg : []).then(ok => json(res, ok ? 200 : 502, ok ? obsStatus() : { error: obsOut.error || "The graphics PC didn't answer." }));
           }
           case "/api/ovl/lan": {
