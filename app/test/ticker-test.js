@@ -54,7 +54,7 @@ check("the player in the action shows K/D/A on the name band", /<em>\$\{\+p\.kil
 
 check("the sidebar follows BLOB's order: Overview and HUD Editor, Event setup, Live game with Camera feed right after Live Game", html.includes('link("overview")+link("hud")') && html.includes('grp("Event setup",["teams","tournament","talent"])') && html.includes('grp("Live game",["live","camera",'));
 
-check("Screen OCR offers only what suits the game (no Dead by Daylight survivors on Fortnite, no world border on VALORANT)", html.includes('"Fortnite":["fnPlace","fnElims","clock","custom"]') && html.includes('"Dead by Daylight":["dbdGens"') && html.includes('"Valorant":[...OCR_BASE,"phase"]') && html.includes("ocrRoleKeys().map") && html.includes("ocrRoleKeys(r.key).map") && html.includes("ocrLayoutKeys().map"));
+check("Screen OCR offers only what suits the game (no Dead by Daylight survivors on Fortnite, no world border on VALORANT)", html.includes('"Fortnite":["fnPlace","fnElims","clock","custom"]') && html.includes('"Dead by Daylight":["dbdGens"') && html.includes('"Valorant":[...OCR_BASE,"phase",...VAL_ROWS]') && html.includes("ocrRoleKeys().map") && html.includes("ocrRoleKeys(r.key).map") && html.includes("ocrLayoutKeys().map"));
 check("the tick panels can be dragged by their title bar", html.includes('d.target.closest(".tkh")') && html.includes("const TKPOS={}") && html.includes("tkStyle(k)"));
 check("VALORANT and the 2v2 Skirmish are two games in the list, each with its own team size", html.includes('const isVal=g=>g==="Valorant"||g==="Valorant 2v2 Skirmish"') && html.includes('"Valorant","Valorant 2v2 Skirmish"') && server.includes('"Valorant": 5, "Valorant 2v2 Skirmish": 2'));
 
