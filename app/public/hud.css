@@ -987,7 +987,7 @@
 .lsch .bar .ev{left:197px;top:36px;width:326px;height:50px;display:flex;align-items:center;justify-content:center;font:600 58px/1 "Teko",sans-serif;color:#dc8744;letter-spacing:.01em}
 .lsch .bar .nx{left:0;top:0;width:100%;height:100%;text-align:center}
 .lsch .bar .nx b{position:absolute;display:block;margin:0;white-space:nowrap;overflow:hidden}
-.lsch .bar .nx b:first-child{left:676px;width:123px;top:32.5px;height:40px;font:600 34px/1 "Teko",sans-serif;color:#dc8744;text-align:center}
+.lsch .bar .nx b:first-child{left:602px;width:271px;top:32.5px;height:40px;font:600 34px/1 "Teko",sans-serif;color:#dc8744;text-align:center}
 .lsch .bar .nx .un{left:956px;width:102px;top:43px;height:30px;font:800 italic 14px/30px "Montserrat",sans-serif;color:#fff;text-align:center;margin:0}
 .lsch .bp-tk{top:auto;bottom:0;left:0;right:0;height:63.3px;background:#232323;border:0}
 .lsch .bp-tk span,.l3d ~ .bp-tk span{font:800 italic 25px/1 "Montserrat",sans-serif;letter-spacing:.02em;color:#fff;padding:0 56px;text-transform:none}
