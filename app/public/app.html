@@ -1515,12 +1515,14 @@ document.addEventListener("drop",ev0=>{const dz=ev0.target.closest(".dz");if(!dz
 const OCR_ROLES={score0:["Left score","number"],score1:["Right score","number"],clock:["Game clock","time"],name0:["Left team name","text"],name1:["Right team name","text"],
   alive:["Players alive","number"],total:["Players total","number"],kills:["Kills","number"],border:["World border","number"],theme:["Build theme","text"],phase:["Round phase","text"],custom:["Custom text","text"],
   fnPlace:["Fortnite: placement","number"],fnElims:["Fortnite: eliminations","number"],dbdGens:["Dead by Daylight: generators done","number"],
-  dbdS1:["DBD survivor 1 result","text"],dbdS2:["DBD survivor 2 result","text"],dbdS3:["DBD survivor 3 result","text"],dbdS4:["DBD survivor 4 result","text"]};
+valName1:["Scoreboard row 1: name","text"],valUlt1:["Scoreboard row 1: ultimate points","number"],valCr1:["Scoreboard row 1: credits","number"],valName2:["Scoreboard row 2: name","text"],valUlt2:["Scoreboard row 2: ultimate points","number"],valCr2:["Scoreboard row 2: credits","number"],valName3:["Scoreboard row 3: name","text"],valUlt3:["Scoreboard row 3: ultimate points","number"],valCr3:["Scoreboard row 3: credits","number"],valName4:["Scoreboard row 4: name","text"],valUlt4:["Scoreboard row 4: ultimate points","number"],valCr4:["Scoreboard row 4: credits","number"],
+    dbdS1:["DBD survivor 1 result","text"],dbdS2:["DBD survivor 2 result","text"],dbdS3:["DBD survivor 3 result","text"],dbdS4:["DBD survivor 4 result","text"]};
 /* Only what suits the event's game is offered: a Fortnite event never lists Dead by Daylight's survivors, VALORANT never lists the Minecraft world border. A box already set to something else keeps its own entry. */
 const OCR_BASE=["score0","score1","clock","name0","name1","custom"];
-const OCR_GAME_ROLES={"Valorant":[...OCR_BASE,"phase"],"Valorant 2v2 Skirmish":[...OCR_BASE,"phase"],"Minecraft":["alive","total","kills","clock","border","theme","phase","custom"],"Fortnite":["fnPlace","fnElims","clock","custom"],"Dead by Daylight":["dbdGens","dbdS1","dbdS2","dbdS3","dbdS4","clock","custom"]};
-const OCR_GAME_LAYOUTS={"Minecraft":["mchg","mcbb"],"Fortnite":["fn"],"Dead by Daylight":["dbd"]};
-const OCR_LAYOUT_NAME={top:"Top-centre scorebar",corners:"Scores in the top corners",fn:"Fortnite: match results screen",dbd:"Dead by Daylight: trial tally screen",mchg:"Hunger Games HUD",mcbb:"Build Battle HUD"};
+const VAL_ROWS=[1,2,3,4].flatMap(n=>["valName"+n,"valUlt"+n,"valCr"+n]);
+const OCR_GAME_ROLES={"Valorant":[...OCR_BASE,"phase",...VAL_ROWS],"Valorant 2v2 Skirmish":[...OCR_BASE,"phase",...VAL_ROWS],"Minecraft":["alive","total","kills","clock","border","theme","phase","custom"],"Fortnite":["fnPlace","fnElims","clock","custom"],"Dead by Daylight":["dbdGens","dbdS1","dbdS2","dbdS3","dbdS4","clock","custom"]};
+const OCR_GAME_LAYOUTS={"Valorant":["val","top","corners"],"Valorant 2v2 Skirmish":["val","top","corners"],"Minecraft":["mchg","mcbb"],"Fortnite":["fn"],"Dead by Daylight":["dbd"]};
+const OCR_LAYOUT_NAME={val:"VALORANT spectator: top bar and Tab scoreboard",top:"Top-centre scorebar",corners:"Scores in the top corners",fn:"Fortnite: match results screen",dbd:"Dead by Daylight: trial tally screen",mchg:"Hunger Games HUD",mcbb:"Build Battle HUD"};
 const ocrRoleKeys=cur=>{const e=ev(),k=(e&&OCR_GAME_ROLES[e.game])||OCR_BASE;return cur&&!k.includes(cur)&&OCR_ROLES[cur]?[...k,cur]:k};
 const ocrLayoutKeys=()=>{const e=ev();return(e&&OCR_GAME_LAYOUTS[e.game])||["top","corners"]};
 // starting positions only (fractions of the frame; a 6th value turns on pixel-font reading): every game's HUD is different
@@ -1529,6 +1531,9 @@ const OCR_LAYOUTS={
   corners:[["score0",.05,.03,.06,.07],["score1",.89,.03,.06,.07],["clock",.47,.02,.06,.05]],
   mchg:[["alive",.93,.36,.05,.04,1],["kills",.93,.405,.05,.04,1],["clock",.92,.45,.06,.04,1],["border",.93,.495,.05,.04,1]],
   mcbb:[["theme",.40,.03,.20,.05,1],["clock",.46,.085,.08,.045,1],["phase",.40,.14,.20,.04,1]],
+  // from a 1920 x 1080 spectator screenshot: the two scores in the top bar and the first Tab scoreboard row; the rows below it are spaced to match, so line them up with Test
+  val:[["score0",.4125,.03,.030,.04],["score1",.5575,.03,.030,.04],["clock",.4675,.025,.065,.05],
+    ...[0,1,2,3].flatMap(i=>{const y=.4855+i*.0335;return[["valName"+(i+1),.3325,y,.0975,.028],["valUlt"+(i+1),.4425,y,.0155,.028],["valCr"+(i+1),.6365,y,.033,.028]]})],
   fn:[["fnPlace",.44,.30,.12,.09],["fnElims",.44,.44,.12,.07]],
   dbd:[["dbdS1",.62,.28,.16,.05],["dbdS2",.62,.36,.16,.05],["dbdS3",.62,.44,.16,.05],["dbdS4",.62,.52,.16,.05],["dbdGens",.30,.30,.06,.06]]};
 let OCR={available:true,shown:[],sel:null},ocrTimer=null,ocrSaveT=null,ocrBusy=false;

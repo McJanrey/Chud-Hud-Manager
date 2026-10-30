@@ -116,7 +116,7 @@
       assister: find(game.lastGoal.assister) || game.lastGoal.assister, kmh: game.lastGoal.kmh } : null;
     const mvp = all.slice().sort((a, b) => b.score - a.score)[0];
     return {
-      ev, live, kind, lol: game && game.lol, mc: game && game.mc, mcOcr: game && game.mcOcr, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
+      ev, live, kind, lol: game && game.lol, mc: game && game.mc, mcOcr: game && game.mcOcr, valOcr: game && game.valOcr, sides, tracked, players, all, score, colors, feed, goal, lastGoal, mvp,
       series: l.series, focus: live ? find(game.target) : null, action, actionLast,
       clock: live || hasClock ? game.time : 300, clockLive: live || hasClock, clockAt: (game && game.clockAt) || 0, squad: size, ot: !!(game && game.overtime), replay: !!(game && game.replay), podium: !!(game && game.podium),
       connected: !!(game && game.connected), source: game ? game.source : "",
@@ -958,6 +958,23 @@
     [0, 1].forEach(s => m.players[s].forEach((p, i) => { const u = camUrlOf(m.ev, p); if (u) cams.push({ key: "pc-" + s + "-" + i + u, url: u, x: s ? 928 : 236, y: Math.round(top + i * VAL_PITCH), w: 116, h: 65 }); }));
     return { html, cams };
   }
+  // What the operator typed for each player (val.p), with the numbers read off the Tab scoreboard laid over it: a row is matched to its player by name,
+  // and only fresh readings count (the scoreboard is only up now and then, so a number is kept for 20 seconds).
+  const valStats = m => {
+    const v = m.ev.val || {}, typed = v.p && typeof v.p === "object" ? v.p : {}, o = m.valOcr;
+    if (!o || Date.now() - o.t > 20000) return typed;
+    const out = Object.assign({}, typed);
+    for (let n = 1; n <= 9; n++) {
+      const nm = o["valName" + n]; if (!nm) continue;
+      const p = m.players[0].concat(m.players[1]).find(q => q && q.pid && nameMatches(noTag(q.display), nm));
+      if (!p) continue;
+      const row = Object.assign({}, out[p.pid]);
+      if (o["valUlt" + n] != null) row.ult = Math.max(0, Math.min(9, +o["valUlt" + n] || 0));
+      if (o["valCr" + n] != null) row.cr = +o["valCr" + n];
+      out[p.pid] = row;
+    }
+    return out;
+  };
   S.valingame = (m) => {
     const ev = m.ev, sh = ev.hud.show, v = ev.val || {}, [L, R] = m.sides, info = valInfo(m);
     const vs = ["buy", "timeout"].includes(v.state) ? v.state : "main"; // HUD state: buy and timeout swap the side panels for the buy-round board
@@ -992,7 +1009,7 @@
     // player panels, bottom-anchored; a padded "Player N" seat (shortcut 0) is never drawn. HP, ultimate, gun and credits are what the
     // operator types on the Skirmish page (a live feed's own values win if one ever sends them); HP starts at 100 and is 0 when out.
     if (sh.boost !== false && vs === "main") {
-      const top = 720 - info.squad * VAL_PITCH, stats = (v.p && typeof v.p === "object") ? v.p : {};
+      const top = 720 - info.squad * VAL_PITCH, stats = valStats(m);
       [0, 1].forEach(s => m.players[s].forEach((p, i) => {
         const name = p ? noTag(p.display) : "";
         if (!name || p.shortcut === 0) return; // no padded seat, and no seat nobody has named yet
@@ -1031,7 +1048,7 @@
   /* Buy-round board: the main sponsor, the round history and the event's emblem over two player tables (agent, name, K/D/A,
      ultimate, gun, credits). Abilities and shields have no source (no live VALORANT feed), so they are not drawn. */
   function valBoard(m, info) {
-    const ev = m.ev, v = ev.val || {}, stats = v.p && typeof v.p === "object" ? v.p : {}, n = info.squad, RH = 37.4, top = 713 - n * RH;
+    const ev = m.ev, v = ev.val || {}, stats = valStats(m), n = info.squad, RH = 37.4, top = 713 - n * RH;
     const regs = n === 2 ? 2 * info.target - 1 : 2 * info.target - 2, rounds = Array.isArray(v.rounds) ? v.rounds : [], cols = Math.max(regs, rounds.length);
     const tag = s => esc(String((m.sides[s] && (m.sides[s].tag || m.sides[s].name)) || (s ? "B" : "A")).slice(0, 5).toUpperCase());
     const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), main = sp.find(x => x.type === "main") || sp[0], emb = (ev.tournament.logos || []).find(Boolean);

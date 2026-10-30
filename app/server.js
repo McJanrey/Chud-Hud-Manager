@@ -348,6 +348,10 @@ function handleMessage(msg) {
       game.gameOcr = Object.assign({}, d.values || {}, { t: Date.now() });
       break;
     }
+    case "ValOcr": { // VALORANT's Tab scoreboard rows (name, ultimate points, credits); the HUD matches each row to a player by name
+      game.valOcr = Object.assign({}, d.values || {}, { t: Date.now() });
+      break;
+    }
     case "McOcr": { // values read from a Minecraft screen: alive, total, kills, border, clock, theme, phase
       game.mcOcr = Object.assign({}, d.values || {}, { t: Date.now() });
       break;
