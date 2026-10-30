@@ -451,6 +451,7 @@
     rankings: { bg: true, title: true, logos: true, banner: false, ticker: false },
     agents: { bg: false, map: true, lineup: true },
   };
+  const up = t => esc(String(t).toUpperCase());
   const so = (ev, sc) => Object.assign({}, SC_DEF[sc], ((ev.hud || {}).sc || {})[sc]);
   const bpClock = () => { try { return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).toUpperCase(); } catch { return ""; } };
   const tickerMsgs = ev => String((ev.lowerThird || {}).ticker || "").split(/\n|\|/).map(s => s.trim()).filter(Boolean);
@@ -532,7 +533,7 @@
     const nextTxt = nextUp ? esc(String(nextUp.time || nextUp.label || "UP NEXT").toUpperCase()) : "UP NEXT";
     let h = bpBg(o);
     h += `<div class="lsch" data-k="lsch"><div class="vid"></div><img class="lhd" src="/brand/lotd/sch-head.png" alt=""><img class="pl" src="/brand/lotd/sch-planks.png" alt="">${cards || `<div class="lc" style="top:133.3px"><small>NOTHING SCHEDULED</small></div>`}
-      ${o.match ? `<div class="bar"><img src="/brand/lotd/sch-bar.png" alt=""><b class="ev" data-fit>${esc(String(ev.tournament.name || ev.name || "").toUpperCase())}</b><div class="nx"><b data-fit>${(ev.lowerThird || {}).title ? mt.t : esc(String(ev.game).toUpperCase())}</b><b class="un" data-fit>UP NEXT</b></div></div>` : ""}
+      ${o.match ? `<div class="bar"><img src="/brand/lotd/sch-bar.png" alt=""><b class="ev" data-fit>${up(o.eventText || ev.tournament.name || ev.name || "")}</b><div class="nx"><b data-fit>${o.gameText ? up(o.gameText) : (ev.lowerThird || {}).title ? mt.t : esc(String(ev.game).toUpperCase())}</b><b class="un" data-fit>${up(o.nextText || "UP NEXT")}</b></div></div>` : ""}
       ${o.ticker ? bpTicker(ev, true) : ""}</div>`;
     return { html: h, cams: [] };
   }
@@ -543,8 +544,8 @@
       return `<div class="card" data-k="sc${i}"><b>${esc(String(x.label || "MATCH " + (i + 1)).toUpperCase())}</b><em>${esc(String(ev.game).toUpperCase())}</em>
         <small>${esc((a ? a.name : "TBD").toUpperCase())} VS. ${esc((b ? b.name : "TBD").toUpperCase())}${done ? ` · ${esc(x.sa)}-${esc(x.sb)}` : ""}</small><small class="tm">${esc(String(x.time || "").toUpperCase())}</small></div>`; }).join("");
     let h = `${bpBg(o)}<div class="bp-frame" data-k="bp-frame"></div>
-      <div class="bp-sch" data-k="bp-sch"><em>UPCOMING</em><b>SCHEDULE</b>${cards || `<div class="card"><small>NO MATCHES SCHEDULED</small></div>`}</div>${bpSponsor(ev, "big")}
-      <div class="bp-bar" data-k="bp-bar"><div class="ck"><b class="num">${esc(bpClock())}</b><small>LOCAL TIME</small></div>
+      <div class="bp-sch" data-k="bp-sch"><em>${up(o.upText || "UPCOMING")}</em><b>${up(o.headText || "SCHEDULE")}</b>${cards || `<div class="card"><small>NO MATCHES SCHEDULED</small></div>`}</div>${bpSponsor(ev, "big")}
+      <div class="bp-bar" data-k="bp-bar"><div class="ck"><b class="num">${esc(bpClock())}</b><small>${up(o.clockText || "LOCAL TIME")}</small></div>
         <div class="sb">${L && R && !["mc", "rb", "fn"].includes(m.kind) ? `${lg(L)}<b class="tg">${tagOf(L, 0, m.kind)}</b><b class="num sc">${+m.series[0] || 0}</b><i></i><b class="num sc">${+m.series[1] || 0}</b><b class="tg">${tagOf(R, 1, m.kind)}</b>${lg(R)}` : ""}</div>
         ${o.match ? `<div class="mt"><b>${mt.t}</b><small>${mt.s}</small></div>` : ""}</div>`;
     if (o.ticker) h += bpTicker(ev, true);
@@ -1562,7 +1563,8 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s) + bugOverlay(ev); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
-  const api = { SCENES, SC_DEF, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, timerShow, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
+  const SCHED_TEXT = () => EDITION === "lotd" ? [["eventText", "Event name"], ["gameText", "Game"], ["nextText", "Up next label"]] : [["upText", "Small heading (UPCOMING)"], ["headText", "Heading (SCHEDULE)"], ["clockText", "Clock label (LOCAL TIME)"]];
+  const api = { SCENES, SC_DEF, SCHED_TEXT, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, timerShow, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

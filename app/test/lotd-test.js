@@ -53,5 +53,11 @@ const grey = /fillStyle = \(\(x \+ y\) \/ 40\) % 2 \? "#([0-9a-f]{6})" : "#([0-9
 check("the Transparent preview backdrop is a visible checkerboard (not two near-black greys)", !!grey && grey.slice(1).every(c => parseInt(c.slice(0, 2), 16) > 0x50), grey && grey.slice(1).join());
 check("switching the scene applies at once (no Save Changes)", /const LIVE_FIELDS=new Set\(\["hud\.scene"\]\)/.test(html) && /if\(LIVE_FIELDS\.has\(p\)\|\|LIVE_SC\.test\(p\)\)\{put\(p,v\)/.test(html));
 
+// every text on the Schedule can be typed in the HUD Editor's Match Text panel
+const st = (o) => draw(mk(e => { e.hud.sc = { schedule: o }; }));
+check("the Schedule's event name, game and UP NEXT label can be typed", (x => />MY EVENT</.test(x) && />MY GAME</.test(x) && />WHO IS NEXT</.test(x) && !/>UP NEXT</.test(x) && !/>LAN OF THE DEAD 2026<\/b><div class="nx">/.test(x))(st({ eventText: "my event", gameText: "my game", nextText: "who is next" })));
+check("the Match Text panel lists those fields on the Schedule and Reset clears them", /SaintsHUD\.SCHED_TEXT\(\)\.map/.test(html) && /for\(const\[f\]of SaintsHUD\.SCHED_TEXT\(\)\)await put\(`hud\.sc\.schedule\.\$\{f\}`,""\)/.test(html) && HUD.SCHED_TEXT().length === 3);
+check("the Bottom Announcement shows what scrolls when Line 1 is empty", /data-tkline="1" value="\$\{esc\(t\.l1\)\}" placeholder="\$\{esc\(e\.tournament\.name/.test(html));
+
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nLOTD TEST PASS");
 process.exit(failures ? 1 : 0);

@@ -63,7 +63,7 @@ function put(path,value,eventScoped=true){
 /* Unsaved changes. Typing in a field only changes this screen (the previews show it); nothing reaches the overlay until Save
    Changes. Buttons (scores, timers, scene switches) still act at once, because they are live controls. */
 const PENDING=new Map(); // "event id|path" -> { ev, path, value, area }
-const LIVE_SC=/^(?:hud\.bug\.\w+|hud\.sc\.\w+\.(bgColor|topText|bannerImg|teamText|titleText|countLabel|img|statLabels\.\d|side|pid|source|rows\.\d|imgMode|teamPic|mode|text|hh|mm|ss|ap))$/; // the tick panels' fields act at once too
+const LIVE_SC=/^(?:hud\.bug\.\w+|hud\.sc\.\w+\.(bgColor|topText|bannerImg|teamText|titleText|countLabel|img|statLabels\.\d|side|pid|source|rows\.\d|imgMode|teamPic|mode|text|hh|mm|ss|ap|eventText|gameText|nextText|upText|headText|clockText))$/; // the tick panels' fields act at once too
 const LIVE_FIELDS=new Set(["hud.scene"]); // fields that switch what is on air; picking one never waits for Save Changes
 function stageEdit(path,value){
   const e=ev();if(!e)return;
@@ -1041,7 +1041,7 @@ function tkPanel(e){
   if(k==="ticker"){const t=SaintsHUD.tickerLines(e),sp=SaintsHUD.tickerSpeed(e);
     return`<div class="tkp"${tkStyle(k)} role="dialog" aria-label="Bottom Announcement"><div class="tkh"><b>Bottom Announcement</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="ticker" title="Reset" aria-label="Reset the bottom announcement">${ico("reset")}</button></div>
       <div class="tkb"><div class="tkrow"><span>Speed</span><output id="tkSpeedV">${sp}</output></div><input type="range" class="tkrange" min="10" max="200" step="1" value="${sp}" data-tkspeed aria-label="Speed">
-      <label class="tkf"><span>Line 1</span><input type="text" data-tkline="1" value="${esc(t.l1)}" maxlength="140" autocomplete="off"></label>
+      <label class="tkf"><span>Line 1</span><input type="text" data-tkline="1" value="${esc(t.l1)}" placeholder="${esc(e.tournament.name||e.name||"")}" maxlength="140" autocomplete="off"></label>
       <label class="tkf"><span>Line 2</span><input type="text" data-tkline="2" value="${esc(t.l2)}" maxlength="140" autocomplete="off"></label></div></div>`}
   if(k!=="match"){const sc=e.hud.scene,Z=TKP_FIELDS[k];
     return`<div class="tkp"${tkStyle(k)} role="dialog" aria-label="${Z.t}"><div class="tkh"><b>${Z.t}</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="${k}" title="Reset" aria-label="Reset ${Z.t}">${ico("reset")}</button></div>
@@ -1049,7 +1049,7 @@ function tkPanel(e){
   const g=e.live||{};
   return`<div class="tkp"${tkStyle(k)} role="dialog" aria-label="Match Text"><div class="tkh"><b>Match Text</b><button class="btn icon sm ghost" type="button" data-act="tkReset" data-arg="match" title="Reset" aria-label="Reset the match text">${ico("reset")}</button></div>
     <div class="tkb"><label class="tkf"><span>Title</span><input type="text" data-tktext="title" value="${esc(L.title||"")}" placeholder="${esc(e.tournament.name||e.game||"")}" maxlength="80" autocomplete="off"></label>
-    <label class="tkf"><span>Subtitle</span><input type="text" data-tktext="subtitle" value="${esc(L.subtitle||"")}" placeholder="${esc(g.roundTitle||g.gameSeries||"")}" maxlength="80" autocomplete="off"></label></div></div>`;
+    <label class="tkf"><span>Subtitle</span><input type="text" data-tktext="subtitle" value="${esc(L.subtitle||"")}" placeholder="${esc(g.roundTitle||g.gameSeries||"")}" maxlength="80" autocomplete="off"></label>${e.hud.scene==="schedule"?SaintsHUD.SCHED_TEXT().map(([f,l])=>{const p=`hud.sc.schedule.${f}`;return`<label class="tkf"><span>${l}</span><input type="text" data-bind="${p}" value="${esc(get(E,p)||"")}" maxlength="60" autocomplete="off"></label>`}).join(""):""}</div></div>`;
 }
 function tkEdit(el){
   const e=ev();if(!e)return;const L=Object.assign({},e.lowerThird||{});
@@ -1410,7 +1410,7 @@ document.addEventListener("click",async ev0=>{
     case "tkReset":{
       if(arg==="stats"){for(const[p,v]of[["source",""],["side",-1],["pid",""],["rows",{}]])await put("hud.sc.statsplayer."+p,v);render();break}
       if(arg==="lineup"){for(const[p,v]of[["ids",null],["side",0],["imgMode","players"],["teamPic",""]])await put("hud.sc.lineup."+p,v);render();break}
-      if(arg==="timer"){for(const[p,v]of[["mode","text"],["text",""],["hh",12],["mm",0],["ss",0],["ap","PM"]])await put("hud.sc.timer."+p,v);render();break}if(arg!=="ticker"&&arg!=="match"){const sc=e.hud.scene;for(const[f]of (TKP_FIELDS[arg]||{f:[]}).f)await put(`hud.sc.${sc}.${f}`,"");render();break}const L=Object.assign({},e.lowerThird||{});if(arg==="ticker"){L.line1="";L.line2="";L.lineMore=[];L.ticker="";L.tickerSpeed=60}else{L.title="";L.subtitle=""}put("lowerThird",L);render();break}
+      if(arg==="timer"){for(const[p,v]of[["mode","text"],["text",""],["hh",12],["mm",0],["ss",0],["ap","PM"]])await put("hud.sc.timer."+p,v);render();break}if(arg!=="ticker"&&arg!=="match"){const sc=e.hud.scene;for(const[f]of (TKP_FIELDS[arg]||{f:[]}).f)await put(`hud.sc.${sc}.${f}`,"");render();break}const L=Object.assign({},e.lowerThird||{});if(arg==="ticker"){L.line1="";L.line2="";L.lineMore=[];L.ticker="";L.tickerSpeed=60}else{L.title="";L.subtitle="";if(e.hud.scene==="schedule")for(const[f]of SaintsHUD.SCHED_TEXT())await put(`hud.sc.schedule.${f}`,"")}put("lowerThird",L);render();break}
     case "valAllAlive":put("val.dead",{});put("val.aliveUsed",false);break;
     case "dbdAdd":{const t=e.dbd.trials,last=t[t.length-1];put("dbd.trials",[...t,{killer:last?1-last.killer:0,kills:0,escapes:0,gens:0}]);break}
     case "dbdFromOcr":{const v=gameOcr();if(!v)break;const r=dbdRead(v);put("dbd.trials",[...e.dbd.trials,{killer:+arg,kills:r.kills,escapes:r.escapes,gens:r.gens}]);toast("Trial added from the screen.");break}
