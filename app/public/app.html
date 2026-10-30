@@ -530,8 +530,13 @@ ads(e){
 },
 graphics(e){
   const t=e.timer,rem=t.endsAt?Math.max(0,Math.round((t.endsAt-Date.now())/1000)):t.remaining;
-  return`<div class="halves"><div class="sec"><div class="sec"><h2>Lower third</h2>${F.text("lowerThird.label","Clock label (under the time)","LOCAL TIME")}
-    <p class="note">The bottom announcement (speed and two lines) and the match text (title and subtitle) are in the <b>HUD Editor</b>: pick a scene and click <b>Bottom Announcement</b> or <b>Match Text</b> above the preview.</p>
+  return`<div class="halves"><div class="sec"><div class="sec"><h2>Lower third</h2><p class="note">Every change here shows at once. Leave a box empty to use the automatic text (shown greyed).</p>
+    ${(()=>{const L=e.lowerThird||{},g=e.live||{},tl=SaintsHUD.tickerLines(e),tx=(l,a,v,ph)=>`<label class="fld"><span>${l}</span><input type="text" ${a} value="${esc(v)}" placeholder="${esc(ph)}" maxlength="140" autocomplete="off"></label>`;
+      return`<div class="cols" style="--n:2">${tx("Title",'data-tktext="title"',L.title||"",e.tournament.name||e.game||"")}${tx("Subtitle",'data-tktext="subtitle"',L.subtitle||"",g.roundTitle||g.gameSeries||"")}</div>
+      ${tx("Clock label (under the time)",'data-tktext="label"',L.label||"","LOCAL TIME")}
+      ${SaintsHUD.SCENE_TEXT("lowerthird").map(([f,l])=>{const p=`hud.sc.lowerthird.${f}`;return`<label class="fld"><span>${l}</span><input type="text" data-bind="${p}" value="${esc(get(E,p)||"")}" placeholder="${f==="segText"?"The two teams":"The score"}" maxlength="60" autocomplete="off"></label>`}).join("")}
+      <div class="cols" style="--n:2">${tx("Bottom announcement, line 1",'data-tkline="1"',tl.l1,e.tournament.name||e.name||"")}${tx("Bottom announcement, line 2",'data-tkline="2"',tl.l2,"")}</div>`})()}
+    <p class="note">The announcement's speed, and the same boxes over the preview, are in the <b>HUD Editor</b>: pick a scene and click <b>Bottom Announcement</b> or <b>Match Text</b>.</p>
     <div class="row"><button class="btn" type="button" data-act="scene" data-arg="lowerthird">Show lower third</button><button class="btn" type="button" data-act="scene" data-arg="ingame">Back to Ingame HUD</button></div></div></div>
     <div class="sec">${stage("lowerthird")}</div></div>
   <div class="halves"><div class="sec"><div class="sec"><h2>Timer</h2>${F.text("timer.label","Label","BACK SOON")}
