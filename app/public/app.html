@@ -548,10 +548,20 @@ graphics(e){
       <label class="tkf"><span>Caption (empty: automatic)</span><input type="text" data-bind="hud.bug.label" value="${esc(B.label||"")}" maxlength="24" autocomplete="off"></label></div>`})()}</div>`;
 },
 schedule(e){
-  return`<div class="sec"><div class="sechead"><div><h2>Schedule</h2><p class="sub">The first six matches show on the Schedule scene. Fill in both scores to mark a match as played.</p></div><button class="btn" type="button" data-act="addMatch">${ico("plus")}Add match</button></div>
-    <div class="tw"><table class="grid"><thead><tr><th>Time</th><th>Team A</th><th style="width:80px">Score A</th><th style="width:80px">Score B</th><th>Team B</th><th>Label</th><th style="width:44px"></th></tr></thead><tbody>
-    ${e.schedule.map((m,i)=>`<tr><td>${F.text(`schedule.${i}.time`,"","6:00 PM")}</td><td>${F.sel(`schedule.${i}.left`,"",teamOpts(e))}</td><td>${F.text(`schedule.${i}.sa`,"","–")}</td><td>${F.text(`schedule.${i}.sb`,"","–")}</td><td>${F.sel(`schedule.${i}.right`,"",teamOpts(e))}</td><td>${F.text(`schedule.${i}.label`,"","Upper Round 1")}</td><td><button class="btn icon" type="button" data-act="delMatch" data-arg="${i}" aria-label="Remove match">${ico("x")}</button></td></tr>`).join("")||`<tr><td colspan="7" class="sub" style="padding:16px">No matches yet.</td></tr>`}
-    </tbody></table></div></div><div class="sec">${stage("schedule")}</div>`;
+  const shown=new Set(SaintsHUD.schShown(e).map(x=>x.id)),n=e.schedule.length;
+  const t24=t=>{const m=/^(\d{1,2}):(\d\d)\s*(AM|PM)?$/i.exec(String(t||"").trim());if(!m)return"";let h=+m[1];if(m[3]){h=h%12+(/pm/i.test(m[3])?12:0)}return h>23?"":String(h).padStart(2,"0")+":"+m[2]};
+  const inp=(p,ty,ph,x="")=>`<input type="${ty}" id="${fid(p)}" data-bind="${p}" value="${esc(ty==="time"?t24(get(E,p)):get(E,p))}" placeholder="${esc(ph)}" ${x}>`;
+  const fld=(l,h)=>`<label class="fld"><span>${l}</span>${h}</label>`;
+  const card=(m,i)=>`<div class="sec" style="margin:0"><div class="sechead"><div class="row c" style="gap:8px"><h2 style="margin:0">${i+1}. ${esc(String(m.tn||m.label||"Match "+(i+1)).toUpperCase())}</h2><span class="note">${shown.has(m.id)?"On the graphic":"Not on the graphic"}</span></div>
+      <div class="row c" style="gap:2px"><button class="btn icon sm ghost" type="button" data-act="moveMatch" data-arg="${i},-1" aria-label="Move up"${i?"":" disabled"}>↑</button><button class="btn icon sm ghost" type="button" data-act="moveMatch" data-arg="${i},1" aria-label="Move down"${i<n-1?"":" disabled"}>↓</button><button class="btn icon sm ghost" type="button" data-act="delMatch" data-arg="${i}" aria-label="Remove match">${ico("x")}</button></div></div>
+    ${fld("Tournament name",inp(`schedule.${i}.tn`,"text","e.g. NACE VARSITY"))}
+    <div class="cols" style="--n:2">${fld("Game",inp(`schedule.${i}.game`,"text",e.game||"Game"))}${fld("Match type",inp(`schedule.${i}.label`,"text","Optional, e.g. PLAYOFFS"))}</div>
+    <div class="cols" style="--n:2">${fld("Team 1",inp(`schedule.${i}.t1`,"text","From the team list, or type one",'list="schTeams"'))}${fld("Team 2",inp(`schedule.${i}.t2`,"text","From the team list, or type one",'list="schTeams"'))}</div>
+    <div class="cols" style="--n:2">${fld("Date",inp(`schedule.${i}.date`,"date",""))}${fld("Time",inp(`schedule.${i}.time`,"time",""))}</div>
+    <div class="cols" style="--n:2">${fld("Score 1 (optional)",inp(`schedule.${i}.sa`,"text","–"))}${fld("Score 2 (optional)",inp(`schedule.${i}.sb`,"text","–"))}</div></div>`;
+  return`<div class="sec"><div class="sechead"><div><h2>Upcoming Schedule</h2><p class="sub">The Schedule graphic lists these, top to bottom. Type the team names or pick them from the list. Fill in both scores to mark a match as played.</p></div><button class="btn" type="button" data-act="addMatch">${ico("plus")}Add match</button></div>
+    <datalist id="schTeams">${e.teams.map(t=>`<option value="${esc(tName(t))}"></option>`).join("")}</datalist>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px">${e.schedule.map(card).join("")||`<p class="sub">No matches yet.</p>`}</div></div><div class="sec">${stage("schedule")}</div>`;
 },
 bracket(e){
   return`<div class="sec"><div class="sechead"><div><h2>Bracket</h2><p class="sub">Edit each round's matches. The higher score is highlighted as the winner.</p></div><span class="row c"><button class="btn" type="button" data-act="addRound">${ico("plus")}Add round</button></span></div>
@@ -1332,8 +1342,8 @@ document.addEventListener("click",async ev0=>{
       if(arg==="start"){if(t.endsAt){t.remaining=Math.max(0,Math.round((t.endsAt-Date.now())/1000));t.endsAt=0}else t.endsAt=Date.now()+t.remaining*1000}
       else{t.remaining=t.seconds;t.endsAt=0}
       put("timer",t);break;}
-    case "addMatch":e.schedule.push({id:uid(),time:"",left:"",right:"",label:"",sa:"",sb:""});put("schedule",e.schedule);break;
-    case "delMatch":e.schedule.splice(+arg,1);put("schedule",e.schedule);break;
+    case "addMatch":e.schedule.push({id:uid(),tn:"",game:"",time:"",date:"",left:"",right:"",t1:"",t2:"",label:"",sa:"",sb:""});put("schedule",e.schedule);break;
+    case "delMatch":e.schedule.splice(+arg,1);put("schedule",e.schedule);break;case "moveMatch":{const[i,d]=String(arg).split(",").map(Number),k=i+d;if(k<0||k>=e.schedule.length)break;const t=e.schedule[i];e.schedule[i]=e.schedule[k];e.schedule[k]=t;put("schedule",e.schedule);break}
     case "addRound":e.bracket.rounds.push({name:"New round",matches:[{a:"",b:"",sa:"",sb:""}]});put("bracket",e.bracket);break;
     case "delRound":if(!await confirmBox("Delete Round","Are you sure you want to delete this round and its matches?","Delete Round"))return;e.bracket.rounds.splice(+arg,1);put("bracket",e.bracket);break;
     case "addBMatch":e.bracket.rounds[+arg].matches.push({a:"",b:"",sa:"",sb:""});put("bracket",e.bracket);break;

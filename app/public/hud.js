@@ -452,6 +452,16 @@
     agents: { bg: false, map: true, lineup: true },
   };
   const up = t => esc(String(t).toUpperCase());
+  /* Schedule entries: tn (tournament name), game, label (match type), t1/t2 (typed teams; else the picked team), date (yyyy-mm-dd), time ("6:00 PM" or "18:00"). */
+  const MON = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const schTime = t => { const m = /^(\d{1,2}):(\d\d)$/.exec(String(t || "").trim()); if (!m) return String(t || "").trim(); const h = +m[1]; return `${h % 12 || 12}:${m[2]} ${h < 12 ? "AM" : "PM"}`; };
+  const schDate = d => { const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(String(d || "")); return m ? `${MON[+m[2] - 1] || ""} ${+m[3]}` : ""; };
+  const schWhen = x => [schDate(x.date), schTime(x.time)].filter(Boolean).join(" ");
+  const schTeam = (ev, x, side) => { const typed = String((side ? x.t2 : x.t1) || "").trim(); if (typed) return typed; const t = sideTeam(ev, side ? x.right : x.left); return t ? (t.name || t.tag || "") : ""; };
+  const schTeams = (ev, x) => { const a = schTeam(ev, x, 0), b = schTeam(ev, x, 1); return a && b ? `${a} VS ${b}` : a || b; };
+  const schOpen = x => x.sa === "" || x.sb === "" || x.sa == null || x.sb == null;
+  // the entries the Schedule graphic draws, in order (LOTD puts the matches still to play first and shows four; the standard Schedule shows three)
+  const schShown = ev => { const l = ev.schedule || []; return EDITION === "lotd" ? l.filter(schOpen).concat(l.filter(x => !schOpen(x))).slice(0, 4) : l.slice(0, 3); };
   const so = (ev, sc) => Object.assign({}, SC_DEF[sc], ((ev.hud || {}).sc || {})[sc]);
   const bpClock = () => { try { return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).toUpperCase(); } catch { return ""; } };
   const tickerMsgs = ev => String((ev.lowerThird || {}).ticker || "").split(/\n|\|/).map(s => s.trim()).filter(Boolean);
@@ -524,13 +534,10 @@
      step in, the ad rotation under them, a wide bar with the event name, the game and UP NEXT, and the ticker. Same ticks as the standard
      Schedule: Background, Match Text (the bar) and Bottom Announcement (the ticker). Long names shrink to fit their boxes. */
   function lotdSchedule(m) {
-    const ev = m.ev, o = so(ev, "schedule"), open = x => x.sa === "" || x.sb === "", mt = bpMatch(ev);
-    const list = ev.schedule.filter(open).concat(ev.schedule.filter(x => !open(x)));
-    const nm = (x, side) => { const t = sideTeam(ev, side ? x.right : x.left); return t ? (t.name || t.tag || "TBD") : "TBD"; };
-    const shown = list.slice(0, 4), nextUp = list[0];
-    const cards = shown.map((x, i) => { const teams = x.left || x.right ? `${nm(x, 0)} VS ${nm(x, 1)}` : "", sub = [x.time, teams].filter(Boolean).join(" | ");
-      return `<div class="lc" data-k="lsc${i}" style="top:${(133.3 + i * 93.3).toFixed(1)}px"><b data-fit>${esc(String(x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${sub ? `<small data-fit>${esc(sub)}</small>` : ""}</div>`; }).join("");
-    const nextTxt = nextUp ? esc(String(nextUp.time || nextUp.label || "UP NEXT").toUpperCase()) : "UP NEXT";
+    const ev = m.ev, o = so(ev, "schedule"), mt = bpMatch(ev);
+    const shown = schShown(ev);
+    const cards = shown.map((x, i) => { const sub = [x.game, x.tn ? x.label : "", schWhen(x), schTeams(ev, x)].filter(Boolean).join(" | ");
+      return `<div class="lc" data-k="lsc${i}" style="top:${(133.3 + i * 93.3).toFixed(1)}px"><b data-fit>${esc(String(x.tn || x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${sub ? `<small data-fit>${esc(sub)}</small>` : ""}</div>`; }).join("");
     let h = bpBg(o);
     h += `<div class="lsch" data-k="lsch"><div class="vid"></div><img class="lhd" src="/brand/lotd/sch-head.png" alt=""><img class="pl" src="/brand/lotd/sch-planks.png" alt="">${cards || `<div class="lc" style="top:133.3px"><small>NOTHING SCHEDULED</small></div>`}
       ${o.match ? `<div class="bar"><img src="/brand/lotd/sch-bar.png" alt=""><b class="ev" data-fit>${up(o.eventText || ev.tournament.name || ev.name || "")}</b><div class="nx"><b data-fit>${o.gameText ? up(o.gameText) : (ev.lowerThird || {}).title ? mt.t : esc(String(ev.game).toUpperCase())}</b><b class="un" data-fit>${up(o.nextText || "UP NEXT")}</b></div></div>` : ""}
@@ -540,9 +547,9 @@
   S.schedule = (m) => {
     if (EDITION === "lotd") return lotdSchedule(m);
     const ev = m.ev, o = so(ev, "schedule"), [L, R] = m.sides, mt = bpMatch(ev);
-    const cards = ev.schedule.slice(0, 3).map((x, i) => { const a = sideTeam(ev, x.left), b = sideTeam(ev, x.right), done = x.sa !== "" && x.sb !== "";
-      return `<div class="card" data-k="sc${i}"><b>${esc(String(x.label || "MATCH " + (i + 1)).toUpperCase())}</b><em>${esc(String(ev.game).toUpperCase())}</em>
-        <small>${esc((a ? a.name : "TBD").toUpperCase())} VS. ${esc((b ? b.name : "TBD").toUpperCase())}${done ? ` · ${esc(x.sa)}-${esc(x.sb)}` : ""}</small><small class="tm">${esc(String(x.time || "").toUpperCase())}</small></div>`; }).join("");
+    const cards = schShown(ev).map((x, i) => { const done = !schOpen(x), a = schTeam(ev, x, 0) || "TBD", b = schTeam(ev, x, 1) || "TBD";
+      return `<div class="card" data-k="sc${i}"><b>${esc(String(x.tn || x.label || "MATCH " + (i + 1)).toUpperCase())}</b><em>${esc(String(x.game || ev.game).toUpperCase())}${x.tn && x.label ? ` · ${esc(String(x.label).toUpperCase())}` : ""}</em>
+        <small>${esc(a.toUpperCase())} VS. ${esc(b.toUpperCase())}${done ? ` · ${esc(x.sa)}-${esc(x.sb)}` : ""}</small><small class="tm">${esc(schWhen(x).toUpperCase())}</small></div>`; }).join("");
     let h = `${bpBg(o)}<div class="bp-frame" data-k="bp-frame"></div>
       <div class="bp-sch" data-k="bp-sch"><em>${up(o.upText || "UPCOMING")}</em><b>${up(o.headText || "SCHEDULE")}</b>${cards || `<div class="card"><small>NO MATCHES SCHEDULED</small></div>`}</div>${bpSponsor(ev, "big")}
       <div class="bp-bar" data-k="bp-bar"><div class="ck"><b class="num">${esc(bpClock())}</b><small>${up(o.clockText || "LOCAL TIME")}</small></div>
@@ -1564,7 +1571,7 @@
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
   const SCHED_TEXT = () => EDITION === "lotd" ? [["eventText", "Event name"], ["gameText", "Game"], ["nextText", "Up next label"]] : [["upText", "Small heading (UPCOMING)"], ["headText", "Heading (SCHEDULE)"], ["clockText", "Clock label (LOCAL TIME)"]];
-  const api = { SCENES, SC_DEF, SCHED_TEXT, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, timerShow, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
+  const api = { SCENES, SC_DEF, SCHED_TEXT, schShown, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, timerShow, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();

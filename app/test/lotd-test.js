@@ -59,5 +59,12 @@ check("the Schedule's event name, game and UP NEXT label can be typed", (x => />
 check("the Match Text panel lists those fields on the Schedule and Reset clears them", /SaintsHUD\.SCHED_TEXT\(\)\.map/.test(html) && /for\(const\[f\]of SaintsHUD\.SCHED_TEXT\(\)\)await put\(`hud\.sc\.schedule\.\$\{f\}`,""\)/.test(html) && HUD.SCHED_TEXT().length === 3);
 check("the Bottom Announcement shows what scrolls when Line 1 is empty", /data-tkline="1" value="\$\{esc\(t\.l1\)\}" placeholder="\$\{esc\(e\.tournament\.name/.test(html));
 
+// the Schedule page's cards (tournament, game, match type, typed teams, date, time) are what the graphic draws
+const sch = f => draw(mk(e => { e.schedule = [{ id: "a", tn: "NACE Varsity", game: "Super Smash Bros", label: "Regular Season", t1: "St. Clair Saints", t2: "Univ of Saint Mary", date: "2026-10-29", time: "20:30", left: "", right: "", sa: "", sb: "" }, { id: "b", tn: "", game: "", label: "Costume contest", t1: "Everyone", t2: "", date: "", time: "6:00 PM", left: "", right: "", sa: "", sb: "" }]; f && f(e); }));
+check("a card shows the tournament, then game, match type, date and time, and the typed teams", (x => />NACE VARSITY</.test(x) && /SUPER SMASH BROS \| Regular Season \| OCT 29 8:30 PM \| St. Clair Saints VS Univ of Saint Mary/i.test(x))(sch()), sch().slice(sch().indexOf("lsc0"), sch().indexOf("lsc0") + 400));
+check("with no tournament typed the match type is the big line, and a single team still shows", (x => />COSTUME CONTEST</.test(x) && /6:00 PM \| Everyone</.test(x))(sch()));
+check("typed time and date are formatted, and an older entry (team picked, 6:00 PM) still draws", HUD.schShown(mk(e => { e.schedule = [{ id: "z", time: "6:00 PM", left: "", right: "", label: "Old", sa: "", sb: "" }]; })).length === 1 && />OLD</.test(draw(mk(e => { e.schedule = [{ id: "z", time: "6:00 PM", left: "", right: "", label: "Old", sa: "", sb: "" }]; }))));
+check("the Schedule page lists the cards with 'On the graphic' and can move and remove them", /On the graphic/.test(html) && /data-act="moveMatch"/.test(html) && /case "moveMatch"/.test(html) && /Upcoming Schedule/.test(html));
+
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nLOTD TEST PASS");
 process.exit(failures ? 1 : 0);
