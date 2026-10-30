@@ -56,7 +56,7 @@ check("switching the scene applies at once (no Save Changes)", /const LIVE_FIELD
 // every text on the Schedule can be typed in the HUD Editor's Match Text panel
 const st = (o) => draw(mk(e => { e.hud.sc = { schedule: o }; }));
 check("the Schedule's event name, game and UP NEXT label can be typed", (x => />MY EVENT</.test(x) && />MY GAME</.test(x) && />WHO IS NEXT</.test(x) && !/>UP NEXT</.test(x) && !/>LAN OF THE DEAD 2026<\/b><div class="nx">/.test(x))(st({ eventText: "my event", gameText: "my game", nextText: "who is next" })));
-check("the Match Text panel lists those fields on the Schedule and Reset clears them", /SaintsHUD\.SCHED_TEXT\(\)\.map/.test(html) && /for\(const\[f\]of SaintsHUD\.SCHED_TEXT\(\)\)await put\(`hud\.sc\.schedule\.\$\{f\}`,""\)/.test(html) && HUD.SCHED_TEXT().length === 3);
+check("the Match Text panel lists those fields on the Schedule and Reset clears them", /SaintsHUD\.SCENE_TEXT\(e\.hud\.scene\)\.map/.test(html) && /for\(const\[f\]of SaintsHUD\.SCENE_TEXT\(e\.hud\.scene\)\)await put\(`hud\.sc\.\$\{e\.hud\.scene\}\.\$\{f\}`,""\)/.test(html) && HUD.SCHED_TEXT().length === 3);
 check("the Bottom Announcement shows what scrolls when Line 1 is empty", /data-tkline="1" value="\$\{esc\(t\.l1\)\}" placeholder="\$\{esc\(e\.tournament\.name/.test(html));
 
 // the Schedule page's cards (tournament, game, match type, typed teams, date, time) are what the graphic draws
@@ -65,6 +65,11 @@ check("a card shows the tournament, then game, match type, date and time, and th
 check("with no tournament typed the match type is the big line, and a single team still shows", (x => />COSTUME CONTEST</.test(x) && /6:00 PM \| Everyone</.test(x))(sch()));
 check("typed time and date are formatted, and an older entry (team picked, 6:00 PM) still draws", HUD.schShown(mk(e => { e.schedule = [{ id: "z", time: "6:00 PM", left: "", right: "", label: "Old", sa: "", sb: "" }]; })).length === 1 && />OLD</.test(draw(mk(e => { e.schedule = [{ id: "z", time: "6:00 PM", left: "", right: "", label: "Old", sa: "", sb: "" }]; }))));
 check("the Schedule page lists the cards with 'On the graphic' and can move and remove them", /On the graphic/.test(html) && /data-act="moveMatch"/.test(html) && /case "moveMatch"/.test(html) && /Upcoming Schedule/.test(html));
+
+// the footer (Lower Third): the second box's title and line, and the clock label, can be typed
+const lt = o => HUD.sceneHtml(mk(e => { e.hud.scene = "lowerthird"; e.hud.sc = { lowerthird: o }; e.lowerThird.label = o.lbl || "LOCAL TIME"; }), null, "lowerthird");
+check("the footer's second box shows typed text, else the teams and score", (x => />MY TEAMS</.test(x) && />MY LINE</.test(x))(lt({ segText: "my teams", segSub: "my line" })) && /class="s2"><b data-fit>[^<]*<\/b><small data-fit>\d+ - \d+</.test(lt({})));
+check("the Match Text panel has a Clock label and the second box fields on the Lower Third", /data-tktext="label"/.test(html) && /SaintsHUD\.SCENE_TEXT\(e\.hud\.scene\)/.test(html) && HUD.SCENE_TEXT("lowerthird").length === 2);
 
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nLOTD TEST PASS");
 process.exit(failures ? 1 : 0);

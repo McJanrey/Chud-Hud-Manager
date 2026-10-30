@@ -515,7 +515,7 @@
     let clock = ""; try { clock = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(/\s/g, ""); } catch { /* no clock */ }
     const teams = [L, R].map(t => t ? (t.tag || t.name) : "").filter(Boolean).join(" vs "), score = (+m.series[0] || 0) + " - " + (+m.series[1] || 0);
     let h = `<div class="l3d${o.ticker ? " tk" : ""}" data-k="l3d"><img src="/brand/lotd/l3.png" alt=""><div class="ck"><b>${esc(clock)}</b><small>${lbl}</small></div>`;
-    if (o.match) h += `<div class="s1"><b data-fit>${mt.t}</b><small data-fit>${mt.s}</small></div><div class="s2"><b data-fit>${esc(teams.toUpperCase())}</b><small>${score}</small></div>`;
+    if (o.match) h += `<div class="s1"><b data-fit>${mt.t}</b><small data-fit>${mt.s}</small></div><div class="s2"><b data-fit>${o.segText ? up(o.segText) : esc(teams.toUpperCase())}</b><small data-fit>${o.segSub ? up(o.segSub) : score}</small></div>`;
     h += "</div>";
     if (o.ticker) h += bpTicker(ev, true);
     return { html: h, cams: [] };
@@ -1570,8 +1570,9 @@
   function sceneHtml(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game), s = resolveScene(ev, m, scene); return S[s](m).html + adOverlay(ev, s) + bugOverlay(ev); }
   function sceneOut(ev, game, scene, ctx) { CTX = ctx || {}; const m = model(ev, game); return S[resolveScene(ev, m, scene)](m); } // markup and cameras (tests)
 
+  const SCENE_TEXT = sc => sc === "schedule" ? SCHED_TEXT() : sc === "lowerthird" && EDITION === "lotd" ? [["segText", "Second box title (teams)"], ["segSub", "Second box line (score)"]] : [];
   const SCHED_TEXT = () => EDITION === "lotd" ? [["eventText", "Event name"], ["gameText", "Game"], ["nextText", "Up next label"]] : [["upText", "Small heading (UPCOMING)"], ["headText", "Heading (SCHEDULE)"], ["clockText", "Clock label (LOCAL TIME)"]];
-  const api = { SCENES, SC_DEF, SCHED_TEXT, schShown, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, timerShow, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
+  const api = { SCENES, SC_DEF, SCHED_TEXT, SCENE_TEXT, schShown, adNow, bbScore, model, render, drawBg, esc, fmt, feedKey, gdLabel, sceneHtml, sceneOut, nameMatch, nameMatches, GAMEDEF, fnPoints, fnTable, dbdScore, valInfo, artFail, fnLive, tickerLines, tickerJoin, tickerSpeed, timerShow, vetoPreset, vetoFix, vetoOrder, vetoNext, VETO_FMT, agsInfo };
   if (typeof window !== "undefined") window.SaintsHUD = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api; // the server uses the same model for the data outputs
 })();
