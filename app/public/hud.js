@@ -1494,12 +1494,24 @@
   }
   /* Text that must fit a fixed box (caster names and roles): shrinks the line a half pixel at a time until it fits, down to 55% of its
      size; only then does it fall back to the "..." cut. The box never changes size. Re-run on every draw, because a patch resets the size. */
+  // The result is remembered per element (its text, width and the font-load count): the overlay redraws twice a second, and measuring every
+  // line each time makes the browser re-lay-out the page over and over (a hitch in the scrolling ticker on slow browsers such as vMix's).
+  let FITGEN = 0;
+  if (typeof document !== "undefined" && document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", () => { FITGEN++; });
   function fitText(root) {
+    const todo = [];
     root.querySelectorAll("[data-fit]").forEach(el => {
+      const key = FITGEN + "|" + el.textContent + "|" + el.clientWidth;
+      if (el.__fk === key) { if (el.style.fontSize !== el.__fs) el.style.fontSize = el.__fs; return; } // same as last time: put the size back if a patch cleared it
+      todo.push([el, key]);
+    });
+    todo.forEach(([el, key]) => {
       el.style.fontSize = "";
-      if (el.scrollWidth <= el.clientWidth + 1) return;
-      const base = parseFloat(getComputedStyle(el).fontSize) || 16; let sz = base;
-      while (el.scrollWidth > el.clientWidth + 1 && sz > base * 0.55) { sz -= 0.5; el.style.fontSize = sz + "px"; }
+      if (el.scrollWidth > el.clientWidth + 1) {
+        const base = parseFloat(getComputedStyle(el).fontSize) || 16; let sz = base;
+        while (el.scrollWidth > el.clientWidth + 1 && sz > base * 0.55) { sz -= 0.5; el.style.fontSize = sz + "px"; }
+      }
+      el.__fk = key; el.__fs = el.style.fontSize;
     });
   }
   function render(hudEl, ev, game, scene, ctx) {
