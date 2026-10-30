@@ -968,8 +968,10 @@
       const style = ["solid", "clear", "media"].includes(v.barStyle) ? v.barStyle : "solid", bg = style === "media" ? String(v.barBg || "") : "";
       const nm = (t, s) => noTag(t ? t.name || (t.players[0] && t.players[0].ign) || t.tag : "") || (s ? "TEAM B" : "TEAM A");
       const wm = (t, s) => String((t && (t.tag || t.name)) || (s ? "B" : "A")).slice(0, 4).toUpperCase();
+      // series diamonds under the team name: as many as wins needed (best of 5 = 3), filled for the series wins so far
+      const need = Math.max(1, Math.floor((+ev.live.bestOf || 3) / 2) + 1), dia = s => `<span class="sd ${s ? "r" : "l"}" data-k="sd-${s}">${Array.from({ length: need }, (_, i) => `<i class="${(+m.series[s] || 0) > i ? "on" : ""}"></i>`).join("")}</span>`;
       const half = (t, s) => `<div class="hf ${s ? "r" : "l"}" data-k="v3-hf-${s}" style="--c:${esc(m.colors[s])}"><div class="mx"><i class="fill"></i><svg class="ol" viewBox="0 0 294 49" preserveAspectRatio="none"><polyline points="${s ? "3,48.5 3,26 26,4.5 175,4.5" : "94,4 3,4 3,23.5 26,45 291,45"}"/></svg><i class="sl"><b></b><b></b></i></div>
-        <b class="wm">${esc(wm(t, s))}</b>${lg(t)}<div class="nw"><b class="nm" data-fit>${esc(nm(t, s))}</b><i class="ln"></i></div><i class="mk"></i></div>`;
+        <b class="wm">${esc(wm(t, s))}</b>${lg(t)}<div class="nw"><b class="nm" data-fit>${esc(nm(t, s))}</b><i class="ln"></i></div><i class="mk"></i>${dia(s)}</div>`;
       const media = !bg ? "" : /\.(mp4|webm|mov)$/i.test(bg) ? `<video src="${esc(bg)}" autoplay muted loop playsinline disablepictureinpicture></video>` : `<img src="${esc(bg)}" alt="" onerror="this.style.display='none'">`;
       const chip = s => `<span class="cp ${s ? "r" : "l"}" data-k="cp-${s}" style="--c:${esc(m.colors[s])}"><b class="num${fnDrop("vcp" + s, info.left[s]) ? " dn" : ""}" data-k="cpn-${s}-${info.left[s]}">${info.left[s]}</b></span>`; // the number jumps when it drops
       h += `<div class="v3-top ${style}" data-k="v3-top-${style}">${media ? `<div class="v3-bg" data-k="v3-bg-${esc(bg)}">${media}</div>` : ""}<i class="hl"></i>${half(L, 0)}${half(R, 1)}
