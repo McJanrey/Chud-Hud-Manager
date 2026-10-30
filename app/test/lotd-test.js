@@ -71,5 +71,7 @@ const lt = o => HUD.sceneHtml(mk(e => { e.hud.scene = "lowerthird"; e.hud.sc = {
 check("the footer's second box shows typed text, else the teams and score", (x => />MY TEAMS</.test(x) && />MY LINE</.test(x))(lt({ segText: "my teams", segSub: "my line" })) && /class="s2"><b data-fit>[^<]*<\/b><small data-fit>\d+ - \d+</.test(lt({})));
 check("the Match Text panel has a Clock label and the second box fields on the Lower Third", /data-tktext="label"/.test(html) && /SaintsHUD\.SCENE_TEXT\(e\.hud\.scene\)/.test(html) && HUD.SCENE_TEXT("lowerthird").length === 2);
 
+check("the bar's game follows what is up next on the Schedule cards (a typed Game still wins)", (x => />SUPER SMASH BROS</.test(x.slice(x.indexOf('class="bar"'))))(sch()) && (y => />TYPED</.test(y.slice(y.indexOf('class="bar"'))))(draw(mk(e => { e.schedule = [{ id: "a", game: "Super Smash Bros", time: "", left: "", right: "", sa: "", sb: "" }]; e.hud.sc = { schedule: { gameText: "typed" } }; }))));
+
 console.log(failures ? `\n${failures} CHECK(S) FAILED` : "\nLOTD TEST PASS");
 process.exit(failures ? 1 : 0);

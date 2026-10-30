@@ -535,12 +535,12 @@
      Schedule: Background, Match Text (the bar) and Bottom Announcement (the ticker). Long names shrink to fit their boxes. */
   function lotdSchedule(m) {
     const ev = m.ev, o = so(ev, "schedule"), mt = bpMatch(ev);
-    const shown = schShown(ev);
+    const shown = schShown(ev), nextGame = (shown.find(schOpen) || {}).game || "";
     const cards = shown.map((x, i) => { const sub = [x.game, x.tn ? x.label : "", schWhen(x), schTeams(ev, x)].filter(Boolean).join(" | ");
       return `<div class="lc" data-k="lsc${i}" style="top:${(133.3 + i * 93.3).toFixed(1)}px"><b data-fit>${esc(String(x.tn || x.label || "ACTIVITY " + (i + 1)).toUpperCase())}</b>${sub ? `<small data-fit>${esc(sub)}</small>` : ""}</div>`; }).join("");
     let h = bpBg(o);
     h += `<div class="lsch" data-k="lsch"><div class="vid"></div><img class="lhd" src="/brand/lotd/sch-head.png" alt=""><img class="pl" src="/brand/lotd/sch-planks.png" alt="">${cards || `<div class="lc" style="top:133.3px"><small>NOTHING SCHEDULED</small></div>`}
-      ${o.match ? `<div class="bar"><img src="/brand/lotd/sch-bar.png" alt=""><b class="ev" data-fit>${up(o.eventText || ev.tournament.name || ev.name || "")}</b><div class="nx"><b data-fit>${o.gameText ? up(o.gameText) : (ev.lowerThird || {}).title ? mt.t : esc(String(ev.game).toUpperCase())}</b><b class="un" data-fit>${up(o.nextText || "UP NEXT")}</b></div></div>` : ""}
+      ${o.match ? `<div class="bar"><img src="/brand/lotd/sch-bar.png" alt=""><b class="ev" data-fit>${up(o.eventText || ev.tournament.name || ev.name || "")}</b><div class="nx"><b data-fit>${o.gameText ? up(o.gameText) : nextGame ? up(nextGame) : (ev.lowerThird || {}).title ? mt.t : esc(String(ev.game).toUpperCase())}</b><b class="un" data-fit>${up(o.nextText || "UP NEXT")}</b></div></div>` : ""}
       ${o.ticker ? bpTicker(ev, true) : ""}</div>`;
     return { html: h, cams: [] };
   }
