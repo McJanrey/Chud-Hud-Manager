@@ -745,11 +745,12 @@
 .bp-bg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .bp-bg.vid{background:transparent}.bp-bg.vid video{opacity:0}
 .bp-tk{position:absolute;left:0;right:0;bottom:0;height:44px;background:#02100a;border-top:2px solid var(--gold,#FDC82F);overflow:hidden;display:flex;align-items:center}
-.bp-tk .rl,.bp-run .rl{display:flex;width:max-content;animation:bpScroll linear infinite}
+.bp-tk .rl,.bp-run .rl{display:flex;width:max-content;animation:bpScroll linear infinite;will-change:transform;backface-visibility:hidden;transform:translate3d(0,0,0)}
+.bp-tk,.bp-run{contain:layout paint}
 .bp-tk .g,.bp-run .g{display:flex;align-items:center;flex:none}
 .bp-tk span{font:800 19px/1 "Inter",sans-serif;letter-spacing:.06em;color:#fff;white-space:nowrap;padding:0 26px}
 .bp-tk i{width:3px;height:22px;background:var(--gold,#FDC82F);flex:none}
-@keyframes bpScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes bpScroll{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
 .bp-top{position:absolute;left:0;top:0;right:0;height:64px}
 .bp-top b{position:absolute;left:90px;top:16px;font:600 30px/1 "Teko",sans-serif;letter-spacing:.32em;color:#fff}
 .bp-top i{position:absolute;left:0;right:0;top:55px;height:7px;background:linear-gradient(90deg,var(--gold,#FDC82F) 0%,var(--gold,#FDC82F) 70%,rgba(253,200,47,0) 100%)}
