@@ -976,6 +976,7 @@
       if (num("valUltMax" + n) != null) row.ultMax = num("valUltMax" + n);
       if (num("valCr" + n) != null) row.cr = num("valCr" + n);
       if (num("valHp" + n) != null) row.hp = num("valHp" + n);
+      if (VAL_UUID.test(String(o["valAgent" + n] || ""))) row.agent = o["valAgent" + n]; // the agent the reader recognised (official art from valorant-api)
       for (const k of ["k", "d", "a"]) if (num("val" + k.toUpperCase() + n) != null) row[k] = num("val" + k.toUpperCase() + n);
       if (al != null && al !== "") row.alive = al === true || al === 1 || al === "1" || al === "true";
       out[p.pid] = row;
@@ -1030,7 +1031,8 @@
         const hp = dead ? 0 : Math.max(0, Math.min(150, Math.round(+(has(p.hp) ? p.hp : has(st.hp) ? st.hp : 100)) || 0));
         const um = Math.max(1, Math.min(9, Math.round(+(p.ultMax || st.ultMax)) || 8)), ul = Math.max(0, Math.min(um, Math.round(+(has(p.ult) ? p.ult : st.ult)) || 0));
         const cr = has(p.credits) ? p.credits : has(st.cr) ? st.cr : "", gun = VAL_UUID.test(String(st.gun || "")) ? `/val-weapon/${st.gun}.png` : "";
-        const agent = VAL_UUID.test(String(p.agent || "")) ? `/val-agent/${p.agent}/displayicon.png` : "";
+        const ag = VAL_UUID.test(String(p.agent || "")) ? p.agent : VAL_UUID.test(String(st.agent || "")) ? st.agent : ""; // picked by hand, else read off the screen
+        const agent = ag ? `/val-agent/${ag}/displayicon.png` : "";
         const art = (agent ? artImg(agent, "ag") : "") || (p.avatar ? artImg(p.avatar, "av") : "");
         const pips = Array.from({ length: um }, (_, k) => `<i class="${k >= um - ul ? "on" : ""}"></i>`).join(""); // lit from the centre side
         h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}${p.pid && v.spec === p.pid ? " spec" : ""}" data-k="vp-${s}-${i}" style="top:${(top + i * VAL_PITCH).toFixed(2)}px;--c:${esc(m.colors[s])}"><div class="mx">
@@ -1076,7 +1078,8 @@
         ${ps.map((p, i) => {
           const st = (p.pid && stats[p.pid]) || {}, name = noTag(p.display), dead = !!(p.pid && info.dead[p.pid]);
           const um = Math.max(1, Math.min(9, Math.round(+(p.ultMax || st.ultMax)) || 8)), ul = Math.max(0, Math.min(um, Math.round(+(has(p.ult) ? p.ult : st.ult)) || 0));
-          const agent = VAL_UUID.test(String(p.agent || "")) ? artImg(`/val-agent/${p.agent}/displayicon.png`, "ag") : p.avatar ? artImg(p.avatar, "ag") : PH;
+          const ag = VAL_UUID.test(String(p.agent || "")) ? p.agent : VAL_UUID.test(String(st.agent || "")) ? st.agent : "";
+          const agent = ag ? artImg(`/val-agent/${ag}/displayicon.png`, "ag") : p.avatar ? artImg(p.avatar, "ag") : PH;
           const gun = VAL_UUID.test(String(st.gun || "")) ? artImg(`/val-weapon/${st.gun}.png`, "gn") : "", cr = has(p.credits) ? p.credits : has(st.cr) ? st.cr : "";
           const cell = { pt: `<span class="pt">${agent}</span>`, pl: `<b class="pl">${esc(name)}</b>`, k: `<span class="num">${esc(has(st.k) ? st.k : stv(ev, p, "kills"))}</span>`, d: `<span class="num">${esc(has(st.d) ? st.d : stv(ev, p, "deaths"))}</span>`,
             a: `<span class="num">${esc(has(st.a) ? st.a : stv(ev, p, "assists"))}</span>`, ul: `<span class="ul">${Array.from({ length: um }, (_, k) => `<i class="${k < ul ? "on" : ""}"></i>`).join("")}</span>`,
