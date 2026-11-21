@@ -933,7 +933,8 @@
   const initials = s => { const w = String(s || "?").trim().split(/\s+/).map(x => Array.from(x)); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2).join("")).toUpperCase(); }; // whole characters, so an emoji is never split
   // round line, players left and the clock for the scene and the vMix fields (one place, so they always agree)
   function valInfo(m) {
-    const v = m.ev.val || {}, t = Math.max(1, Math.round(+v.target) || 10), n = m.squad || 2, dead = v.dead || {};
+    const v = m.ev.val || {}, t = Math.max(1, Math.round(+v.target) || 10), n = m.squad || 2, dead = Object.assign({}, v.dead || {});
+    for (const [pid, row] of Object.entries(valOcrRows(m))) if (row.alive != null) dead[pid] = !row.alive; // a screen reader's alive / dead wins while fresh
     const left = [0, 1].map(s => Math.max(0, n - m.players[s].filter(p => p.shortcut !== 0 && p.pid && dead[p.pid]).length));
     const sum = (+m.score[0] || 0) + (+m.score[1] || 0);
     const round = Math.max(1, Math.min(sum + 1, 2 * t - 1)), reg = Math.max(1, 2 * t - 2); // first to 13 is ROUND n/24; past that it is overtime
@@ -960,24 +961,36 @@
   }
   // What the operator typed for each player (val.p), with the numbers read off the Tab scoreboard laid over it: a row is matched to its player by name,
   // and only fresh readings count (the scoreboard is only up now and then, so a number is kept for 20 seconds).
-  const valStats = m => {
-    const v = m.ev.val || {}, typed = v.p && typeof v.p === "object" ? v.p : {}, o = m.valOcr;
-    if (!o || Date.now() - o.t > 20000) return typed;
-    const out = Object.assign({}, typed);
-    for (let n = 1; n <= 9; n++) {
+  // A screen reader's rows (StandBy GFX's VALORANT reader, or an observer PC): player id -> { ult, ultMax, cr, hp, alive, k, d, a }.
+  // Matched to the roster by name; only fresh readings count (20 seconds).
+  const valOcrRows = m => {
+    const o = m.valOcr, out = {};
+    if (!o || Date.now() - o.t > 20000) return out;
+    const num = k => o[k] == null || o[k] === "" ? undefined : +o[k];
+    for (let n = 1; n <= 10; n++) {
       const nm = o["valName" + n]; if (!nm) continue;
       const p = m.players[0].concat(m.players[1]).find(q => q && q.pid && nameMatches(noTag(q.display), nm));
       if (!p) continue;
-      const row = Object.assign({}, out[p.pid]);
-      if (o["valUlt" + n] != null) row.ult = Math.max(0, Math.min(9, +o["valUlt" + n] || 0));
-      if (o["valCr" + n] != null) row.cr = +o["valCr" + n];
+      const row = {}, al = o["valAlive" + n];
+      if (num("valUlt" + n) != null) row.ult = Math.max(0, Math.min(9, num("valUlt" + n) || 0));
+      if (num("valUltMax" + n) != null) row.ultMax = num("valUltMax" + n);
+      if (num("valCr" + n) != null) row.cr = num("valCr" + n);
+      if (num("valHp" + n) != null) row.hp = num("valHp" + n);
+      for (const k of ["k", "d", "a"]) if (num("val" + k.toUpperCase() + n) != null) row[k] = num("val" + k.toUpperCase() + n);
+      if (al != null && al !== "") row.alive = al === true || al === 1 || al === "1" || al === "true";
       out[p.pid] = row;
     }
     return out;
   };
+  const valStats = m => {
+    const v = m.ev.val || {}, typed = v.p && typeof v.p === "object" ? v.p : {}, out = Object.assign({}, typed);
+    for (const [pid, row] of Object.entries(valOcrRows(m))) out[pid] = Object.assign({}, out[pid], row);
+    return out;
+  };
   S.valingame = (m) => {
     const ev = m.ev, sh = ev.hud.show, v = ev.val || {}, [L, R] = m.sides, info = valInfo(m);
-    const vs = ["buy", "timeout"].includes(v.state) ? v.state : "main"; // HUD state: buy and timeout swap the side panels for the buy-round board
+    const o = m.valOcr, ocrBuy = !!(o && Date.now() - o.t < 20000 && o.valPhase === "buy"); // a screen reader saw the buy phase
+    const vs = v.state === "timeout" ? "timeout" : v.state === "buy" || ocrBuy ? "buy" : "main"; // HUD state: buy and timeout swap the side panels for the buy-round board
     let h = "";
     if (sh.score !== false) {
       // top bar, laid out on MJ's reference: two team halves, a centre plate with the score, clock and round, the players-left chips
@@ -1065,8 +1078,8 @@
           const um = Math.max(1, Math.min(9, Math.round(+(p.ultMax || st.ultMax)) || 8)), ul = Math.max(0, Math.min(um, Math.round(+(has(p.ult) ? p.ult : st.ult)) || 0));
           const agent = VAL_UUID.test(String(p.agent || "")) ? artImg(`/val-agent/${p.agent}/displayicon.png`, "ag") : p.avatar ? artImg(p.avatar, "ag") : PH;
           const gun = VAL_UUID.test(String(st.gun || "")) ? artImg(`/val-weapon/${st.gun}.png`, "gn") : "", cr = has(p.credits) ? p.credits : has(st.cr) ? st.cr : "";
-          const cell = { pt: `<span class="pt">${agent}</span>`, pl: `<b class="pl">${esc(name)}</b>`, k: `<span class="num">${esc(stv(ev, p, "kills"))}</span>`, d: `<span class="num">${esc(stv(ev, p, "deaths"))}</span>`,
-            a: `<span class="num">${esc(stv(ev, p, "assists"))}</span>`, ul: `<span class="ul">${Array.from({ length: um }, (_, k) => `<i class="${k < ul ? "on" : ""}"></i>`).join("")}</span>`,
+          const cell = { pt: `<span class="pt">${agent}</span>`, pl: `<b class="pl">${esc(name)}</b>`, k: `<span class="num">${esc(has(st.k) ? st.k : stv(ev, p, "kills"))}</span>`, d: `<span class="num">${esc(has(st.d) ? st.d : stv(ev, p, "deaths"))}</span>`,
+            a: `<span class="num">${esc(has(st.a) ? st.a : stv(ev, p, "assists"))}</span>`, ul: `<span class="ul">${Array.from({ length: um }, (_, k) => `<i class="${k < ul ? "on" : ""}"></i>`).join("")}</span>`,
             lo: `<span class="lo">${gun}</span>`, cr: `<span class="cr num">${esc(String(cr).slice(0, 6))}</span>` };
           return `<div class="rw${dead ? " dead" : ""}" data-k="tb-${s}-${i}">${(s ? ["cr", "lo", "ul", "k", "d", "a", "pl", "pt"] : ["pt", "pl", "k", "d", "a", "ul", "lo", "cr"]).map(c => cell[c]).join("")}</div>`;
         }).join("")}</div>`;
