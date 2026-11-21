@@ -677,6 +677,7 @@
 .v3-top .cp b.dn{display:inline-block;animation:fn3-jump .55s cubic-bezier(.3,1.6,.5,1)}
 .v3-p.spec .st,.v3-p.spec .lo{box-shadow:inset 0 0 0 1.5px #fff}.v3-p.spec .nm{color:#fff;text-shadow:0 0 6px rgba(255,255,255,.6)}
 .v3-kf{position:absolute;right:12px;top:76px;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.v3-kf .hs{width:14px;height:14px;display:block}.v3-kf .hs svg{width:100%;height:100%;display:block}
 .v3-kf .kr{height:24px;display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--v3-plate);border-left:3px solid var(--k);border-right:3px solid var(--v)}
 .v3-kf .kn,.v3-kf .vn{font-family:var(--v3-cond);font-size:15px;font-weight:600;line-height:24px;padding-top:3px;color:#fff;text-transform:none;white-space:nowrap}
 .v3-kf .kn{color:var(--k)}.v3-kf .vn{color:var(--v)}

@@ -150,6 +150,11 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
       const plain = vh(vmk());
       return cnt(h, /<span class="ab( out)?"><img src="\/val-agent\/569fdd95[^"]*\/(grenade|ability1|ability2)\.png"/g) === 3 && /class="ab out"><img[^>]*ability1/.test(h) && /grenade\.png"[^>]*><i><b><\/b><b><\/b><\/i>/.test(h)
         && cnt(h, /class="ar ar-heavy"/g) === 1 && cnt(h, /class="ar ar-light"/g) === 1 && cnt(h, /class="bm"/g) === 1 && !/class="(abs|ar|bm)/.test(plain); })());
+    check("VALORANT killfeed from a screen reader: its kills show with the gun and the headshot mark, escaped, and go when stale", (() => { const W = "9c82e19d-4575-0200-1a81-3eacf00cf872", n = Date.now();
+      const g = { players: [{ name: "Ann#EU1", team: 0, shortcut: 1 }], teams: [{ score: 0 }, { score: 0 }], feed: [], time: 0, source: "ocr",
+        valOcr: { t: n, valFeed: [{ k: "<b>Zed</b>", ks: 1, v: "Ann", vs: 0, gun: W, hs: true, t: n }] } };
+      const h = HUD.sceneHtml(vmk(), g, "ingame"), old = HUD.sceneHtml(vmk(), Object.assign({}, g, { valOcr: { t: n - 60000, valFeed: g.valOcr.valFeed } }), "ingame");
+      return /v3-kf[^]*?&lt;b&gt;Zed[^]*?val-weapon\/9c82e19d[^]*?class="hs"[^]*?Ann/.test(h) && !h.includes("<b>Zed") && !/class="hs"/.test(old); })());
     check("VALORANT: a players-left number that drops gets the jump", (() => { vh(vmk()); const h = vh(vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[0].players[0].id]: true }; })); return /class="num dn" data-k="cpn-0-1"/.test(h); })());
 
     /* Map selection and Agent Select (VALORANT) */

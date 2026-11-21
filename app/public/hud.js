@@ -930,6 +930,7 @@
     light: '<svg viewBox="0 0 16 16"><path d="M8 1 2 3v5c0 3.5 2.6 6 6 7 3.4-1 6-3.5 6-7V3z" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M8 1v14c-3.4-1-6-3.5-6-7V3z" fill="#fff"/></svg>',
     regen: '<svg viewBox="0 0 16 16"><path d="M8 1 2 3v5c0 3.5 2.6 6 6 7 3.4-1 6-3.5 6-7V3z" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M7 5h2v2h2v2H9v2H7V9H5V7h2z" fill="#fff"/></svg>' };
   const VAL_SPIKE = '<svg viewBox="0 0 16 16"><path d="M8 1l3 5-3 9-3-9z" fill="#ff5a5a"/><path d="M8 4l1.4 2.4L8 11 6.6 6.4z" fill="#ffd2d2"/></svg>';
+  const VAL_HS = '<svg viewBox="0 0 16 16"><path d="M7 1h2v4H7zM7 11h2v4H7zM1 7h4v2H1zM11 7h4v2h-4zM3.5 2.1 6 4.6 4.6 6 2.1 3.5zM12.5 13.9 10 11.4l1.4-1.4 2.5 2.5zM13.9 3.5 11.4 6 10 4.6l2.5-2.5zM2.1 12.5 4.6 10 6 11.4l-2.5 2.5z" fill="#fff"/></svg>'; // the headshot mark
   const VAL_FRESH = 5000, VAL_PITCH = 196 / 3; // VAL_PITCH: one player row, 98 px at 1080p; // a screen-read clock older than this is not drawn
   const artBad = new Map(); // picture url -> when it failed to load; left out of the markup for a minute (the initials tile shows), then tried again
   const artFail = url => { artBad.set(String(url), Date.now()); };
@@ -1055,10 +1056,11 @@
       }));
     }
     // killfeed, top right like the game's own: killer, their agent, the gun, the victim's agent and name; each row stays 10 seconds
-    const feed = (Array.isArray(v.feed) ? v.feed : []).filter(x => x && Date.now() - (+x.t || 0) < 10000).slice(-4);
+    const ocr = m.valOcr && Date.now() - m.valOcr.t < 20000 && Array.isArray(m.valOcr.valFeed) ? m.valOcr.valFeed : []; // kills a screen reader saw
+    const feed = (Array.isArray(v.feed) ? v.feed : []).concat(ocr).sort((a, b) => (+a.t || 0) - (+b.t || 0)).filter(x => x && Date.now() - (+x.t || 0) < 10000).slice(-4);
     if (sh.feed !== false && vs === "main" && feed.length) {
       const ag = (u, cls) => (VAL_UUID.test(String(u || "")) ? artImg(`/val-agent/${u}/displayicon.png`, cls) : "");
-      h += `<div class="v3-kf" data-k="v3-kf">${feed.map(x => `<div class="kr" data-k="kf-${+x.t || 0}" style="--k:${esc(m.colors[x.ks ? 1 : 0])};--v:${esc(m.colors[x.vs ? 1 : 0])}"><span class="kn">${esc(x.k)}</span>${ag(x.ka, "ka")}${VAL_UUID.test(String(x.gun || "")) ? artImg(`/val-weapon/${x.gun}.png`, "gn") : `<i class="gx"></i>`}${ag(x.va, "va")}<span class="vn">${esc(x.v)}</span></div>`).join("")}</div>`;
+      h += `<div class="v3-kf" data-k="v3-kf">${feed.map(x => `<div class="kr" data-k="kf-${+x.t || 0}" style="--k:${esc(m.colors[x.ks ? 1 : 0])};--v:${esc(m.colors[x.vs ? 1 : 0])}"><span class="kn">${esc(x.k)}</span>${ag(x.ka, "ka")}${VAL_UUID.test(String(x.gun || "")) ? artImg(`/val-weapon/${x.gun}.png`, "gn") : `<i class="gx"></i>`}${x.hs ? `<span class="hs">${VAL_HS}</span>` : ""}${ag(x.va, "va")}<span class="vn">${esc(x.v)}</span></div>`).join("")}</div>`;
     }
     // series maps, top left: the picked maps and the decider in play order; the one being played is bright, a box shows who picked it
     if (sh.maps !== false) {
