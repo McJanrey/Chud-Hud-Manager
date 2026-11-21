@@ -925,6 +925,11 @@
      the clock only while a screen-read clock keeps arriving), a players-left tab, sponsor boxes, and a bottom-anchored panel per player.
      Nothing is invented: HP, ultimate points and credits are drawn only if a player object ever carries them (none does today). */
   const VAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  const VAL_ARMOR = { // armor marks drawn here (no download): heavy a full shield, light a half one, regen a shield with a plus
+    heavy: '<svg viewBox="0 0 16 16"><path d="M8 1 2 3v5c0 3.5 2.6 6 6 7 3.4-1 6-3.5 6-7V3z" fill="#fff"/></svg>',
+    light: '<svg viewBox="0 0 16 16"><path d="M8 1 2 3v5c0 3.5 2.6 6 6 7 3.4-1 6-3.5 6-7V3z" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M8 1v14c-3.4-1-6-3.5-6-7V3z" fill="#fff"/></svg>',
+    regen: '<svg viewBox="0 0 16 16"><path d="M8 1 2 3v5c0 3.5 2.6 6 6 7 3.4-1 6-3.5 6-7V3z" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M7 5h2v2h2v2H9v2H7V9H5V7h2z" fill="#fff"/></svg>' };
+  const VAL_SPIKE = '<svg viewBox="0 0 16 16"><path d="M8 1l3 5-3 9-3-9z" fill="#ff5a5a"/><path d="M8 4l1.4 2.4L8 11 6.6 6.4z" fill="#ffd2d2"/></svg>';
   const VAL_FRESH = 5000, VAL_PITCH = 196 / 3; // VAL_PITCH: one player row, 98 px at 1080p; // a screen-read clock older than this is not drawn
   const artBad = new Map(); // picture url -> when it failed to load; left out of the markup for a minute (the initials tile shows), then tried again
   const artFail = url => { artBad.set(String(url), Date.now()); };
@@ -979,6 +984,10 @@
       if (VAL_UUID.test(String(o["valAgent" + n] || ""))) row.agent = o["valAgent" + n]; // the agent the reader recognised (official art from valorant-api)
       for (const k of ["k", "d", "a"]) if (num("val" + k.toUpperCase() + n) != null) row[k] = num("val" + k.toUpperCase() + n);
       if (al != null && al !== "") row.alive = al === true || al === 1 || al === "1" || al === "true";
+      if (VAL_UUID.test(String(o["valGun" + n] || ""))) row.gun = o["valGun" + n]; // the gun read off the Tab scoreboard
+      if (["heavy", "light", "regen", ""].includes(o["valArmor" + n])) row.armor = o["valArmor" + n];
+      if (o["valBomb" + n] != null) row.bomb = +o["valBomb" + n] === 1; // carrying the spike
+      for (const k of ["C", "Q", "E"]) if (num("valAb" + k + n) != null) (row.ab = row.ab || {})[k] = [Math.max(0, Math.min(5, num("valAb" + k + n) || 0)), Math.max(1, Math.min(5, num("valAbMax" + k + n) || 1))];
       out[p.pid] = row;
     }
     return out;
@@ -1034,11 +1043,14 @@
         const ag = VAL_UUID.test(String(p.agent || "")) ? p.agent : VAL_UUID.test(String(st.agent || "")) ? st.agent : ""; // picked by hand, else read off the screen
         const agent = ag ? `/val-agent/${ag}/displayicon.png` : "";
         const agArt = agent ? artImg(agent, "ag") : "", art = agArt || (p.avatar ? artImg(p.avatar, "av") : ""); // no ult icon while the agent art is failing (same CDN)
+        const AB = { C: "grenade", Q: "ability1", E: "ability2" }, abs = agArt && st.ab ? Object.entries(AB).filter(([k]) => st.ab[k]).map(([k, kind]) => // ability icons with their charges (official art)
+          `<span class="ab${st.ab[k][0] ? "" : " out"}"><img src="/val-agent/${ag}/${kind}.png" alt="" onerror="this.remove()"><i>${"<b></b>".repeat(st.ab[k][0])}</i></span>`).join("") : "";
+        const armor = VAL_ARMOR[st.armor] || "";
         const pips = Array.from({ length: um }, (_, k) => `<i class="${k >= um - ul ? "on" : ""}"></i>`).join(""); // lit from the centre side
         h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}${p.pid && v.spec === p.pid ? " spec" : ""}" data-k="vp-${s}-${i}" style="top:${(top + i * VAL_PITCH).toFixed(2)}px;--c:${esc(m.colors[s])}"><div class="mx">
           <i class="st"></i><i class="lo"></i><span class="hb"><i class="ht"></i><i class="hl" style="transform:scaleX(${(Math.min(100, hp) / 100).toFixed(3)})"></i><i class="he"></i></span>
           <b class="nm t">${esc(name)}</b>${agArt ? `<img class="uli${ul >= um ? " ready" : ""}" src="/val-agent/${ag}/ultimate.png" alt="" style="position:absolute;width:22px;height:22px;opacity:${ul >= um ? 1 : .45}" onerror="this.remove()">` : ""}<span class="ul" data-k="ul-${s}-${i}">${pips}</span><em class="hv t num">${hp}</em>
-          ${gun ? artImg(gun, "gn") : ""}<span class="cr"><small class="t num">${esc(String(cr).slice(0, 6))}</small></span>
+          ${gun ? artImg(gun, "gn") : ""}<span class="cr"><small class="t num">${esc(String(cr).slice(0, 6))}</small></span>${abs ? `<span class="abs">${abs}</span>` : ""}${armor ? `<span class="ar ar-${st.armor}">${armor}</span>` : ""}${st.bomb && !dead ? `<span class="bm">${VAL_SPIKE}</span>` : ""}
           <div class="pt">${art || `<span class="in t">${esc(initials(name))}</span>`}</div></div></div>`;
       }));
     }

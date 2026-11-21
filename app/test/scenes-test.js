@@ -144,6 +144,12 @@ const text = html => String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").
       const h = vh(vmk(e => { e.val.feed = [{ k: "<i>Ann</i>", ka: AG, ks: 0, v: "Bob", va: "", vs: 1, gun: W, t: n }, { k: "Old", v: "Gone", t: n - 60000 }]; }));
       return /v3-kf[^]*?&lt;i&gt;Ann&lt;\/i&gt;[^]*?val-weapon\/9c82e19d[^]*?Bob/.test(h) && !h.includes("Gone") && !h.includes("<i>Ann"); })());
     check("VALORANT: the spectated player's panel is marked", /class="v3-p l spec"/.test(vh(vmk(e => { e.val.spec = e.teams[0].players[0].id; }))));
+    check("VALORANT: read loadout reaches the panel: ability icons with charges (spent one dimmed), the armor mark, the spike on its carrier only; nothing when unread", (() => {
+      const J = "569fdd95-4d10-43ab-ca70-79becc718b46";
+      const h = vh(vmk(e => { e.teams[0].players[0].agent = J; e.val.p = { [e.teams[0].players[0].id]: { armor: "heavy", bomb: true, ab: { C: [2, 2], Q: [0, 1], E: [1, 1] } }, [e.teams[1].players[0].id]: { armor: "light" } }; }));
+      const plain = vh(vmk());
+      return cnt(h, /<span class="ab( out)?"><img src="\/val-agent\/569fdd95[^"]*\/(grenade|ability1|ability2)\.png"/g) === 3 && /class="ab out"><img[^>]*ability1/.test(h) && /grenade\.png"[^>]*><i><b><\/b><b><\/b><\/i>/.test(h)
+        && cnt(h, /class="ar ar-heavy"/g) === 1 && cnt(h, /class="ar ar-light"/g) === 1 && cnt(h, /class="bm"/g) === 1 && !/class="(abs|ar|bm)/.test(plain); })());
     check("VALORANT: a players-left number that drops gets the jump", (() => { vh(vmk()); const h = vh(vmk(e => { e.val.aliveUsed = true; e.val.dead = { [e.teams[0].players[0].id]: true }; })); return /class="num dn" data-k="cpn-0-1"/.test(h); })());
 
     /* Map selection and Agent Select (VALORANT) */

@@ -669,6 +669,10 @@
 .v3-p .pt{position:absolute;left:0;top:0;width:64.7px;height:65.3px;display:grid;place-items:center;overflow:hidden}
 .v3-p .pt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;border-radius:0}
 .v3-p .pt .in{position:absolute;left:4px;right:4px;top:8.9px;bottom:0;display:grid;place-items:center;background:var(--c);font-family:var(--v3-cond);font-size:26px;font-weight:600;padding-top:4px;color:#fff}
+.v3-p .abs{position:absolute;left:128px;top:39px;display:flex;gap:3px}.v3-p .ab{position:relative;width:16px;height:21px}.v3-p .ab img{width:16px;height:16px;display:block;object-fit:contain}.v3-p .ab.out img{opacity:.3}
+.v3-p .ab i{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:1px}.v3-p .ab i b{width:3px;height:2px;background:#fff}
+.v3-p .ar{position:absolute;left:211px;top:42px;width:14px;height:14px}.v3-p .ar svg,.v3-p .bm svg{width:100%;height:100%;display:block}
+.v3-p .bm{position:absolute;left:44px;top:45px;width:16px;height:16px;filter:drop-shadow(0 0 3px rgba(255,90,90,.8))}
 .v3-p.dead{opacity:.55;filter:grayscale(1)}.v3-p.dead .nm{text-decoration:line-through}
 .v3-top .cp b.dn{display:inline-block;animation:fn3-jump .55s cubic-bezier(.3,1.6,.5,1)}
 .v3-p.spec .st,.v3-p.spec .lo{box-shadow:inset 0 0 0 1.5px #fff}.v3-p.spec .nm{color:#fff;text-shadow:0 0 6px rgba(255,255,255,.6)}
