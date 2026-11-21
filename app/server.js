@@ -1499,7 +1499,7 @@ const server = http.createServer((req, res) => {
         .catch(e => json(res, 502, { error: e.message }));
     }
     if (p.startsWith("/val-agent/")) { // an agent's picture: strict uuid and kind, fetched once, then served from the data folder; an error status makes the panel fall back to an initials tile
-      const mt = /^\/val-agent\/([^/]+)\/([a-z]+)\.png$/.exec(p);
+      const mt = /^\/val-agent\/([^/]+)\/([a-z0-9]+)\.png$/.exec(p); // (ability1 / ability2 carry a digit)
       if (!mt || !VAL_UUID.test(mt[1]) || !VAL_KINDS.has(mt[2])) return json(res, 400, { error: "bad path" });
       return valAgentImage(mt[1], mt[2]).then(buf => { res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" }); res.end(buf); })
         .catch(e => json(res, 502, { error: e.message }));

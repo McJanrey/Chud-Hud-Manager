@@ -1078,7 +1078,8 @@
      ultimate, gun, credits). Abilities and shields have no source (no live VALORANT feed), so they are not drawn. */
   function valBoard(m, info) {
     const ev = m.ev, v = ev.val || {}, stats = valStats(m), n = info.squad, RH = 37.4, top = 713 - n * RH;
-    const regs = n === 2 ? 2 * info.target - 1 : 2 * info.target - 2, rounds = Array.isArray(v.rounds) ? v.rounds : [], cols = Math.max(regs, rounds.length);
+    const ocrRounds = m.valOcr && Date.now() - m.valOcr.t < 20000 ? String(m.valOcr.valHistory || "").split(/\s+/).filter(x => /^[01]/.test(x)).map(x => +x[0]) : []; // "0e 1s": a reader's round winners
+    const regs = n === 2 ? 2 * info.target - 1 : 2 * info.target - 2, rounds = Array.isArray(v.rounds) && v.rounds.length ? v.rounds : ocrRounds, cols = Math.max(regs, rounds.length);
     const tag = s => esc(String((m.sides[s] && (m.sides[s].tag || m.sides[s].name)) || (s ? "B" : "A")).slice(0, 5).toUpperCase());
     const sp = (ev.tournament.sponsors || []).filter(x => x && (x.name || x.logo)), main = sp.find(x => x.type === "main") || sp[0], emb = (ev.tournament.logos || []).find(Boolean);
     let h = `<div class="v3-bd" data-k="v3-bd" style="top:${(top - 100).toFixed(1)}px">`;
