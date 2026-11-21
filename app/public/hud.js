@@ -1037,7 +1037,7 @@
         const pips = Array.from({ length: um }, (_, k) => `<i class="${k >= um - ul ? "on" : ""}"></i>`).join(""); // lit from the centre side
         h += `<div class="v3-p ${s ? "r" : "l"}${dead ? " dead" : ""}${p.pid && v.spec === p.pid ? " spec" : ""}" data-k="vp-${s}-${i}" style="top:${(top + i * VAL_PITCH).toFixed(2)}px;--c:${esc(m.colors[s])}"><div class="mx">
           <i class="st"></i><i class="lo"></i><span class="hb"><i class="ht"></i><i class="hl" style="transform:scaleX(${(Math.min(100, hp) / 100).toFixed(3)})"></i><i class="he"></i></span>
-          <b class="nm t">${esc(name)}</b><span class="ul" data-k="ul-${s}-${i}">${pips}</span><em class="hv t num">${hp}</em>
+          <b class="nm t">${esc(name)}</b>${ag ? `<img class="uli${ul >= um ? " ready" : ""}" src="/val-agent/${ag}/ultimate.png" alt="" style="position:absolute;width:22px;height:22px;opacity:${ul >= um ? 1 : .45}" onerror="this.remove()">` : ""}<span class="ul" data-k="ul-${s}-${i}">${pips}</span><em class="hv t num">${hp}</em>
           ${gun ? artImg(gun, "gn") : ""}<span class="cr"><small class="t num">${esc(String(cr).slice(0, 6))}</small></span>
           <div class="pt">${art || `<span class="in t">${esc(initials(name))}</span>`}</div></div></div>`;
       }));

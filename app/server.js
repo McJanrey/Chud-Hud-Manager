@@ -727,7 +727,7 @@ async function coverFor(slug) {
 const VAL_DIR = path.join(DATA, "val-agents");
 const VAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const valFresh = name => { try { return Date.now() - fs.statSync(path.join(VAL_DIR, name)).mtimeMs < 3 * 864e5; } catch { return false; } }; // lists are re-checked every 3 days so new agents, guns and maps appear
-const VAL_KINDS = new Set(["displayicon", "killfeedportrait", "fullportrait", "role"]); // role: the agent's role icon
+const VAL_KINDS = new Set(["displayicon", "killfeedportrait", "fullportrait", "role", "ultimate", "ability1", "ability2", "grenade"]); // the last four: the agent's ability icons (official art) // role: the agent's role icon
 let valAgents = null;
 function valAgentCache() { // the cached list from disk (null when never fetched); also feeds the vMix agent names
   if (valAgents) return valAgents;
@@ -862,7 +862,7 @@ const valAgentNames = () => Object.fromEntries((valAgentCache() || []).map(a => 
 async function valAgentImage(uuid, kind) {
   const f = path.join(VAL_DIR, uuid + "_" + kind + ".png");
   if (fs.existsSync(f)) return fs.readFileSync(f);
-  let src = `https://media.valorant-api.com/agents/${uuid}/${kind}.png`;
+  let src = ["ultimate", "ability1", "ability2", "grenade"].includes(kind) ? `https://media.valorant-api.com/agents/${uuid}/abilities/${kind}/displayicon.png` : `https://media.valorant-api.com/agents/${uuid}/${kind}.png`;
   if (kind === "role") { const a = (await valAgentList()).find(x => x.uuid === uuid); if (!a || !a.roleId) throw new Error("no role"); src = `https://media.valorant-api.com/agents/roles/${a.roleId}/displayicon.png`; }
   const got = await fetchImage(src, 3, 16e6);
   if (got.type !== "image/png") throw new Error("not a PNG");
